@@ -6,3 +6,5 @@
 //   gate   — public read surface: is_active / tier_of / present
 
 pub mod common;
+pub mod mocks;
+pub mod vault;

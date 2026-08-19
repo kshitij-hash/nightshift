@@ -14,7 +14,7 @@ description = "Recurring private authorization on the STRK20 privacy pool"
 starknet = "2.20.0"
 
 [dev-dependencies]
-snforge_std = "0.56.0"
+snforge_std = "0.63.0"
 assert_macros = "2.20.0"
 
 [[target.starknet-contract]]
