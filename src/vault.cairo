@@ -36,7 +36,10 @@ pub mod errors {
     pub const WRONG_AMOUNT: felt252 = 'NS_WRONG_AMOUNT';
     pub const DUPLICATE_COMMITMENT: felt252 = 'NS_DUPLICATE_COMMITMENT';
     pub const ZERO_PERIODS: felt252 = 'NS_ZERO_PERIODS';
-    pub const NOT_IMPLEMENTED: felt252 = 'NS_NOT_IMPLEMENTED';
+    pub const UNKNOWN_SUB: felt252 = 'NS_UNKNOWN_SUB';
+    pub const NOT_DUE: felt252 = 'NS_NOT_DUE';
+    pub const PERIOD_SPENT: felt252 = 'NS_PERIOD_SPENT';
+    pub const ESCROW_EMPTY: felt252 = 'NS_ESCROW_EMPTY';
 }
 
 #[starknet::contract]
@@ -47,7 +50,9 @@ pub mod NightshiftVault {
         Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
     };
     use starknet::{ContractAddress, get_block_number, get_caller_address, get_contract_address};
-    use crate::common::{OpenNoteDeposit, Schedule, VaultOp, is_ladder_period};
+    use crate::common::{
+        OpenNoteDeposit, ReleaseArgs, Schedule, VaultOp, is_ladder_period, period_nullifier,
+    };
     use super::errors;
 
     #[starknet::interface]
@@ -77,6 +82,9 @@ pub mod NightshiftVault {
         sub_owner_key: Map<felt252, felt252>,
         /// poseidon(commitment, period_index) -> spent. WriteOnce.
         period_spent: Map<felt252, bool>,
+        /// Next chargeable period index, per commitment. Ordering only — the
+        /// nullifier above is the actual double-charge defense.
+        sub_next_period: Map<felt252, u32>,
     }
 
     #[event]
@@ -84,6 +92,15 @@ pub mod NightshiftVault {
     pub enum Event {
         Subscribed: Subscribed,
         CreatorRegistered: CreatorRegistered,
+        Released: Released,
+    }
+
+    /// The charge is public knowledge already: the pool's own events show an
+    /// invoke and an open-note fill. This adds only which period fired.
+    #[derive(Drop, starknet::Event)]
+    pub struct Released {
+        pub commitment: felt252,
+        pub period_index: u32,
     }
 
     /// Emits only what an observer can already derive from the public call
@@ -112,7 +129,7 @@ pub mod NightshiftVault {
             assert(get_caller_address() == self.pool.read(), errors::NOT_POOL);
             match op {
                 VaultOp::Subscribe(s) => self._subscribe(s),
-                VaultOp::Release(_) => core::panic_with_felt252(errors::NOT_IMPLEMENTED),
+                VaultOp::Release(r) => self._release(r),
             }
         }
 
@@ -184,6 +201,54 @@ pub mod NightshiftVault {
 
             self.emit(Subscribed { commitment, end_block: end });
             [].span()
+        }
+
+        /// The Release leg: charge one due period. Returns exactly one
+        /// OpenNoteDeposit filling the open note created earlier in the same
+        /// pool batch. The vault APPROVES the pool for the exact amount and
+        /// never transfers — the pool pulls.
+        fn _release(ref self: ContractState, r: ReleaseArgs) -> Span<OpenNoteDeposit> {
+            let ReleaseArgs { commitment, note_id } = r;
+            let creator_id = self.sub_creator.entry(commitment).read();
+            assert(creator_id != 0, errors::UNKNOWN_SUB);
+
+            let period_blocks = self.sub_period_blocks.entry(commitment).read();
+            let start = self.sub_start_block.entry(commitment).read();
+            let idx = self.sub_next_period.entry(commitment).read();
+            let per_period = self
+                .tier_amount
+                .entry((creator_id, self.sub_tier.entry(commitment).read()))
+                .read();
+
+            // Escrow first: an exhausted schedule can never charge again,
+            // whatever the clock says.
+            let escrow = self.sub_escrow.entry(commitment).read();
+            assert(escrow >= per_period, errors::ESCROW_EMPTY);
+
+            // Period idx opens at start + idx * period_blocks. Charging early
+            // is the one thing a subscriber must never fear from a keeper.
+            let due_at = start + period_blocks * idx.into();
+            assert(get_block_number() >= due_at, errors::NOT_DUE);
+
+            // The nullifier is the real double-charge defense: write-once per
+            // (commitment, period), independent of the pointer above.
+            let nullifier = period_nullifier(commitment, idx.into());
+            assert(!self.period_spent.entry(nullifier).read(), errors::PERIOD_SPENT);
+            self.period_spent.entry(nullifier).write(true);
+            self.sub_next_period.entry(commitment).write(idx + 1);
+            self.sub_escrow.entry(commitment).write(escrow - per_period);
+
+            let token = self.creator_token.entry(creator_id).read();
+            let accounted = self.accounted.entry(token).read();
+            self.accounted.entry(token).write(accounted - per_period.into());
+
+            // Approve, never transfer: the pool pulls the charge into the
+            // creator's open note.
+            IERC20Dispatcher { contract_address: token }
+                .approve(self.pool.read(), per_period.into());
+
+            self.emit(Released { commitment, period_index: idx });
+            [OpenNoteDeposit { note_id, token, amount: per_period }].span()
         }
     }
 }
