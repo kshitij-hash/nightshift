@@ -11,14 +11,15 @@ description = "Recurring private authorization on the STRK20 privacy pool"
 # `[dependencies]` header — never move the pool dependency into a
 # [workspace.dependencies] table.
 [dependencies]
-starknet = "2.20.0"
+starknet = "2.17.0"
 
 [dev-dependencies]
-snforge_std = "0.63.0"
-assert_macros = "2.20.0"
+snforge_std = "0.59.0"
+assert_macros = "2.17.0"
 
 [[target.starknet-contract]]
 sierra = true
+casm = true
 
 [scripts]
 test = "snforge test"
