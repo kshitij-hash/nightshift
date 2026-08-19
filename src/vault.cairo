@@ -26,6 +26,14 @@ pub trait INightshiftVault<T> {
     fn accounted(self: @T, token: ContractAddress) -> u256;
     /// True if `commitment` has an active schedule at the current block.
     fn is_active(self: @T, commitment: felt252) -> bool;
+    /// Full public schedule state for `commitment`:
+    /// (creator_id, tier, period_blocks, start_block, end_block,
+    ///  escrow_remaining, next_period_index). All zeros when unknown.
+    fn schedule_of(
+        self: @T, commitment: felt252,
+    ) -> (felt252, u8, u64, u64, u64, u128, u32);
+    /// A creator's payout token and per-period amount for `tier`.
+    fn tier_of(self: @T, creator_id: felt252, tier: u8) -> (ContractAddress, u128);
 }
 
 pub mod errors {
@@ -159,6 +167,29 @@ pub mod NightshiftVault {
         fn is_active(self: @ContractState, commitment: felt252) -> bool {
             let end = self.sub_end_block.entry(commitment).read();
             end != 0 && get_block_number() <= end
+        }
+
+        fn schedule_of(
+            self: @ContractState, commitment: felt252,
+        ) -> (felt252, u8, u64, u64, u64, u128, u32) {
+            (
+                self.sub_creator.entry(commitment).read(),
+                self.sub_tier.entry(commitment).read(),
+                self.sub_period_blocks.entry(commitment).read(),
+                self.sub_start_block.entry(commitment).read(),
+                self.sub_end_block.entry(commitment).read(),
+                self.sub_escrow.entry(commitment).read(),
+                self.sub_next_period.entry(commitment).read(),
+            )
+        }
+
+        fn tier_of(
+            self: @ContractState, creator_id: felt252, tier: u8,
+        ) -> (ContractAddress, u128) {
+            (
+                self.creator_token.entry(creator_id).read(),
+                self.tier_amount.entry((creator_id, tier)).read(),
+            )
         }
     }
 
