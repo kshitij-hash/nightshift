@@ -1,0 +1,31 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node scripts/check-manifest.mjs
+
+  cairo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.20.0"
+      - uses: foundry-rs/setup-snfoundry@v3
+        with:
+          starknet-foundry-version: "0.56.0"
+      - run: scarb build
+      - run: snforge test

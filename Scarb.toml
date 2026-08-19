@@ -1,0 +1,24 @@
+[package]
+name = "nightshift"
+version = "0.1.0"
+edition = "2024_07"
+license-file = "LICENSE"
+repository = "https://github.com/kshitij-hash/nightshift"
+description = "Recurring private authorization on the STRK20 privacy pool"
+
+# NOTE (hub detection): the STRK20 hub's stack detector reads THIS file at the
+# repo root and matches a literal `privacy =` line under a literal
+# `[dependencies]` header — never move the pool dependency into a
+# [workspace.dependencies] table.
+[dependencies]
+starknet = "2.20.0"
+
+[dev-dependencies]
+snforge_std = "0.56.0"
+assert_macros = "2.20.0"
+
+[[target.starknet-contract]]
+sierra = true
+
+[scripts]
+test = "snforge test"

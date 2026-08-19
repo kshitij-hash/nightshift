@@ -1,0 +1,16 @@
+# Secrets — never in the tree. Keys live outside the repo (~/.nightshift/).
+.env
+.env.*
+!.env.example
+*.keystore
+keys/
+
+# Build output
+target/
+node_modules/
+dist/
+.snfoundry_cache/
+.scarb/
+
+# OS noise
+.DS_Store
