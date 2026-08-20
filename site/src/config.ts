@@ -3,7 +3,12 @@
 
 export const POOL =
   "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
+/** v3: permissionless charge + creator-signed claim. The live vault. */
 export const VAULT =
+  "0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759";
+/** v2: superseded, but its receipts are the banked strk20.json txs — the
+ *  board keeps decoding its history. */
+export const VAULT_V2 =
   "0x01f653f21e557e70384c8631f9c8f97e0342aa1d5e975bdcaca76bbf8715f338";
 export const STRK =
   "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
@@ -14,8 +19,9 @@ export const RPC_URLS = [
   "https://starknet-mainnet.public.blastapi.io/rpc/v0_8",
 ];
 
-/** Block the vault was deployed at — event scans start here. */
-export const VAULT_DEPLOY_BLOCK = 13_554_000;
+/** Blocks the vaults were deployed at — event scans start here. */
+export const VAULT_DEPLOY_BLOCK = 13_606_900; // v3, deployed at 13,606,969
+export const VAULT_V2_DEPLOY_BLOCK = 13_554_000;
 
 /** ~seconds per Starknet block, for countdown estimates only. */
 export const SECONDS_PER_BLOCK = 30;

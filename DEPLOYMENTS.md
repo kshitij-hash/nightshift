@@ -1,6 +1,20 @@
 # Deployments
 
-## Starknet mainnet — NightshiftVault v2 (current)
+## Starknet mainnet — NightshiftVault v3 (current)
+
+| What | Value |
+|---|---|
+| NightshiftVault v3 | `0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759` |
+| Class hash | `0x149dfe71566d1f34f99cae9e55dea972e218ed1580c9c2b93bd2cb01d62c116` |
+| Declare tx | `0x2c57bf32f034684b43e3f0cd2fa3e23f6eaac8b72ce677a0092a00308bf12a9` |
+| Deploy tx | `0x6e31ec39da6b1ad66ab25f26d6fec5068c2ae5b65e79666ced7f20a566d9b6a` (block 13,606,969) |
+| Constructor | `pool = 0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
+| v3 over v2 | charging split from settlement: `charge` is a permissionless call (a cron keeper needs no proof, no pool batch, no wallet API); settlement is a creator-signed `Claim` through `privacy_invoke`; `cancel`/`reclaim` signature-gated by the subscriber's owner key; reclaim pays out by direct transfer; `periods_due` and `period_charged` views |
+
+v3's transactions enter `strk20.json` only together with its address (mine-rule
+atomicity); until then the manifest keeps carrying the v2 set below.
+
+## v2 (superseded — its four transactions remain the banked strk20.json receipts)
 
 | What | Value |
 |---|---|
@@ -17,7 +31,3 @@
 |---|---|
 | NightshiftVault v1 | `0x013b93ac368d4baa0a881848ff23d18849784d10c1c3da545fcebe9891773eb6` |
 | Class hash | `0x0399f27333ab7417d9b2b027463a39a012590dfcacf813eb0a842df40af697e8` |
-
-The vault is declared in `strk20.json` together with the four transactions
-routed through it: one private subscription and three period charges, one per
-period nullifier, escrow consumed exactly to zero.
