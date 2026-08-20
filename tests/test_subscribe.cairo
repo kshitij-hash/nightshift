@@ -176,6 +176,48 @@ fn donation_surplus_is_unaccounted() {
 }
 
 #[test]
+fn donation_equal_to_price_funds_the_next_subscribe() {
+    // The other half of the `>=` custody check, documented rather than hidden.
+    // A surplus smaller than any schedule price just sits there
+    // (donation_surplus_is_unaccounted). A surplus at least one schedule price
+    // large is absorbed by the next subscribe for that schedule, first taker:
+    // here the vault holds exactly TIER_0 * 4 in donated tokens, the pool
+    // delivers nothing, and the subscribe passes on the donation alone with a
+    // fully funded escrow. Either way the money is lost to whoever sent it. It
+    // is not a hole — the vault credits one schedule's escrow for one schedule's
+    // price, so nobody gets escrow that was not paid for.
+    let (pool, token, vault, creator_id) = setup();
+    start_cheat_block_number(vault.contract_address, 1000);
+
+    token.mint(vault.contract_address, (TIER_0 * 4).into());
+    // No pool.transfer_to: the donation is the only money the vault holds.
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-1', creator_id, 0, 4).span(), 0);
+
+    assert(vault.is_active('c-1'), 'donation-funded sub blocked');
+    let (_, _, _, _, n, escrow, next, cancelled) = vault.schedule_of('c-1');
+    assert(n == 4 && escrow == TIER_0 * 4 && next == 0 && !cancelled, 'bad schedule');
+    // Fully accounted: the donation is now escrow the vault owes the schedule,
+    // and accounted <= balance still holds exactly.
+    assert(vault.accounted(token.contract_address) == (TIER_0 * 4).into(), 'donation not accounted');
+    assert(
+        token.balance_of(vault.contract_address) == (TIER_0 * 4).into(), 'balance != accounted',
+    );
+}
+
+#[test]
+#[should_panic(expected: 'NS_ZERO_ADDRESS')]
+fn register_creator_rejects_zero_token() {
+    // The duplicate guard reads creator_token back and treats zero as "not
+    // registered", so a zero-token registration would write a creator whose own
+    // guard reads unset and could be re-registered over itself.
+    let (_, _, vault, _) = setup();
+    let zero: ContractAddress = 0.try_into().unwrap();
+    let creator: ContractAddress = 'creator-z'.try_into().unwrap();
+    start_cheat_caller_address(vault.contract_address, creator);
+    vault.register_creator(zero, 'payout-key-z', array![TIER_0].span());
+}
+
+#[test]
 #[should_panic(expected: 'NS_PERIOD_OFF_LADDER')]
 fn subscribe_rejects_off_ladder_period() {
     let (pool, token, vault, creator_id) = setup();

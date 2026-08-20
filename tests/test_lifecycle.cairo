@@ -1,8 +1,8 @@
-// Creator-signed claim, subscriber-signed cancel/reclaim, and the security
-// property that a keeper can never redirect funds. Uses real STARK-curve
-// signatures.
+// Creator-signed claim (both legs: private into a pool note, public to an
+// address), subscriber-signed cancel/reclaim, and the security property that a
+// keeper can never redirect funds. Uses real STARK-curve signatures.
 
-use nightshift::common::{PERIOD_HOUR, Schedule, VaultOp, cancel_message, claim_message, reclaim_message};
+use nightshift::common::{PERIOD_HOUR, Schedule, VaultOp, cancel_message, claim_message, claim_public_message, reclaim_message};
 use nightshift::mocks::{IMockERC20Dispatcher, IMockERC20DispatcherTrait, IMockPrivacyPoolDispatcher, IMockPrivacyPoolDispatcherTrait};
 use nightshift::vault::{INightshiftVaultDispatcher, INightshiftVaultDispatcherTrait};
 use snforge_std::signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl};
@@ -124,6 +124,82 @@ fn claim_cannot_exceed_claimable() {
     let mut cd = array![];
     op.serialize(ref cd);
     pool.invoke_external(vault.contract_address, cd.span(), 1);
+}
+
+// --- the public claim leg ---
+// The exit that survives the pool refusing this vault as a depositor. Same
+// creator key as the private claim, a different tagged message, and a direct
+// transfer to a public address instead of a pool note.
+
+#[test]
+fn claim_public_pays_out_and_drains_claimable() {
+    let (vault, _, token, creator_id, ck) = charged_up(2);
+    assert(vault.claimable_of(creator_id) == TIER_0 * 2, 'claimable wrong');
+    let before = vault.accounted(token.contract_address);
+
+    let to: ContractAddress = 'payout-addr'.try_into().unwrap();
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0 * 2)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0 * 2, r, s);
+
+    // The money actually arrived — a direct transfer, not an allowance.
+    assert(token.balance_of(to) == (TIER_0 * 2).into(), 'payout not received');
+    assert(vault.claimable_of(creator_id) == 0, 'claimable not drained');
+    // Custody shrinks by exactly what left the vault.
+    assert(before - vault.accounted(token.contract_address) == (TIER_0 * 2).into(), 'accounted wrong');
+}
+
+#[test]
+fn claim_public_takes_part_of_the_balance() {
+    // A partial exit leaves the rest claimable, by either leg.
+    let (vault, _, token, creator_id, ck) = charged_up(2);
+    let to: ContractAddress = 'payout-addr'.try_into().unwrap();
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, r, s);
+    assert(token.balance_of(to) == TIER_0.into(), 'partial payout wrong');
+    assert(vault.claimable_of(creator_id) == TIER_0, 'remainder wrong');
+}
+
+#[test]
+#[should_panic(expected: 'NS_BAD_SIGNATURE')]
+fn claim_public_rejects_wrong_signer() {
+    // Anyone may carry this call, so the signature is the whole authorization.
+    let (vault, _, _, creator_id, _) = charged_up(1);
+    let attacker = KeyPairTrait::<felt252, felt252>::generate();
+    let to: ContractAddress = 'attacker-addr'.try_into().unwrap();
+    let (r, s) = attacker.sign(claim_public_message(creator_id, to, TIER_0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NS_BAD_SIGNATURE')]
+fn claim_public_signature_is_bound_to_destination() {
+    // The creator signs a payout to their own address; a relayer swaps the
+    // destination on the way — the signature no longer matches.
+    let (vault, _, _, creator_id, ck) = charged_up(1);
+    let intended: ContractAddress = 'creator-addr'.try_into().unwrap();
+    let attacker: ContractAddress = 'attacker-addr'.try_into().unwrap();
+    let (r, s) = ck.sign(claim_public_message(creator_id, intended, TIER_0)).unwrap();
+    vault.claim_public(creator_id, attacker, TIER_0, r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NS_CLAIM_EXCEEDS_BALANCE')]
+fn claim_public_cannot_exceed_claimable() {
+    // One period was charged; the creator signs for five. The balance check is
+    // what keeps a creator from reaching into other subscriptions' escrow.
+    let (vault, _, _, creator_id, ck) = charged_up(1);
+    let to: ContractAddress = 'payout-addr'.try_into().unwrap();
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0 * 5)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0 * 5, r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NS_ZERO_ADDRESS')]
+fn claim_public_rejects_zero_destination() {
+    let (vault, _, _, creator_id, ck) = charged_up(1);
+    let zero: ContractAddress = 0.try_into().unwrap();
+    let (r, s) = ck.sign(claim_public_message(creator_id, zero, TIER_0)).unwrap();
+    vault.claim_public(creator_id, zero, TIER_0, r, s);
 }
 
 // --- cancel + reclaim ---

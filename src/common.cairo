@@ -60,13 +60,24 @@ pub struct ClaimArgs {
 
 /// One nullifier per (commitment, period): write-once, so a charge for a
 /// period can never fire twice, whoever triggers it.
+/// Tagged like every other hash here: an untagged poseidon(commitment, index)
+/// shares its input shape with the other two-field hashes this codebase builds,
+/// and a tag costs one felt to rule that collision out for good.
 pub fn period_nullifier(commitment: felt252, period_index: u64) -> felt252 {
-    poseidon_hash_span([commitment, period_index.into()].span())
+    poseidon_hash_span(['NIGHTSHIFT_PERIOD_NUL', commitment, period_index.into()].span())
 }
 
-/// Domain-separated message hashes for the three signatures the vault checks.
+/// Domain-separated message hashes for the signatures the vault checks.
 pub fn claim_message(creator_id: felt252, note_id: felt252, amount: u128) -> felt252 {
     poseidon_hash_span(['NIGHTSHIFT_CLAIM', creator_id, note_id, amount.into()].span())
+}
+
+/// The public claim leg. A separate tag from claim_message on purpose: a
+/// signature the creator produced to settle into a pool note must not also
+/// authorize a transfer to a public address, and vice versa. The destination is
+/// inside the message, so a relayer cannot redirect the payout.
+pub fn claim_public_message(creator_id: felt252, to: ContractAddress, amount: u128) -> felt252 {
+    poseidon_hash_span(['NIGHTSHIFT_CLAIM_PUB', creator_id, to.into(), amount.into()].span())
 }
 
 pub fn cancel_message(commitment: felt252) -> felt252 {

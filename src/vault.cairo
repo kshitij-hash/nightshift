@@ -42,6 +42,19 @@ pub trait INightshiftVault<T> {
     /// Authorized by a signature over reclaim_message(commitment, to).
     fn reclaim(ref self: T, commitment: felt252, to: ContractAddress, sig_r: felt252, sig_s: felt252);
 
+    /// Creator withdraws claimable to a public address, authorized by a
+    /// signature over claim_public_message(creator_id, to, amount). The exit
+    /// that survives the pool refusing the vault as a depositor; see the
+    /// implementation comment.
+    fn claim_public(
+        ref self: T,
+        creator_id: felt252,
+        to: ContractAddress,
+        amount: u128,
+        sig_r: felt252,
+        sig_s: felt252,
+    );
+
     // --- views ---
     fn accounted(self: @T, token: ContractAddress) -> u256;
     fn is_active(self: @T, commitment: felt252) -> bool;
@@ -76,6 +89,7 @@ pub mod errors {
     pub const ZERO_KEY: felt252 = 'NS_ZERO_PAYOUT_KEY';
     pub const PERIOD_SPENT: felt252 = 'NS_PERIOD_SPENT';
     pub const ZERO_ADDRESS: felt252 = 'NS_ZERO_ADDRESS';
+    pub const TRANSFER_FAILED: felt252 = 'NS_TRANSFER_FAILED';
 }
 
 #[starknet::contract]
@@ -89,7 +103,7 @@ pub mod NightshiftVault {
     use starknet::{ContractAddress, get_block_number, get_caller_address, get_contract_address};
     use crate::common::{
         ClaimArgs, OpenNoteDeposit, Schedule, VaultOp, cancel_message, claim_message,
-        is_ladder_period, period_nullifier, reclaim_message,
+        claim_public_message, is_ladder_period, period_nullifier, reclaim_message,
     };
     use super::errors;
 
@@ -134,6 +148,7 @@ pub mod NightshiftVault {
         CreatorRegistered: CreatorRegistered,
         Charged: Charged,
         Claimed: Claimed,
+        ClaimedPublic: ClaimedPublic,
         Cancelled: Cancelled,
         Reclaimed: Reclaimed,
     }
@@ -174,6 +189,17 @@ pub mod NightshiftVault {
     pub struct Claimed {
         #[key]
         pub creator_id: felt252,
+        pub amount: u128,
+    }
+
+    /// The public claim leg. `to` and `amount` sit in the data, not the keys:
+    /// the creator is the filter anyone wants, and this event is already a
+    /// public record of a public transfer.
+    #[derive(Drop, starknet::Event)]
+    pub struct ClaimedPublic {
+        #[key]
+        pub creator_id: felt252,
+        pub to: ContractAddress,
         pub amount: u128,
     }
 
@@ -251,6 +277,12 @@ pub mod NightshiftVault {
         ) -> felt252 {
             assert(tier_amounts.len() > 0 && tier_amounts.len() <= 8, errors::BAD_TIER);
             assert(payout_key != 0, errors::ZERO_KEY);
+            // The duplicate guard reads creator_token back and treats zero as
+            // "not registered". A registration with token 0 therefore writes a
+            // creator whose own guard reads unset, so the same id could be
+            // re-registered over itself. Refusing the zero token keeps
+            // "creator_token != 0" a true statement about every registered id.
+            assert(token.is_non_zero(), errors::ZERO_ADDRESS);
             let caller = get_caller_address();
             let creator_id = poseidon_hash_span([caller.into(), token.into(), payout_key].span());
             assert(self.creator_token.entry(creator_id).read().is_zero(), errors::DUP_CREATOR);
@@ -314,6 +346,53 @@ pub mod NightshiftVault {
             let ok = IERC20Dispatcher { contract_address: token }.transfer(to, amount.into());
             assert(ok, errors::EXHAUSTED);
             self.emit(Reclaimed { commitment, amount });
+        }
+
+        /// The creator's public exit, mirroring reclaim: same shape, same
+        /// direct transfer, a different signing key and a different tagged
+        /// message.
+        ///
+        /// Why it exists. The private claim leg runs through the pool: the
+        /// vault approves the pool and the pool pulls into an open note. That
+        /// leg only works while the pool accepts this vault as a depositor. If
+        /// it ever stops — a pool-side block, a token delisting, a pool
+        /// migration — claimable would be stranded in a contract with no other
+        /// way out. This is that other way out.
+        ///
+        /// What it costs. This is a PUBLIC leg by construction. The payout
+        /// address, the amount, and the creator id are all on chain here, so a
+        /// creator settling this way is settling in the open; the private path
+        /// is the pool claim, and this does not replace it. Per-creator topline
+        /// was already publicly derivable (PRIVACY.md limitation 2), so what
+        /// this adds to the public record is the destination address.
+        fn claim_public(
+            ref self: ContractState,
+            creator_id: felt252,
+            to: ContractAddress,
+            amount: u128,
+            sig_r: felt252,
+            sig_s: felt252,
+        ) {
+            let key = self.creator_key.entry(creator_id).read();
+            assert(key != 0, errors::UNKNOWN_CREATOR);
+            assert(to.is_non_zero(), errors::ZERO_ADDRESS);
+            let owed = self.claimable.entry(creator_id).read();
+            assert(amount > 0 && amount <= owed, errors::CLAIM_TOO_MUCH);
+            // The destination is inside the signed message, so a relayer that
+            // carries this call cannot point the payout somewhere else.
+            let msg = claim_public_message(creator_id, to, amount);
+            assert(check_ecdsa_signature(msg, key, sig_r, sig_s), errors::BAD_SIG);
+
+            self.claimable.entry(creator_id).write(owed - amount);
+            let token = self.creator_token.entry(creator_id).read();
+            let accounted = self.accounted.entry(token).read();
+            self.accounted.entry(token).write(accounted - amount.into());
+            // Direct transfer, not an approval, for the same reason reclaim is:
+            // a second claim to the same address must not clobber a standing
+            // allowance, and the recipient is a plain wallet with no pull.
+            let ok = IERC20Dispatcher { contract_address: token }.transfer(to, amount.into());
+            assert(ok, errors::TRANSFER_FAILED);
+            self.emit(ClaimedPublic { creator_id, to, amount });
         }
 
         fn accounted(self: @ContractState, token: ContractAddress) -> u256 {
@@ -420,8 +499,19 @@ pub mod NightshiftVault {
             // future subscribe, with no recovery path. A lone donation still
             // cannot subscribe (no withdraw leg, so held == accounted and the
             // check fails). Credited escrow is exactly per_period * n_periods from
-            // the schedule, never read off `held`; any surplus stays unaccounted
-            // and stuck (the donor's loss), and accounted <= balance still holds.
+            // the schedule, never read off `held`, so accounted <= balance still
+            // holds.
+            //
+            // Where a surplus goes. A surplus smaller than any schedule price sits
+            // unaccounted until some later subscribe is large enough to absorb it.
+            // A surplus at least one schedule price large IS absorbed: the next
+            // subscribe for that schedule passes this check on the donated balance
+            // alone and gets a fully funded escrow, first taker. Either way the
+            // money is lost to whoever sent it — it funds someone else's
+            // subscription or it sits there — which is the only guarantee this
+            // contract makes about stray sends. It is not a hole: the vault credits
+            // one schedule's escrow for one schedule's price, so nobody gets escrow
+            // that was not paid for, and the pool's withdraw leg is unaffected.
             let held = IERC20Dispatcher { contract_address: token }
                 .balance_of(get_contract_address());
             let accounted = self.accounted.entry(token).read();

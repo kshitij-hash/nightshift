@@ -197,6 +197,9 @@ $("connect").onclick = async () => {
     if (!swo) throw new Error("no injected Starknet wallet found");
     account = await WalletAccountV6.connect(provider, swo);
     $("who").textContent = `${account.address.slice(0, 10)}… connected`;
+    // Read-only: the gate derives the verifier id from the caller, so this field
+    // shows what will be signed rather than accepting a name.
+    $("verifier").value = cd(account.address);
     for (const b of ["balances", "state", "register", "subscribe", "charge", "claimprep", "claimsend",
                      "cancelsign", "cancelself", "reclaimsign", "reclaimself", "present"]) $(b).disabled = false;
     log("connected", "ok");
@@ -430,10 +433,12 @@ $("reclaimself").onclick = async () => {
 // subscription's owner key, and this console derives one such key per
 // commitment so presentations to different creators' gates share no key.
 
-// A verifier id is a felt: pass 0x-hex through, otherwise treat it as a short
-// string ('DOOR_1'), which is how a human-readable door id becomes a felt.
-const asFelt = (s) =>
-  /^0x[0-9a-fA-F]+$/.test(s) ? s : shortString.encodeShortString(s);
+// The verifier id is not a name a door picks. The gate requires
+// get_caller_address() == verifier_id, so it is the submitting account's own
+// address, as a calldata felt. Two things follow: a door cannot claim an id that
+// is not its address, and a presentation copied out of the mempool is useless to
+// whoever copied it, because the signed verifier_id is not their address.
+const verifierId = () => cd(account.address);
 
 // 31 random bytes stays under the STARK prime without a reduction step.
 const randomNonce = () =>
@@ -447,17 +452,16 @@ const PRESENT_WINDOW_BLOCKS = 1000;
 $("present").onclick = async () => {
   try {
     if (!GATE) throw new Error("GATE is empty: set it in web/app.mjs after the gate deploy");
-    const raw = $("verifier").value.trim();
-    if (!raw) throw new Error("enter a verifier id");
-    const verifierId = asFelt(raw);
+    const vid = verifierId();
     const now = await provider.getBlockNumber();
     const expiry = now + PRESENT_WINDOW_BLOCKS;
     const nonce = randomNonce();
-    const sig = sign(presentMsg(verifierId, expiry, nonce), ownerPriv());
-    log(`present: verifier_id=${verifierId} expiry_block=${expiry} (block ${now} + ${PRESENT_WINDOW_BLOCKS}) nonce=${nonce}`, "dim");
+    const sig = sign(presentMsg(vid, expiry, nonce), ownerPriv());
+    log("the verifier id IS the caller address: the gate reverts NG_WRONG_VERIFIER unless get_caller_address() equals the verifier_id in the signed message, so this console signs the address that will submit the transaction", "dim");
+    log(`present: verifier_id=${vid} (this wallet) expiry_block=${expiry} (block ${now} + ${PRESENT_WINDOW_BLOCKS}) nonce=${nonce}`, "dim");
     const { transaction_hash } = await account.execute({
       contractAddress: GATE, entrypoint: "present",
-      calldata: [commitment(), verifierId, cd("0x" + BigInt(expiry).toString(16)), nonce, sig.r, sig.s],
+      calldata: [commitment(), vid, cd("0x" + BigInt(expiry).toString(16)), nonce, sig.r, sig.s],
     });
     log(`present submitted: ${transaction_hash}`, "ok");
     log(`voyager: https://voyager.online/tx/${transaction_hash}`, "dim");

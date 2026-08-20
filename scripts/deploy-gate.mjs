@@ -53,3 +53,44 @@ console.log("class_hash:", res.declare.class_hash);
 console.log("declare tx:", res.declare.transaction_hash || "(already declared)");
 console.log("gate address:", res.deploy.contract_address);
 console.log("deploy tx:", res.deploy.transaction_hash);
+
+// --- post-deploy assertions (read-only) -------------------------------------
+// Two things can go wrong at deploy and stay silent until a subscriber is
+// standing at a door: the gate points somewhere other than the vault we meant,
+// and the vault it points at is an older revision with no owner_key_of. Both are
+// one call each to rule out, and both are cheaper to find here than in a
+// presentation that reverts on mainnet.
+
+const GATE = res.deploy.contract_address;
+
+const pinned = await provider.callContract({ contractAddress: GATE, entrypoint: "vault" });
+if (BigInt(pinned[0]) !== BigInt(VAULT)) {
+  console.error(`FATAL: gate.vault() is ${pinned[0]}, not the ${VAULT} it was deployed against`);
+  process.exit(1);
+}
+console.log("check: gate.vault() == the constructor argument");
+
+// A commitment nobody subscribed. A vault with the view answers 0x0; a vault
+// without it cannot answer at all. The gate calls this on every presentation, so
+// a target missing it is a gate that can never admit anyone.
+try {
+  const key = await provider.callContract({
+    contractAddress: VAULT,
+    entrypoint: "owner_key_of",
+    calldata: ["0x1"],
+  });
+  if (BigInt(key[0]) !== 0n) {
+    console.error(`FATAL: vault.owner_key_of(0x1) returned ${key[0]}, expected 0x0`);
+    process.exit(1);
+  }
+  console.log("check: vault.owner_key_of exists and reads 0x0 for an unknown commitment");
+} catch (e) {
+  const msg = String(e?.message ?? e);
+  if (/ENTRYPOINT_NOT_FOUND|[Ee]ntry ?point.*not found|not found in contract/.test(msg)) {
+    console.error(`FATAL: target vault ${VAULT} has no owner_key_of view.`);
+    console.error("  This gate reads owner_key_of on every present() and would revert for");
+    console.error("  every subscriber. Point it at the vault revision that adds the view.");
+    process.exit(1);
+  }
+  throw e;
+}

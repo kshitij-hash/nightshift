@@ -23,6 +23,16 @@
 // does not verify, and a commitment the vault holds no key for reads 0 and is
 // refused.
 //
+// Who the verifier is. verifier_id is not a name a door picks for itself: it is
+// the caller's own address, and `present` refuses (NG_WRONG_VERIFIER) unless the
+// two match. Two things fall out. Verifier ids are namespaced by address, so no
+// door can squat another's id. And a presentation is useless to anyone but its
+// addressee: an observer who copies a pending presentation out of the mempool
+// and front-runs it cannot make it verify, because the signed verifier_id is not
+// their address. Without that check the copy would land first, burn the
+// nullifier, and the subscriber's own call would revert NG_PRESENTED — griefing
+// with no cost to the griefer but a gas fee.
+//
 // Replay. A presentation is (commitment, verifier_id, expiry_block, nonce) plus
 // a signature over them. The gate burns a write-once nullifier keyed on that
 // tuple, so the same signed presentation is accepted once and then reverts
@@ -34,13 +44,20 @@
 // not sit more than MAX_PRESENT_WINDOW blocks ahead of the current block
 // (NG_EXPIRY_TOO_FAR), so a captured presentation cannot be held live for long.
 //
-// Paid-current. Liveness (vault.is_active) is next_period < n_periods with no
-// time term, so a subscription whose keeper stopped charging would still read
-// active. `present` therefore also requires vault.periods_due == 0
-// (NG_ARREARS): every period whose block has arrived must already be charged.
-// One consequence, stated rather than hidden: a just-subscribed sub cannot
-// present until its period 0 is charged. That is the intended reading of
-// entitlement here, paid through the current block.
+// Paid through now. Entitlement here is one question — has the subscriber paid
+// for the block they are standing in — and `present` answers it from one
+// schedule read: `next` periods charged means paid up to start + pb * next, so
+// the presentation is good while now < that height (NG_ARREARS otherwise).
+//
+// Two consequences, stated rather than hidden. A just-subscribed sub cannot
+// present until its period 0 is charged (next == 0 pays for nothing). And the
+// final paid period still admits: charging period n-1 drops vault.is_active to
+// false, since is_active is next_period < n_periods, at the exact moment the
+// subscriber becomes fully paid — so a gate that read is_active would lock out
+// the one period the subscriber just paid for, and an n_periods = 1
+// subscription would never be presentable at all. That is why `present` does
+// not read is_active; the is_active and tier_of VIEWS below are unchanged and
+// still report the vault's own liveness.
 //
 // owner_key is public, and the gate does not pretend otherwise. An ECDSA check
 // needs the public key, and owner_key is in the pool's subscribe calldata
@@ -60,15 +77,16 @@ use starknet::ContractAddress;
 
 #[starknet::interface]
 pub trait INightshiftGate<T> {
-    /// Present control of an active, paid-current subscription to one verifier,
-    /// up to one block height, once per nonce. Reverts unless the vault calls
-    /// the subscription active (NG_NOT_ACTIVE), the current block is at or below
-    /// `expiry_block` (NG_EXPIRED), `expiry_block` is no more than
-    /// MAX_PRESENT_WINDOW blocks ahead (NG_EXPIRY_TOO_FAR), the signature over
+    /// Present a paid-through-now subscription to one verifier, up to one block
+    /// height, once per nonce. Reverts unless the caller's own address equals
+    /// `verifier_id` (NG_WRONG_VERIFIER), the vault knows the commitment and it
+    /// is not cancelled (NG_NOT_ACTIVE), the charged periods cover the current
+    /// block (NG_ARREARS), the current block is at or below `expiry_block`
+    /// (NG_EXPIRED), `expiry_block` is no more than MAX_PRESENT_WINDOW blocks
+    /// ahead (NG_EXPIRY_TOO_FAR), the signature over
     /// present_nonce_message(commitment, verifier_id, expiry_block, nonce)
     /// matches the owner key the vault recorded for `commitment` at subscribe
-    /// (NG_BAD_SIGNATURE), the vault reports no period due-but-uncharged
-    /// (NG_ARREARS), and this exact tuple has not been presented before
+    /// (NG_BAD_SIGNATURE), and this exact tuple has not been presented before
     /// (NG_PRESENTED). Consumes the tuple's nullifier and returns the
     /// (creator_id, tier) the verifier gates on.
     fn present(
@@ -103,6 +121,7 @@ pub mod errors {
     pub const PRESENTED: felt252 = 'NG_PRESENTED';
     pub const BAD_SIG: felt252 = 'NG_BAD_SIGNATURE';
     pub const ZERO_VAULT: felt252 = 'NG_ZERO_VAULT';
+    pub const WRONG_VERIFIER: felt252 = 'NG_WRONG_VERIFIER';
 }
 
 #[starknet::contract]
@@ -112,7 +131,7 @@ pub mod NightshiftGate {
     use starknet::storage::{
         Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
     };
-    use starknet::{ContractAddress, get_block_number};
+    use starknet::{ContractAddress, get_block_number, get_caller_address};
     use crate::common::{PERIOD_HOUR, present_nonce_message, present_nullifier};
     use crate::vault::{INightshiftVaultDispatcher, INightshiftVaultDispatcherTrait};
     use super::errors;
@@ -170,10 +189,32 @@ pub mod NightshiftGate {
             sig_r: felt252,
             sig_s: felt252,
         ) -> (felt252, u8) {
-            // Liveness first: an unknown, cancelled or exhausted subscription
-            // fails here, before any signature work.
+            // The caller IS the verifier. This namespaces verifier ids by
+            // address (nobody can claim a door that is not their account) and
+            // it kills presentation-griefing: a presentation copied out of the
+            // mempool and submitted by anyone else burns nothing, because it
+            // only verifies when the door itself submits it.
+            assert(get_caller_address().into() == verifier_id, errors::WRONG_VERIFIER);
+
+            // Entitlement, from one schedule read: known, not cancelled, and
+            // paid through the current block.
             let vault = INightshiftVaultDispatcher { contract_address: self.vault.read() };
-            assert(vault.is_active(commitment), errors::NOT_ACTIVE);
+            let (creator_id, tier, pb, start, _n, _escrow, next, cancelled) = vault
+                .schedule_of(commitment);
+            assert(creator_id != 0 && !cancelled, errors::NOT_ACTIVE);
+            // Period 0 not yet charged: nothing has been paid for, so nothing is
+            // presentable yet.
+            assert(next > 0, errors::ARREARS);
+            // `next` periods have been charged, so the subscription is paid up
+            // to start + pb * next. Inside that window it is current, at or past
+            // it a period is due-but-uncharged. This is a strict `<` on purpose:
+            // the block the window ends on is the first block of an unpaid
+            // period. Note what this deliberately does NOT check — whether the
+            // subscription has periods left. The final period is paid for like
+            // any other, so charging period n-1 (which drops vault.is_active to
+            // false the instant the subscriber is fully paid) must not end
+            // access before the period the subscriber bought has run out.
+            assert(get_block_number() < start + pb * next.into(), errors::ARREARS);
 
             // The signed height must be reachable and near. Both bound a captured
             // presentation: it dies at expiry_block, and expiry_block cannot have
@@ -184,16 +225,12 @@ pub mod NightshiftGate {
 
             // The key comes from the vault, so the signature is checked against
             // the exact key recorded at subscribe. A zero key means the vault
-            // has no such subscription; is_active already caught that above, so
-            // this is belt-and-braces.
+            // has no such subscription; the schedule read already caught that
+            // above, so this is belt-and-braces.
             let key = vault.owner_key_of(commitment);
             assert(key != 0, errors::NOT_ACTIVE);
             let msg = present_nonce_message(commitment, verifier_id, expiry_block, nonce);
             assert(check_ecdsa_signature(msg, key, sig_r, sig_s), errors::BAD_SIG);
-
-            // Paid through now: is_active carries no time term, so a lapsed
-            // subscription whose keeper stopped charging is caught here.
-            assert(vault.periods_due(commitment) == 0, errors::ARREARS);
 
             // Burn the presentation's nullifier, keyed on the message tuple. A
             // replay of this exact (commitment, verifier_id, expiry_block,
@@ -202,7 +239,9 @@ pub mod NightshiftGate {
             assert(!self.presented.entry(n).read(), errors::PRESENTED);
             self.presented.entry(n).write(true);
 
-            let (creator_id, tier, _, _, _, _, _, _) = vault.schedule_of(commitment);
+            // creator_id and tier come from the schedule read at the top: one
+            // read, so the pair returned is the pair the entitlement check ran
+            // against.
             self.emit(Presented { commitment, verifier_id, expiry_block, creator_id, tier });
             (creator_id, tier)
         }
