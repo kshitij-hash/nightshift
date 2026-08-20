@@ -59,7 +59,7 @@ Every claim above is checkable from public data with no key:
 
 ```
 starkli call <vault> schedule_of <commitment>   # public schedule state
-the demo board (site/)                           # built only from public events
+https://nightshift-six-lilac.vercel.app                                             # built only from public events
 ```
 
 The board's own footer says it best: no key was used to render this page.

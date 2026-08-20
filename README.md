@@ -10,7 +10,7 @@ Live on mainnet. Every claim below has a transaction hash.
 
 | | |
 |---|---|
-| Demo board | hosting in progress — runs locally via `node scripts/serve.mjs` + `site/`; reads mainnet with no key |
+| Demo board | https://nightshift-six-lilac.vercel.app — reads mainnet with no key |
 | Vault (mainnet) | [`0x01f653f21e…8715f338`](https://voyager.online/contract/0x01f653f21e557e70384c8631f9c8f97e0342aa1d5e975bdcaca76bbf8715f338) |
 | Full lifecycle receipts | [subscribe](https://voyager.online/tx/0x03d637dfbcd61ab27c02f4c94f83a3eab1e57f58b1d88dc8882d5095684a47de) · [charge 0](https://voyager.online/tx/0x368e6fe18d704765e505526a616cef68d325d7deb3b138ca08363f0010fd4b4) · [charge 1](https://voyager.online/tx/0x0086edb814112bab5042c22ba6a4711eef502fe102b5179978e9cc81833d21a6) · [charge 2](https://voyager.online/tx/0x031fb82151e3204c2cb3c310a57b6d466fc8d69eb75af600a3d0bf2d26a580f6) |
 | What is hidden vs visible | [PRIVACY.md](PRIVACY.md) |
