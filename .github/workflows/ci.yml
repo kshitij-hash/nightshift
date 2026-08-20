@@ -34,5 +34,10 @@ jobs:
       # rate-limited, which git surfaces as exit 128 inside scarb. Route the
       # clones through the workflow token instead.
       - run: git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      # The privacy workspace names starkware-starknet-utils from two members,
+      # and scarb races itself cloning the same cache directory when it is
+      # cold ("failed to remove directory ... No such file or directory").
+      # A retried fetch warms the cache; the race cannot recur on a warm one.
+      - run: scarb fetch || scarb fetch || scarb fetch
       - run: scarb build
       - run: snforge test
