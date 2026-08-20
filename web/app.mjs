@@ -1,12 +1,28 @@
-// NIGHTSHIFT ops console. Everything runs through the connected wallet's
-// STRK20 API — no viewing key, no proof handling, nothing secret in this page.
+// NIGHTSHIFT ops console, v3. Everything on-chain runs through the connected
+// wallet's STRK20 API or plain public calls — no viewing key, no proof
+// handling in this page.
+//
+// Key handling is DEMO-GRADE by declared scope: the creator payout keypair and
+// the subscriber owner keypair are STARK keypairs generated here and kept in
+// localStorage, because the demo wallet plays both roles (PRIVACY.md
+// limitation 5). A production build would hold them in the respective
+// parties' wallets.
+//
+// The claim flow is two-phase because of a real constraint: the open-note id
+// is computed by the WALLET (h(NOTE_ID_TAG, channel_key, token, index, 0)) and
+// cannot be derived by a dapp, while the creator's signature must bind that
+// exact id. So: PREPARE resolves the id without submitting; we sign it here;
+// SUBMIT sends the same batch with the literal id and signature. This assumes
+// the note index does not advance between the two calls (no other pool
+// activity from this wallet in between) — proving that assumption on mainnet
+// is the point of the first claim.
 
-import { RpcProvider, WalletAccountV6, hash } from "starknet";
+import { RpcProvider, WalletAccountV6, ec, hash, shortString } from "starknet";
+import { createStore } from "@starknet-io/get-starknet-core";
 
 const POOL = "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
-const VAULT = "0x01f653f21e557e70384c8631f9c8f97e0342aa1d5e975bdcaca76bbf8715f338";
+const VAULT = "0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759"; // v3
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
-const ECHO = "0x078ae662e0cc6d1ab2cfeaf2a51ba8783d88e31886f88a794d142f95a6f8735b";
 const E18 = 10n ** 18n;
 // Wallet API addresses are PADDED_FELT: 0x + exactly 64 hex. Wallet-standard
 // returns account.address unpadded, which fails the schema.
@@ -35,39 +51,54 @@ const log = (msg, cls = "") => {
 };
 
 let account; // WalletAccountV6
+const provider = new RpcProvider({ nodeUrl: "https://rpc.starknet.lava.build" });
 
-// The subscriber secret lives in localStorage on this machine only. The
-// commitment poseidon(secret, creator_id) is what goes on-chain.
-const secretKey = "nightshift.subscriber.secret";
-const getSecret = () => {
-  let s = localStorage.getItem(secretKey);
-  if (!s) {
-    const bytes = crypto.getRandomValues(new Uint8Array(31));
-    s = "0x" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-    localStorage.setItem(secretKey, s);
-    log(`new subscriber secret generated (kept in localStorage)`, "dim");
+// --- local key material (localStorage; see the demo-grade note up top) ---
+
+const stored = (key, label) => {
+  let v = localStorage.getItem(key);
+  if (!v) {
+    v = "0x" + [...ec.starkCurve.utils.randomPrivateKey()]
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem(key, v);
+    log(`new ${label} generated (localStorage — demo-grade, this machine only)`, "dim");
   }
-  return s;
+  return v;
+};
+const subscriberSecret = () => stored("nightshift.subscriber.secret", "subscriber secret");
+const payoutPriv = () => stored("nightshift.payout.priv", "creator payout key");
+const ownerPriv = () => stored("nightshift.owner.priv", "subscriber owner key");
+const payoutPub = () => ec.starkCurve.getStarkKey(payoutPriv());
+const ownerPub = () => ec.starkCurve.getStarkKey(ownerPriv());
+
+// v3 identity: creator_id = poseidon(caller, token, payout_key), computed
+// on-chain by register_creator with the connected wallet as caller.
+const creatorId = () =>
+  hash.computePoseidonHashOnElements([account.address, STRK, payoutPub()]);
+const commitment = () =>
+  hash.computePoseidonHashOnElements([subscriberSecret(), creatorId()]);
+
+// Domain-separated messages, mirroring src/common.cairo exactly.
+const tag = (s) => shortString.encodeShortString(s);
+const claimMsg = (noteId, amountWei) =>
+  hash.computePoseidonHashOnElements([tag("NIGHTSHIFT_CLAIM"), creatorId(), noteId, "0x" + amountWei.toString(16)]);
+const cancelMsg = () =>
+  hash.computePoseidonHashOnElements([tag("NIGHTSHIFT_CANCEL"), commitment()]);
+const reclaimMsg = (to) =>
+  hash.computePoseidonHashOnElements([tag("NIGHTSHIFT_RECLAIM"), commitment(), to]);
+const sign = (msg, priv) => {
+  const s = ec.starkCurve.sign(msg, priv);
+  return { r: "0x" + s.r.toString(16), s: "0x" + s.s.toString(16) };
 };
 
-const creatorIdOf = (creatorAddr) =>
-  hash.computePoseidonHashOnElements([creatorAddr, STRK]);
-const commitmentOf = (creatorAddr) =>
-  hash.computePoseidonHashOnElements([getSecret(), creatorIdOf(creatorAddr)]);
-
-// Wallet discovery: the Wallet Standard store first (how current Ready
-// announces itself), then the legacy window.starknet_* injection as fallback.
-import { createStore } from "@starknet-io/get-starknet-core";
+// --- wallet plumbing (unchanged from v2 console) ---
 
 async function findReady() {
   const store = createStore();
   store._refreshInjectedWallets?.();
-  // Standard wallets register via events; give them a beat.
   await new Promise((r) => setTimeout(r, 300));
   const wallets = store.getWallets();
   log(`discovered wallets: ${wallets.map((w) => w.name).join(", ") || "(none via standard)"}`, "dim");
-  // Return the raw wallet-standard wallet: starknet.js WalletAccountV6 reads
-  // its .features map (standard:connect, starknet:walletApi) directly.
   const pick =
     wallets.find((w) => /ready|argent/i.test(w.name)) ?? wallets[0] ?? null;
   if (pick) return pick;
@@ -93,17 +124,21 @@ async function run(actions, dry, label) {
   return transaction_hash;
 }
 
+const view = async (entrypoint, calldata) => {
+  const r = await provider.callContract({ contractAddress: VAULT, entrypoint, calldata });
+  return r.map(BigInt);
+};
+
 $("connect").onclick = async () => {
   try {
     const swo = await findReady();
     if (!swo) throw new Error("no injected Starknet wallet found");
-    const provider = new RpcProvider({ nodeUrl: "https://rpc.starknet.lava.build" });
     account = await WalletAccountV6.connect(provider, swo);
     $("who").textContent = `${account.address.slice(0, 10)}… connected`;
-    const api = await account.walletProvider.features?.["starknet:walletApi"]?.request?.({ type: "wallet_supportedWalletApi" }).catch(() => null);
-    if (api) log(`wallet api versions: ${JSON.stringify(api)}`, "dim");
-    for (const b of ["balances", "echo", "register", "subscribe", "release"]) $(b).disabled = false;
+    for (const b of ["balances", "state", "register", "subscribe", "charge", "claimprep", "claimsend", "cancel", "reclaim"]) $(b).disabled = false;
     log("connected", "ok");
+    log(`payout pubkey: ${payoutPub()}`, "dim");
+    log(`owner pubkey:  ${ownerPub()}`, "dim");
   } catch (e) { logErr("connect failed", e); }
 };
 
@@ -114,72 +149,143 @@ $("balances").onclick = async () => {
   } catch (e) { logErr("balances failed", e); }
 };
 
-// G3 rehearsal: withdraw 5 STRK to the deployed echo helper, open a note for
-// ourselves, invoke the helper; it echoes the deposit instruction back and the
-// pool credits the note. Six pool events in one receipt if all is well.
-$("echo").onclick = async () => {
+// One glance at everything the session cares about.
+$("state").onclick = async () => {
   try {
-    const amt = "0x" + (5n * E18).toString(16);
-    await run([
-      { type: "withdraw", token: STRK, amount: amt, recipient: ECHO },
-      { type: "transfer", token: STRK, amount: "OPEN", recipient: pad(account.address) },
-      { type: "invoke", contract: ECHO, calldata: [cd(STRK), "${poolAddress}", "${openNoteIds[0]}"] },
-    ], $("dry1").checked, "echo round-trip");
-  } catch (e) { logErr("echo failed", e); }
+    const c = commitment();
+    const [sched, due, claimable] = await Promise.all([
+      view("schedule_of", [c]),
+      view("periods_due", [c]),
+      view("claimable_of", [creatorId()]),
+    ]);
+    const [, tier, pblocks, start, n, escrow, next, cancelled] = sched;
+    log(`schedule: tier=${tier} period_blocks=${pblocks} start=${start} n=${n} next=${next} cancelled=${cancelled === 1n}`, "ok");
+    log(`escrow: ${escrow / E18} STRK · periods due now: ${due[0]} · creator claimable: ${claimable[0] / E18} STRK`, "ok");
+  } catch (e) { logErr("state read failed", e); }
 };
 
-// Plain public call — the creator (this wallet) registers a 1-tier ladder.
+// Plain public call — the creator registers a 1-tier ladder with the payout
+// pubkey that will later sign claims. calldata: token, payout_key, Span<u128>.
 $("register").onclick = async () => {
   try {
     const per = BigInt($("tier0").value) * E18;
     const { transaction_hash } = await account.execute({
       contractAddress: VAULT,
       entrypoint: "register_creator",
-      calldata: [STRK, "1", per.toString()],
+      calldata: [STRK, payoutPub(), "0x1", cd("0x" + per.toString(16))],
     });
     log(`register_creator submitted: ${transaction_hash}`, "ok");
-    log(`creator_id: ${creatorIdOf(account.address)}`, "dim");
+    log(`creator_id: ${creatorId()}`, "dim");
   } catch (e) { logErr("register failed", e); }
 };
 
-// Subscribe: escrow tier*periods into the vault + the Subscribe op.
-// VaultOp serde: [variant 0, commitment, creator_id, tier u8, period_blocks u64,
-// n_periods u32, owner_key].
+// Subscribe: escrow tier×periods into the vault + the Subscribe op.
+// VaultOp serde: [variant 0, commitment, creator_id, tier u8, period_blocks
+// u64, n_periods u32, owner_key]. owner_key is the STARK pubkey — an address
+// here would make revocation name a wallet.
 $("subscribe").onclick = async () => {
   try {
     const per = BigInt($("tier0").value) * E18;
     const n = BigInt($("nper").value);
     const pblocks = BigInt($("pblocks").value);
-    const creatorId = creatorIdOf(account.address);
-    const commitment = commitmentOf(account.address);
     await run([
       { type: "withdraw", token: STRK, amount: "0x" + (per * n).toString(16), recipient: VAULT },
       { type: "invoke", contract: VAULT, calldata: [
-        cd("0x0"), cd(commitment), cd(creatorId), cd("0x0"),
-        cd("0x" + pblocks.toString(16)), cd("0x" + n.toString(16)), cd(account.address),
+        cd("0x0"), cd(commitment()), cd(creatorId()), cd("0x0"),
+        cd("0x" + pblocks.toString(16)), cd("0x" + n.toString(16)), cd(ownerPub()),
       ]},
     ], $("dry3").checked, "subscribe");
   } catch (e) { logErr("subscribe failed", e); }
 };
 
-// Release: open a note for the creator, invoke the vault's Release op.
-// VaultOp serde: [variant 1, commitment, note_id placeholder].
-$("release").onclick = async () => {
+// Manual charge — same permissionless call the cron keeper fires. Useful in
+// the session to consume period 0 without waiting for the daemon.
+$("charge").onclick = async () => {
   try {
-    const commitment = commitmentOf(account.address);
-    // The batch must spend shielded value so the wallet can source the pool's
-    // 6 STRK protocol fee (prepareInvoke proves without it; the relayer needs
-    // it). A small withdraw to self mirrors the working subscribe/echo shape:
-    // it makes this a spending batch, the wallet spends notes covering the fee,
-    // and the withdrawn amount returns to the subscriber's public balance.
-    // In the daemon path the keeper's own withdraw covers the fee instead.
-    const feeBump = "0x" + (E18 / 10n).toString(16); // 0.1 STRK to self; wallet sources the 6 STRK fee separately
-    await run([
-      { type: "withdraw", token: STRK, amount: feeBump, recipient: pad(account.address) },
-      { type: "transfer", token: STRK, amount: "OPEN", recipient: pad(account.address) },
-      { type: "invoke", contract: VAULT, calldata: [cd("0x1"), cd(commitment), "${openNoteIds[0]}"] },
-    ], $("dry4").checked, "release");
-  } catch (e) { logErr("release failed", e); }
+    const { transaction_hash } = await account.execute({
+      contractAddress: VAULT, entrypoint: "charge", calldata: [commitment()],
+    });
+    log(`charge submitted: ${transaction_hash}`, "ok");
+    log(`voyager: https://voyager.online/tx/${transaction_hash}`, "dim");
+  } catch (e) { logErr("charge failed", e); }
 };
 
-log("ready — connect the wallet to begin", "dim");
+// --- claim, phase 1: PREPARE to discover the open-note id ---
+// The batch: a small self-withdraw (makes it a spending batch so the wallet
+// sources the pool's 6 STRK protocol fee), an OPEN transfer to self (the note
+// the payout lands in), and the vault invoke with a ZERO signature — the
+// vault would reject it, but prepare only builds and proves, never executes.
+const claimActions = (noteId, sig) => {
+  const amountWei = BigInt(Number($("clamount").value) * 100) * (E18 / 100n);
+  return [
+    { type: "withdraw", token: STRK, amount: "0x" + (E18 / 10n).toString(16), recipient: pad(account.address) },
+    { type: "transfer", token: STRK, amount: "OPEN", recipient: pad(account.address) },
+    { type: "invoke", contract: VAULT, calldata: [
+      cd("0x1"), cd(creatorId()), noteId, cd("0x" + amountWei.toString(16)),
+      cd(sig?.r ?? "0x1"), cd(sig?.s ?? "0x1"),
+    ]},
+  ];
+};
+
+$("claimprep").onclick = async () => {
+  try {
+    const prepared = await account.strk20PrepareInvoke(claimActions("${openNoteIds[0]}", null));
+    console.log("prepared claim", prepared);
+    // Fish for the resolved note id: any 0x felt on a note-ish key, anywhere.
+    const found = [];
+    const walk = (o, path) => {
+      if (!o || typeof o !== "object") return;
+      for (const [k, v] of Object.entries(o)) {
+        if (typeof v === "string" && /^0x[0-9a-fA-F]{40,64}$/.test(v) && /note/i.test(path + k)) found.push([path + k, v]);
+        else if (typeof v === "object") walk(v, `${path}${k}.`);
+      }
+    };
+    walk(prepared, "");
+    if (found.length) {
+      log(`prepared — note-id candidates:`, "ok");
+      for (const [p, v] of found) log(`  ${p} = ${v}`, "dim");
+      $("noteid").value = found[0][1];
+      log(`note id auto-filled from ${found[0][0]} — inspect console, then SUBMIT`, "ok");
+    } else {
+      log("prepared, but no note-id-shaped field found — see browser console for the full object and fill the note id by hand", "err");
+    }
+  } catch (e) { logErr("claim prepare failed", e); }
+};
+
+// --- claim, phase 2: sign the literal note id here, submit the same batch ---
+$("claimsend").onclick = async () => {
+  try {
+    const noteId = $("noteid").value.trim();
+    if (!/^0x[0-9a-fA-F]+$/.test(noteId)) throw new Error("fill the note id from PREPARE first");
+    const amountWei = BigInt(Number($("clamount").value) * 100) * (E18 / 100n);
+    const sig = sign(claimMsg(noteId, amountWei), payoutPriv());
+    await run(claimActions(cd(noteId), sig), false, "claim");
+  } catch (e) { logErr("claim submit failed", e); }
+};
+
+// Cancel: plain public call, authorized only by the owner-key signature.
+$("cancel").onclick = async () => {
+  try {
+    const sig = sign(cancelMsg(), ownerPriv());
+    const { transaction_hash } = await account.execute({
+      contractAddress: VAULT, entrypoint: "cancel",
+      calldata: [commitment(), sig.r, sig.s],
+    });
+    log(`cancel submitted: ${transaction_hash}`, "ok");
+  } catch (e) { logErr("cancel failed", e); }
+};
+
+// Reclaim: unspent escrow back out to a public address (a public exit edge).
+$("reclaim").onclick = async () => {
+  try {
+    const to = $("reclaimto").value.trim() || account.address;
+    const sig = sign(reclaimMsg(to), ownerPriv());
+    const { transaction_hash } = await account.execute({
+      contractAddress: VAULT, entrypoint: "reclaim",
+      calldata: [commitment(), to, sig.r, sig.s],
+    });
+    log(`reclaim submitted: ${transaction_hash} → ${to.slice(0, 10)}…`, "ok");
+  } catch (e) { logErr("reclaim failed", e); }
+};
+
+log("ready — connect the wallet to begin (v3 vault " + VAULT.slice(0, 10) + "…)", "dim");

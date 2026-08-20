@@ -17,6 +17,7 @@
   button:disabled { opacity:.4; cursor:default; }
   input { background:#151922; color:#d7dae0; border:1px solid #2a2f3a; border-radius:6px;
           padding:.45em .6em; font:inherit; width: 130px; }
+  input.wide { width: 100%; box-sizing: border-box; }
   label { margin-right:.9em; }
   #log { background:#10141c; border:1px solid #2a2f3a; border-radius:8px; padding:1rem;
          white-space:pre-wrap; word-break:break-all; min-height:8em; font-size:12.5px; }
@@ -25,41 +26,51 @@
 </style>
 </head>
 <body>
-<h1>NIGHT<span>SHIFT</span> · ops console <small style="color:#7b8494">(local, mainnet)</small></h1>
+<h1>NIGHT<span>SHIFT</span> · ops console v3 <small style="color:#7b8494">(local, mainnet)</small></h1>
 
 <fieldset>
   <legend>0 · wallet</legend>
   <div class="row"><button id="connect">Connect Ready</button>
   <span id="who" class="dim">not connected</span></div>
-  <div class="row"><button id="balances" class="ghost" disabled>Shielded balance</button></div>
+  <div class="row"><button id="balances" class="ghost" disabled>Shielded balance</button>
+  <button id="state" class="ghost" disabled>Read vault state</button></div>
 </fieldset>
 
 <fieldset>
-  <legend>1 · rehearsal — echo helper round-trip (G3, ~5 STRK, unlisted)</legend>
-  <div class="row"><label>dry run <input type="checkbox" id="dry1" checked></label>
-  <button id="echo" disabled>Round-trip 5 STRK via echo</button></div>
-</fieldset>
-
-<fieldset>
-  <legend>2 · creator — register tier ladder on the vault (plain public call)</legend>
+  <legend>1 · creator — register tier ladder + payout key (plain public call)</legend>
   <div class="row"><label>tier 0, STRK/period <input id="tier0" value="1"></label>
   <button id="register" disabled>register_creator</button></div>
 </fieldset>
 
 <fieldset>
-  <legend>3 · subscribe (escrow = tier × periods, via private pool action)</legend>
+  <legend>2 · subscribe (escrow = tier × periods, via private pool action)</legend>
   <div class="row">
     <label>periods <input id="nper" value="3"></label>
-    <label>period-blocks <input id="pblocks" value="2880"></label>
-    <label>dry run <input type="checkbox" id="dry3" checked></label>
+    <label>period-blocks <input id="pblocks" value="2100"></label>
+    <span class="dim">ladder: 2100 hour · 50400 day · 352800 week</span>
   </div>
-  <div class="row"><button id="subscribe" disabled>Subscribe</button></div>
+  <div class="row"><label>dry run <input type="checkbox" id="dry3" checked></label>
+  <button id="subscribe" disabled>Subscribe</button></div>
 </fieldset>
 
 <fieldset>
-  <legend>4 · release — charge one due period</legend>
-  <div class="row"><label>dry run <input type="checkbox" id="dry4" checked></label>
-  <button id="release" disabled>Release</button></div>
+  <legend>3 · charge — permissionless; same call the cron keeper fires</legend>
+  <div class="row"><button id="charge" disabled>Charge next due period</button></div>
+</fieldset>
+
+<fieldset>
+  <legend>4 · claim — creator settles claimable into the pool (two-phase)</legend>
+  <div class="row"><label>amount, STRK <input id="clamount" value="1"></label>
+  <button id="claimprep" disabled>1 · Prepare (resolve note id)</button></div>
+  <div class="row"><input id="noteid" class="wide" placeholder="open note id — auto-filled by PREPARE"></div>
+  <div class="row"><button id="claimsend" disabled>2 · Sign + submit claim</button></div>
+</fieldset>
+
+<fieldset>
+  <legend>5 · cancel / reclaim — owner-key signatures, never a wallet name</legend>
+  <div class="row"><button id="cancel" disabled>Cancel subscription</button></div>
+  <div class="row"><input id="reclaimto" class="wide" placeholder="reclaim to address (empty = this wallet)"></div>
+  <div class="row"><button id="reclaim" disabled>Reclaim unspent escrow</button></div>
 </fieldset>
 
 <div id="log"><span class="dim">log —</span></div>
