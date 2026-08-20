@@ -30,7 +30,7 @@ pub struct Schedule {
     pub period_blocks: u64,
     /// Number of periods pre-escrowed.
     pub n_periods: u32,
-    /// STARK pubkey authorizing cancel/reclaim.
+    /// STARK pubkey authorizing cancel/reclaim and gate presentations.
     pub owner_key: felt252,
 }
 
@@ -75,13 +75,6 @@ pub fn cancel_message(commitment: felt252) -> felt252 {
 
 pub fn reclaim_message(commitment: felt252, to: ContractAddress) -> felt252 {
     poseidon_hash_span(['NIGHTSHIFT_RECLAIM', commitment, to.into()].span())
-}
-
-/// One-time key registration at the gate. What this signature does and does not
-/// prove is written out at the top of src/gate.cairo; read it before trusting a
-/// presentation.
-pub fn enroll_message(commitment: felt252, owner_key: felt252) -> felt252 {
-    poseidon_hash_span(['NIGHTSHIFT_ENROLL', commitment, owner_key].span())
 }
 
 /// Nonce-bound presentation message. The nonce lets one subscriber present to

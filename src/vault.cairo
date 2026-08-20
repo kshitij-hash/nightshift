@@ -45,6 +45,11 @@ pub trait INightshiftVault<T> {
     // --- views ---
     fn accounted(self: @T, token: ContractAddress) -> u256;
     fn is_active(self: @T, commitment: felt252) -> bool;
+    /// The STARK pubkey recorded for `commitment` at subscribe, 0 if unknown.
+    /// The key is already public in the pool invoke calldata; this view lets the
+    /// gate bind presentations to the exact key the vault recorded at subscribe,
+    /// with no registration step.
+    fn owner_key_of(self: @T, commitment: felt252) -> felt252;
     fn claimable_of(self: @T, creator_id: felt252) -> u128;
     fn schedule_of(self: @T, commitment: felt252) -> (felt252, u8, u64, u64, u32, u128, u32, bool);
     fn tier_of(self: @T, creator_id: felt252, tier: u8) -> (ContractAddress, u128);
@@ -133,8 +138,13 @@ pub mod NightshiftVault {
         Reclaimed: Reclaimed,
     }
 
+    /// The natural filter field of each event below is `#[key]`: getEvents
+    /// filters on keys only, so an indexer that wants one subscription's history
+    /// (or one creator's) asks the node for it instead of scanning every event
+    /// the vault ever emitted.
     #[derive(Drop, starknet::Event)]
     pub struct Subscribed {
+        #[key]
         pub commitment: felt252,
         pub creator_id: felt252,
         pub n_periods: u32,
@@ -142,6 +152,7 @@ pub mod NightshiftVault {
 
     #[derive(Drop, starknet::Event)]
     pub struct CreatorRegistered {
+        #[key]
         pub creator_id: felt252,
         pub token: ContractAddress,
         pub tiers: u8,
@@ -152,6 +163,7 @@ pub mod NightshiftVault {
     /// subscriber.
     #[derive(Drop, starknet::Event)]
     pub struct Charged {
+        #[key]
         pub commitment: felt252,
         pub period_index: u32,
         pub amount: u128,
@@ -160,17 +172,20 @@ pub mod NightshiftVault {
 
     #[derive(Drop, starknet::Event)]
     pub struct Claimed {
+        #[key]
         pub creator_id: felt252,
         pub amount: u128,
     }
 
     #[derive(Drop, starknet::Event)]
     pub struct Cancelled {
+        #[key]
         pub commitment: felt252,
     }
 
     #[derive(Drop, starknet::Event)]
     pub struct Reclaimed {
+        #[key]
         pub commitment: felt252,
         pub amount: u128,
     }
@@ -312,6 +327,10 @@ pub mod NightshiftVault {
             }
             self.sub_next_period.entry(commitment).read()
                 < self.sub_n_periods.entry(commitment).read()
+        }
+
+        fn owner_key_of(self: @ContractState, commitment: felt252) -> felt252 {
+            self.sub_owner_key.entry(commitment).read()
         }
 
         fn claimable_of(self: @ContractState, creator_id: felt252) -> u128 {

@@ -5,7 +5,7 @@
 use nightshift::common::{PERIOD_HOUR, Schedule, VaultOp};
 use nightshift::mocks::{IMockERC20Dispatcher, IMockERC20DispatcherTrait, IMockPrivacyPoolDispatcher, IMockPrivacyPoolDispatcherTrait};
 use nightshift::vault::{INightshiftVaultDispatcher, INightshiftVaultDispatcherTrait};
-use snforge_std::{ContractClassTrait, DeclareResultTrait, declare, start_cheat_block_number, start_cheat_caller_address, stop_cheat_caller_address};
+use snforge_std::{ContractClassTrait, DeclareResultTrait, EventSpyTrait, EventsFilterTrait, declare, spy_events, start_cheat_block_number, start_cheat_caller_address, stop_cheat_caller_address};
 use starknet::ContractAddress;
 
 const TIER_0: u128 = 100_000000000000000000;
@@ -49,6 +49,43 @@ fn subscribe_stores_schedule_and_accounts_escrow() {
     assert(vault.is_active('c-1'), 'not active');
     let (_, _, _, _, n, escrow, next, cancelled) = vault.schedule_of('c-1');
     assert(n == 4 && escrow == TIER_0 * 4 && next == 0 && !cancelled, 'bad schedule');
+}
+
+#[test]
+fn owner_key_of_reads_back_the_subscribed_key() {
+    // The gate binds a presentation to this exact key, so the vault has to hand
+    // back what the Schedule carried, and 0 for a commitment it never saw.
+    let (pool, token, vault, creator_id) = setup();
+    start_cheat_block_number(vault.contract_address, 1000);
+    pool.transfer_to(token.contract_address, vault.contract_address, (TIER_0 * 4).into());
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-1', creator_id, 0, 4).span(), 0);
+
+    assert(vault.owner_key_of('c-1') == OWNER_PUB, 'owner key not stored');
+    assert(vault.owner_key_of('nobody') == 0, 'unknown key not zero');
+}
+
+#[test]
+fn subscribed_indexes_the_commitment() {
+    // getEvents filters on keys, not data. `commitment` sits in the keys, so an
+    // indexer pulls one subscription's history straight from the node. Read the
+    // raw event: a decoded-struct assertion passes either way, so it would not
+    // catch the field slipping back into the data.
+    let (pool, token, vault, creator_id) = setup();
+    start_cheat_block_number(vault.contract_address, 1000);
+    pool.transfer_to(token.contract_address, vault.contract_address, (TIER_0 * 4).into());
+
+    let mut spy = spy_events();
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-1', creator_id, 0, 4).span(), 0);
+
+    let vault_events = spy.get_events().emitted_by(vault.contract_address);
+    assert(vault_events.events.len() == 1, 'expected one vault event');
+    let (_, event) = vault_events.events.at(0);
+    // keys[0] is the event selector; the indexed commitment follows it.
+    assert(event.keys.len() == 2, 'commitment is not a key');
+    assert(*event.keys.at(1) == 'c-1', 'wrong indexed commitment');
+    // creator_id and n_periods stay in the data.
+    assert(event.data.len() == 2, 'unexpected data layout');
+    assert(*event.data.at(0) == creator_id, 'creator_id not in data');
 }
 
 #[test]
