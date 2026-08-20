@@ -18,6 +18,6 @@
 | NightshiftVault v1 | `0x013b93ac368d4baa0a881848ff23d18849784d10c1c3da545fcebe9891773eb6` |
 | Class hash | `0x0399f27333ab7417d9b2b027463a39a012590dfcacf813eb0a842df40af697e8` |
 
-The vault address is deliberately NOT in `strk20.json` yet: the sprint indexer
-only counts transactions routed through declared contracts, so the address and
-the first vault-routed transaction hashes land in one commit together.
+The vault is declared in `strk20.json` together with the four transactions
+routed through it: one private subscription and three period charges, one per
+period nullifier, escrow consumed exactly to zero.

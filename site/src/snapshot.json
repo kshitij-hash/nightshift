@@ -1,8 +1,18 @@
 {
-  "headBlock": 13537387,
-  "headTimestamp": 1755666400,
-  "escrowWei": "0",
-  "activeSubscriptions": 0,
-  "charges": [],
-  "subscribedEndBlocks": []
+  "headBlock": 13603594,
+  "headTimestamp": 1787254196,
+  "escrowWei": "2000000000000000000",
+  "activeSubscriptions": 1,
+  "charges": [
+    {
+      "txHash": "0x368e6fe18d704765e505526a616cef68d325d7deb3b138ca08363f0010fd4b4",
+      "block": 13593591,
+      "timestamp": 1787237060,
+      "periodIndex": 0,
+      "commitment": "0x357ba2895ba553afa1e565f3a2cbb9f39f470f09c6b63e1f23d32611379c6fe"
+    }
+  ],
+  "subscribedEndBlocks": [
+    13601245
+  ]
 }
