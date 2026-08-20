@@ -77,18 +77,40 @@ pub fn reclaim_message(commitment: felt252, to: ContractAddress) -> felt252 {
     poseidon_hash_span(['NIGHTSHIFT_RECLAIM', commitment, to.into()].span())
 }
 
-/// Gate messages. The verifier and the expiry height are inside the signed
-/// message, so a presentation captured by verifier A does not verify at
-/// verifier B, and none of them verify past the height the signer picked.
-pub fn present_message(commitment: felt252, verifier_id: felt252, expiry_block: u64) -> felt252 {
-    poseidon_hash_span(['NIGHTSHIFT_PRESENT', commitment, verifier_id, expiry_block.into()].span())
-}
-
 /// One-time key registration at the gate. What this signature does and does not
 /// prove is written out at the top of src/gate.cairo; read it before trusting a
 /// presentation.
 pub fn enroll_message(commitment: felt252, owner_key: felt252) -> felt252 {
     poseidon_hash_span(['NIGHTSHIFT_ENROLL', commitment, owner_key].span())
+}
+
+/// Nonce-bound presentation message. The nonce lets one subscriber present to
+/// the same verifier more than once: each fresh nonce is a distinct signed
+/// message, so a captured (sig_r, sig_s) reproduces only the one
+/// (commitment, verifier_id, expiry_block, nonce) tuple it was signed over.
+/// This is the message the gate's `present` checks. The verifier id and the
+/// expiry height are inside the signed message, so a presentation captured by
+/// verifier A does not verify at verifier B, and none verify past the height
+/// the signer picked.
+pub fn present_nonce_message(
+    commitment: felt252, verifier_id: felt252, expiry_block: u64, nonce: felt252,
+) -> felt252 {
+    poseidon_hash_span(
+        ['NIGHTSHIFT_PRESENT', commitment, verifier_id, expiry_block.into(), nonce].span(),
+    )
+}
+
+/// Write-once nullifier a presentation burns at the gate, one per
+/// (commitment, verifier_id, expiry_block, nonce). Keyed on the message, not
+/// the signature: ECDSA (r, s) and (r, -s) verify the same message, so keying
+/// on the tuple stops a malleated copy from minting a second nullifier for a
+/// presentation the gate already recorded.
+pub fn present_nullifier(
+    commitment: felt252, verifier_id: felt252, expiry_block: u64, nonce: felt252,
+) -> felt252 {
+    poseidon_hash_span(
+        ['NIGHTSHIFT_PRESENT_NUL', commitment, verifier_id, expiry_block.into(), nonce].span(),
+    )
 }
 
 pub fn is_ladder_period(period_blocks: u64) -> bool {

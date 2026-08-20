@@ -3,18 +3,33 @@
 // only ever a reader of the vault, so every revert below is one of its own.
 //
 // Anti-replay set: a presentation signed for one verifier at another verifier,
-// a presentation past its expiry height, and a presentation for a subscription
-// the vault no longer calls active (cancelled, or out of periods). Plus the
-// enrollment race the module doc-comment admits to: wrong signer rejected,
-// second enrollment rejected.
+// one signed for one expiry stretched to another, one signed for one nonce
+// reused with another, and the same signed tuple replayed a second time
+// (NG_PRESENTED). A fresh nonce lets the same subscriber return to the same
+// door. Liveness set: a presentation for a subscription the vault no longer
+// calls active (cancelled, or out of periods, or unknown). Paid-current set:
+// a presentation while a period is due-but-uncharged (NG_ARREARS), and the
+// same subscription clearing once a keeper charges it. Bounds: an expiry
+// signed too far ahead (NG_EXPIRY_TOO_FAR). Enrollment: wrong signer rejected,
+// second enrollment rejected, an unknown commitment rejected (NG_NOT_ACTIVE),
+// and a subscription past its window rejected (NG_ENROLL_LATE). Plus the
+// vault() pin view.
 
-use nightshift::common::{PERIOD_HOUR, Schedule, VaultOp, cancel_message, enroll_message, present_message};
+use nightshift::common::{
+    PERIOD_HOUR, Schedule, VaultOp, cancel_message, enroll_message, present_nonce_message,
+};
 use nightshift::gate::{INightshiftGateDispatcher, INightshiftGateDispatcherTrait, NightshiftGate};
-use nightshift::mocks::{IMockERC20Dispatcher, IMockERC20DispatcherTrait, IMockPrivacyPoolDispatcher, IMockPrivacyPoolDispatcherTrait};
+use nightshift::mocks::{
+    IMockERC20Dispatcher, IMockERC20DispatcherTrait, IMockPrivacyPoolDispatcher,
+    IMockPrivacyPoolDispatcherTrait,
+};
 use nightshift::vault::{INightshiftVaultDispatcher, INightshiftVaultDispatcherTrait};
 use snforge_std::signature::KeyPairTrait;
 use snforge_std::signature::stark_curve::{StarkCurveKeyPairImpl, StarkCurveSignerImpl};
-use snforge_std::{ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, declare, spy_events, start_cheat_block_number, start_cheat_caller_address, stop_cheat_caller_address};
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, declare, spy_events,
+    start_cheat_block_number, start_cheat_caller_address, stop_cheat_caller_address,
+};
 use starknet::ContractAddress;
 
 const TIER_0: u128 = 100_000000000000000000;
@@ -24,6 +39,9 @@ const TIER_1: u128 = 500_000000000000000000;
 const START: u64 = 100;
 const VERIFIER: felt252 = 'club-door';
 const EXPIRY: u64 = 500;
+/// A nonce the subscriber picks per presentation. Any felt works; a second
+/// presentation to the same door just needs a different one.
+const NONCE: felt252 = 'n-1';
 
 type Keys = snforge_std::signature::KeyPair<felt252, felt252>;
 
@@ -62,6 +80,7 @@ fn setup(n: u32) -> (INightshiftVaultDispatcher, INightshiftGateDispatcher, felt
     (vault, INightshiftGateDispatcher { contract_address: gate_addr }, creator_id, ok)
 }
 
+/// setup + a within-window enrollment of the subscriber's key.
 fn enrolled(n: u32) -> (INightshiftVaultDispatcher, INightshiftGateDispatcher, felt252, Keys) {
     let (vault, gate, creator_id, ok) = setup(n);
     let (r, s) = ok.sign(enroll_message('c-1', ok.public_key)).unwrap();
@@ -69,14 +88,25 @@ fn enrolled(n: u32) -> (INightshiftVaultDispatcher, INightshiftGateDispatcher, f
     (vault, gate, creator_id, ok)
 }
 
+/// enrolled, plus period 0 charged so periods_due == 0. `present` only clears
+/// the arrears check on a subscription that is genuinely paid through now, so
+/// the happy-path tests charge first.
+fn caught_up(n: u32) -> (INightshiftVaultDispatcher, INightshiftGateDispatcher, felt252, Keys) {
+    let (vault, gate, creator_id, ok) = enrolled(n);
+    vault.charge('c-1');
+    (vault, gate, creator_id, ok)
+}
+
 #[test]
 fn enroll_then_present_returns_tier_and_emits() {
-    let (_, gate, creator_id, ok) = enrolled(3);
+    // The happy path is now "active, enrolled, and paid current": caught_up
+    // charges period 0 so periods_due == 0. Presented carries creator_id.
+    let (_, gate, creator_id, ok) = caught_up(3);
     assert(gate.enrolled_key('c-1') == ok.public_key, 'key not registered');
 
     let mut spy = spy_events();
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    let (got_creator, got_tier) = gate.present('c-1', VERIFIER, EXPIRY, r, s);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    let (got_creator, got_tier) = gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
     assert(got_creator == creator_id, 'wrong creator');
     assert(got_tier == 1, 'wrong tier');
 
@@ -87,7 +117,11 @@ fn enroll_then_present_returns_tier_and_emits() {
                     gate.contract_address,
                     NightshiftGate::Event::Presented(
                         NightshiftGate::Presented {
-                            commitment: 'c-1', verifier_id: VERIFIER, expiry_block: EXPIRY, tier: 1,
+                            commitment: 'c-1',
+                            verifier_id: VERIFIER,
+                            expiry_block: EXPIRY,
+                            creator_id,
+                            tier: 1,
                         },
                     ),
                 ),
@@ -108,11 +142,18 @@ fn views_pass_through_the_vault() {
 }
 
 #[test]
+fn vault_view_returns_the_target() {
+    // A verifier pins the canonical gate by confirming the vault it reads.
+    let (vault, gate, _, _) = setup(3);
+    assert(gate.vault() == vault.contract_address, 'wrong vault target');
+}
+
+#[test]
 #[should_panic(expected: 'NG_BAD_SIGNATURE')]
 fn enroll_rejects_wrong_signer() {
-    let (_, gate, _, ok) = setup(3);
     // The registration signature is checked against the key being registered,
     // so a third party cannot register somebody else's key for them.
+    let (_, gate, _, ok) = setup(3);
     let attacker = KeyPairTrait::<felt252, felt252>::generate();
     let (r, s) = attacker.sign(enroll_message('c-1', ok.public_key)).unwrap();
     gate.enroll('c-1', ok.public_key, r, s);
@@ -130,11 +171,33 @@ fn enroll_is_write_once() {
 }
 
 #[test]
+#[should_panic(expected: 'NG_NOT_ACTIVE')]
+fn enroll_rejects_unknown_commitment() {
+    // A commitment the vault never saw (or one not yet subscribed) is not
+    // active, so it cannot be registered ahead of a real subscribe.
+    let (_, gate, _, _) = setup(3);
+    let stranger = KeyPairTrait::<felt252, felt252>::generate();
+    let (r, s) = stranger.sign(enroll_message('ghost', stranger.public_key)).unwrap();
+    gate.enroll('ghost', stranger.public_key, r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NG_ENROLL_LATE')]
+fn enroll_rejects_a_stale_subscription() {
+    // Past the window, the backlog defense refuses the registration. The owner
+    // must cancel, reclaim, and re-subscribe to open a fresh window.
+    let (_, gate, _, ok) = setup(3);
+    start_cheat_block_number(gate.contract_address, START + PERIOD_HOUR + 1);
+    let (r, s) = ok.sign(enroll_message('c-1', ok.public_key)).unwrap();
+    gate.enroll('c-1', ok.public_key, r, s);
+}
+
+#[test]
 #[should_panic(expected: 'NG_NOT_ENROLLED')]
 fn present_before_enrollment_dies() {
     let (_, gate, _, ok) = setup(3);
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    gate.present('c-1', VERIFIER, EXPIRY, r, s);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
 }
 
 #[test]
@@ -143,8 +206,8 @@ fn presentation_is_bound_to_one_verifier() {
     // The door the subscriber signed for is inside the message. A verifier that
     // records a presentation cannot walk it over to another verifier.
     let (_, gate, _, ok) = enrolled(3);
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    gate.present('c-1', 'other-door', EXPIRY, r, s);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', 'other-door', EXPIRY, NONCE, r, s);
 }
 
 #[test]
@@ -153,17 +216,85 @@ fn presentation_is_bound_to_its_expiry() {
     // Stretching the expiry to keep a captured presentation alive changes the
     // message, so the signature stops matching.
     let (_, gate, _, ok) = enrolled(3);
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    gate.present('c-1', VERIFIER, EXPIRY + 1, r, s);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY + 1, NONCE, r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NG_BAD_SIGNATURE')]
+fn presentation_is_bound_to_its_nonce() {
+    // The nonce is inside the signed message too, so a captured (r, s) cannot be
+    // replayed under a fresh nonce to dodge the nullifier.
+    let (_, gate, _, ok) = caught_up(3);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, 'n-2', r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NG_PRESENTED')]
+fn present_replayed_same_tuple_dies() {
+    // A captured (commitment, verifier_id, expiry, nonce, r, s) is a bearer
+    // credential exactly once: the nullifier burns on first use, so the second
+    // identical call reverts.
+    let (_, gate, _, ok) = caught_up(3);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
+}
+
+#[test]
+fn present_again_with_fresh_nonce_succeeds() {
+    // The subscriber legitimately returns to the same door by signing a new
+    // nonce: a new tuple with its own unburned nullifier.
+    let (_, gate, _, ok) = caught_up(3);
+    let (r1, s1) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    let (c1, t1) = gate.present('c-1', VERIFIER, EXPIRY, NONCE, r1, s1);
+    assert(c1 != 0 && t1 == 1, 'first present');
+    let (r2, s2) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, 'n-2')).unwrap();
+    let (_c2, t2) = gate.present('c-1', VERIFIER, EXPIRY, 'n-2', r2, s2);
+    assert(t2 == 1, 'second present');
+}
+
+#[test]
+#[should_panic(expected: 'NG_ARREARS')]
+fn present_with_a_due_period_dies() {
+    // is_active is not "paid up": a period whose block arrived but was never
+    // charged blocks the presentation until a keeper catches it up. enrolled(3)
+    // does not charge, so period 0 is due-but-uncharged at START.
+    let (_, gate, _, ok) = enrolled(3);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
+}
+
+#[test]
+fn present_succeeds_once_the_due_period_is_charged() {
+    // The same subscription as present_with_a_due_period_dies, now caught up:
+    // charging period 0 clears periods_due and the presentation goes through.
+    let (vault, gate, creator_id, ok) = enrolled(3);
+    vault.charge('c-1');
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    let (c, t) = gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
+    assert(c == creator_id && t == 1, 'caught-up present');
+}
+
+#[test]
+#[should_panic(expected: 'NG_EXPIRY_TOO_FAR')]
+fn present_with_a_far_expiry_dies() {
+    // A captured presentation cannot be signed far out: expiry is capped at
+    // MAX_PRESENT_WINDOW (one PERIOD_HOUR) ahead of now.
+    let (_, gate, _, ok) = enrolled(3);
+    let far = START + PERIOD_HOUR + 1;
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, far, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, far, NONCE, r, s);
 }
 
 #[test]
 #[should_panic(expected: 'NG_EXPIRED')]
 fn present_past_expiry_dies() {
     let (_, gate, _, ok) = enrolled(3);
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
     start_cheat_block_number(gate.contract_address, EXPIRY + 1);
-    gate.present('c-1', VERIFIER, EXPIRY, r, s);
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
 }
 
 #[test]
@@ -171,8 +302,8 @@ fn present_past_expiry_dies() {
 fn present_rejects_a_key_that_is_not_the_enrolled_one() {
     let (_, gate, _, _) = enrolled(3);
     let attacker = KeyPairTrait::<felt252, felt252>::generate();
-    let (r, s) = attacker.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    gate.present('c-1', VERIFIER, EXPIRY, r, s);
+    let (r, s) = attacker.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
 }
 
 #[test]
@@ -183,8 +314,8 @@ fn present_after_cancel_dies() {
     let (vault, gate, _, ok) = enrolled(3);
     let (cr, cs) = ok.sign(cancel_message('c-1')).unwrap();
     vault.cancel('c-1', cr, cs);
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    gate.present('c-1', VERIFIER, EXPIRY, r, s);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
 }
 
 #[test]
@@ -196,16 +327,16 @@ fn present_after_escrow_exhausted_dies() {
     start_cheat_block_number(vault.contract_address, START + PERIOD_HOUR * 4);
     vault.charge('c-1');
     vault.charge('c-1');
-    let (r, s) = ok.sign(present_message('c-1', VERIFIER, EXPIRY)).unwrap();
-    gate.present('c-1', VERIFIER, EXPIRY, r, s);
+    let (r, s) = ok.sign(present_nonce_message('c-1', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('c-1', VERIFIER, EXPIRY, NONCE, r, s);
 }
 
 #[test]
 #[should_panic(expected: 'NG_NOT_ACTIVE')]
 fn present_for_unknown_commitment_dies() {
-    // Liveness is checked before the key is even read, so an unknown
-    // commitment fails as not active rather than as not enrolled.
+    // Liveness is checked before the key is even read, so an unknown commitment
+    // fails as not active rather than as not enrolled.
     let (_, gate, _, ok) = enrolled(3);
-    let (r, s) = ok.sign(present_message('ghost', VERIFIER, EXPIRY)).unwrap();
-    gate.present('ghost', VERIFIER, EXPIRY, r, s);
+    let (r, s) = ok.sign(present_nonce_message('ghost', VERIFIER, EXPIRY, NONCE)).unwrap();
+    gate.present('ghost', VERIFIER, EXPIRY, NONCE, r, s);
 }
