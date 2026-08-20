@@ -14,3 +14,4 @@ dist/
 
 # OS noise
 .DS_Store
+web/app.bundle.mjs

@@ -6,9 +6,11 @@
   "license": "Apache-2.0",
   "repository": "github:kshitij-hash/nightshift",
   "scripts": {
-    "check:manifest": "node scripts/check-manifest.mjs"
+    "check:manifest": "node scripts/check-manifest.mjs",
+    "build:console": "./site/node_modules/.bin/esbuild web/app.mjs --bundle --format=esm --outfile=web/app.bundle.mjs"
   },
   "dependencies": {
+    "@starknet-io/get-starknet-core": "6.0.1",
     "starknet": "10.7.0"
   }
 }
