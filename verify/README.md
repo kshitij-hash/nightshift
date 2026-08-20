@@ -44,10 +44,22 @@ commitment per creator, the way `web/app.mjs` does.
 | 2 | `expiry_block` is at or after the current block | `expired` |
 | 3 | `expiry_block` is no more than `maxWindow` blocks ahead | `expiry_too_far` |
 | 4 | `nonce` is the one this verifier issued for this request | `nonce_mismatch` |
-| 5 | `vault.is_active(commitment)` | `not_active` |
-| 6 | `vault.periods_due(commitment) === 0` | `arrears` |
+| 5 | `vault.schedule_of(commitment)`: known and not cancelled | `not_active` |
+| 6 | paid through now: period 0 charged and `now < start + period_blocks * next` | `arrears` |
 | 7 | `vault.owner_key_of(commitment)` is non-zero | `unknown_commitment` |
 | 8 | the signature verifies against that key | `bad_signature` |
+
+Checks 5 and 6 read one `schedule_of` call and mirror the on-chain gate's
+entitlement rule exactly. The vault's `is_active` flag is deliberately not
+consulted: charging the final period flips it false at the instant the
+subscriber becomes fully paid, so a verifier gating on it would deny the last
+paid period, and deny every single-period subscription outright.
+
+Pick your `verifier_id` the way the on-chain gate now forces it: there, the id
+must equal the calling contract's address, which makes ids collision-free by
+construction. An off-chain verifier that never calls the gate may use any
+stable felt, but using your own Starknet address keeps one id valid on both
+paths and stops two integrators colliding on a name like `'club-door'`.
 
 Three more reasons cover everything else: `malformed_presentation` for input that
 is not a readable presentation, `bad_config` for a missing vault address, RPC

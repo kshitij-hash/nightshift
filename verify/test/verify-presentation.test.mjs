@@ -65,7 +65,7 @@ test("happy path returns the creator and tier from schedule_of", async () => {
   });
   assert.deepEqual(
     provider.calls.map((c) => c.entrypoint),
-    ["is_active", "periods_due", "owner_key_of", "schedule_of"],
+    ["schedule_of", "owner_key_of"],
   );
   assert.deepEqual(provider.calls[0].calldata, [COMMITMENT]);
   for (const c of provider.calls) assert.equal(c.contractAddress, VAULT);
@@ -117,34 +117,76 @@ test("a nonce this verifier did not issue is refused", async () => {
   assert.equal(provider.calls.length, 0);
 });
 
-test("a cancelled or exhausted subscription is refused", async () => {
-  const { promise, provider } = check({ vault: vaultStubs({ ownerKey: PUB, active: false }) });
+test("a cancelled subscription is refused", async () => {
+  const { promise, provider } = check({ vault: vaultStubs({ ownerKey: PUB, cancelled: true }) });
   assert.equal((await promise).reason, REASONS.NOT_ACTIVE);
-  assert.deepEqual(provider.calls.map((c) => c.entrypoint), ["is_active"]);
+  assert.deepEqual(provider.calls.map((c) => c.entrypoint), ["schedule_of"]);
 });
 
-test("a subscription in arrears is refused even though it reads active", async () => {
-  // is_active carries no time term, so paid-through-now is a separate read.
-  const { promise, provider } = check({ vault: vaultStubs({ ownerKey: PUB, due: 3 }) });
+test("an unknown commitment reads creator zero and is refused", async () => {
+  const { promise, provider } = check({ vault: vaultStubs({ ownerKey: PUB, creatorId: "0x0" }) });
+  assert.equal((await promise).reason, REASONS.NOT_ACTIVE);
+  assert.deepEqual(provider.calls.map((c) => c.entrypoint), ["schedule_of"]);
+});
+
+test("a subscription whose period 0 was never charged is in arrears", async () => {
+  const { promise, provider } = check({ vault: vaultStubs({ ownerKey: PUB, nextPeriod: 0 }) });
   assert.equal((await promise).reason, REASONS.ARREARS);
-  assert.deepEqual(provider.calls.map((c) => c.entrypoint), ["is_active", "periods_due"]);
+  assert.deepEqual(provider.calls.map((c) => c.entrypoint), ["schedule_of"]);
+});
+
+test("a lapsed paid window is in arrears even with periods left", async () => {
+  // start 499_000, pb 2100, next 1: paid through 501_100. Block 501_100 is the
+  // first block of the unpaid period, so it must already refuse.
+  const r = await verdict({
+    vault: vaultStubs({ ownerKey: PUB, nextPeriod: 1 }),
+    blockNumber: 501_100,
+    presentation: presentationSignedWith(PRIV, { expiryBlock: 501_150 }),
+  });
+  assert.equal(r.reason, REASONS.ARREARS);
+});
+
+test("the final period admits after the final charge", async () => {
+  // The rule the on-chain gate had to fix: charging period n-1 flips the
+  // vault's is_active flag false at the instant the subscriber is fully paid.
+  // Entitlement is the paid window, not the flag. Here next == n == 12 with
+  // start 480_000, so the schedule is paid through 480_000 + 2100*12 =
+  // 505_200, and the default block 500_000 sits inside the final period.
+  const r = await verdict({
+    vault: vaultStubs({ ownerKey: PUB, startBlock: 480_000, nextPeriod: 12, nPeriods: 12 }),
+  });
+  assert.equal(r.ok, true);
+});
+
+test("an n_periods = 1 subscription admits inside its only paid window", async () => {
+  const r = await verdict({
+    vault: vaultStubs({ ownerKey: PUB, nPeriods: 1, nextPeriod: 1 }),
+  });
+  assert.equal(r.ok, true);
+});
+
+test("an n_periods = 1 subscription is in arrears after its window", async () => {
+  const r = await verdict({
+    vault: vaultStubs({ ownerKey: PUB, nPeriods: 1, nextPeriod: 1 }),
+    blockNumber: 501_100,
+    presentation: presentationSignedWith(PRIV, { expiryBlock: 501_150 }),
+  });
+  assert.equal(r.reason, REASONS.ARREARS);
 });
 
 test("a commitment the vault holds no key for is refused", async () => {
+  // Synthetic: a live schedule whose stored key reads zero. Belt-and-braces,
+  // exactly as the gate keeps it.
   const { promise, provider } = check({ vault: vaultStubs({ ownerKey: "0x0" }) });
   assert.equal((await promise).reason, REASONS.UNKNOWN_COMMITMENT);
-  assert.deepEqual(provider.calls.map((c) => c.entrypoint), [
-    "is_active",
-    "periods_due",
-    "owner_key_of",
-  ]);
+  assert.deepEqual(provider.calls.map((c) => c.entrypoint), ["schedule_of", "owner_key_of"]);
 });
 
 test("a signature by the wrong key is refused", async () => {
   const forged = presentationSignedWith(OTHER_PRIV);
   const { promise, provider } = check({ presentation: forged });
   assert.equal((await promise).reason, REASONS.BAD_SIGNATURE);
-  assert.equal(provider.calls.length, 3);
+  assert.equal(provider.calls.length, 2);
 });
 
 test("a tampered field breaks the signature", async () => {
@@ -205,11 +247,11 @@ test("an unreachable node is a reason, not an exception", async () => {
   assert.equal(down.reason, REASONS.RPC_ERROR);
 
   const halfDown = await verdict({
-    vault: { ...vaultStubs({ ownerKey: PUB }), periods_due: boom },
+    vault: { ...vaultStubs({ ownerKey: PUB }), owner_key_of: boom },
   });
   assert.equal(halfDown.reason, REASONS.RPC_ERROR);
 
-  const empty = await verdict({ vault: { ...vaultStubs({ ownerKey: PUB }), is_active: [] } });
+  const empty = await verdict({ vault: { ...vaultStubs({ ownerKey: PUB }), schedule_of: [] } });
   assert.equal(empty.reason, REASONS.RPC_ERROR);
 });
 

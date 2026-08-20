@@ -337,11 +337,14 @@ export function signPresentation({ commitment, verifierId, expiryBlock, nonce, o
  *   2. expiry_block is at or after the current block    expired
  *   3. expiry_block is within maxWindow of it           expiry_too_far
  *   4. nonce is the one this verifier issued            nonce_mismatch
- *   5. vault.is_active(commitment)                      not_active
- *   6. vault.periods_due(commitment) === 0              arrears
+ *   5. vault.schedule_of: known and not cancelled       not_active
+ *   6. period 0 charged, and the paid window covers     arrears
+ *      the current block (now < start + pb * next)
  *   7. vault.owner_key_of(commitment) is non-zero       unknown_commitment
  *   8. the signature verifies against that key          bad_signature
- * On success the (creator_id, tier) come from vault.schedule_of.
+ * On success the (creator_id, tier) come from the same schedule_of read.
+ * This is the on-chain gate's exact entitlement rule; is_active is not
+ * consulted because it reads false during the final fully-paid period.
  *
  * @param {{presentation: object, expectedVerifierId: string|bigint|number,
  *          expectedNonce: string|bigint, provider?: object, rpcUrl?: string,
@@ -408,24 +411,31 @@ export async function verifyPresentation({
   if (bindingReason) return fail(bindingReason);
 
   const commitmentArg = [hex(fields.commitment)];
-  let active;
-  let due;
-  let ownerKey;
   let schedule;
+  let ownerKey;
   try {
-    active = await call("is_active", commitmentArg);
-    if (active.length === 0) return fail(REASONS.RPC_ERROR);
-    if (active[0] === 0n) return fail(REASONS.NOT_ACTIVE);
-
-    due = await call("periods_due", commitmentArg);
-    if (due.length === 0) return fail(REASONS.RPC_ERROR);
-    if (due[0] !== 0n) return fail(REASONS.ARREARS);
+    // One schedule read carries the whole entitlement rule, mirroring the
+    // on-chain gate: known and not cancelled; period 0 charged; and the paid
+    // window covers the current block (now < start + period_blocks * next).
+    // The old is_active flag is deliberately NOT consulted: charging the final
+    // period flips it false at the exact moment the subscriber is fully paid,
+    // which would deny the last paid period and every n_periods = 1 schedule.
+    schedule = await call("schedule_of", commitmentArg);
+    if (schedule.length < 8) return fail(REASONS.RPC_ERROR);
+    const creatorFelt = schedule[0];
+    const periodBlocks = schedule[2];
+    const startBlock = schedule[3];
+    const nextPeriod = schedule[6];
+    const cancelled = schedule[7];
+    if (creatorFelt === 0n || cancelled !== 0n) return fail(REASONS.NOT_ACTIVE);
+    if (nextPeriod === 0n) return fail(REASONS.ARREARS);
+    if (now >= startBlock + periodBlocks * nextPeriod) return fail(REASONS.ARREARS);
 
     ownerKey = await call("owner_key_of", commitmentArg);
     if (ownerKey.length === 0) return fail(REASONS.RPC_ERROR);
-    // A commitment the vault never recorded reads 0 here. is_active already
-    // catches that on a real vault, so this is the belt-and-braces the gate
-    // keeps for the same reason: an ECDSA check against a zero key is not one.
+    // A commitment the vault never recorded reads 0 here. The schedule read
+    // above already catches that (creator_id 0), so this is belt-and-braces,
+    // kept for the gate's reason: an ECDSA check against a zero key is not one.
     if (ownerKey[0] === 0n) return fail(REASONS.UNKNOWN_COMMITMENT);
   } catch {
     return fail(REASONS.RPC_ERROR);
@@ -439,13 +449,6 @@ export async function verifyPresentation({
   });
   if (!checkPresentSignature(msg, ownerKey[0], fields.sigR, fields.sigS)) {
     return fail(REASONS.BAD_SIGNATURE);
-  }
-
-  try {
-    schedule = await call("schedule_of", commitmentArg);
-    if (schedule.length < 2) return fail(REASONS.RPC_ERROR);
-  } catch {
-    return fail(REASONS.RPC_ERROR);
   }
 
   return { ok: true, creatorId: hex(schedule[0]), tier: Number(schedule[1]), reason: null };

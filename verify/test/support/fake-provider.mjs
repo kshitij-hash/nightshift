@@ -29,34 +29,39 @@ export function fakeProvider({ blockNumber = 500_000, vault = {} } = {}) {
 const felt = (v) => `0x${BigInt(v).toString(16)}`;
 
 /**
- * The four vault views verifyPresentation reads, with the shapes the real
- * contract returns: is_active a bool, periods_due a u32, owner_key_of a felt,
- * schedule_of the eight-felt tuple whose first two entries are creator_id and
- * tier.
+ * The two vault views verifyPresentation reads, with the shapes the real
+ * contract returns: owner_key_of a felt, schedule_of the eight-felt tuple
+ * (creator_id, tier, period_blocks, start_block, n_periods, escrow,
+ * next_period, cancelled). The entitlement rule derives from the schedule
+ * alone, exactly as the on-chain gate does it: with the defaults below
+ * (start 499_000, pb 2100, next 3) the paid window covers blocks
+ * [499_000, 505_300), so the default test block 500_000 sits inside it.
  *
- * @param {{active?: boolean, due?: number, ownerKey?: string|bigint,
- *          creatorId?: string|bigint, tier?: number}} state
+ * @param {{ownerKey?: string|bigint, creatorId?: string|bigint, tier?: number,
+ *          periodBlocks?: number, startBlock?: number, nPeriods?: number,
+ *          nextPeriod?: number, cancelled?: boolean}} state
  */
 export function vaultStubs({
-  active = true,
-  due = 0,
   ownerKey = "0x1",
   creatorId = "0xc0ffee",
   tier = 2,
+  periodBlocks = 2100,
+  startBlock = 499_000,
+  nPeriods = 12,
+  nextPeriod = 3,
+  cancelled = false,
 } = {}) {
   return {
-    is_active: [active ? "0x1" : "0x0"],
-    periods_due: [felt(due)],
     owner_key_of: [felt(ownerKey)],
     schedule_of: [
       felt(creatorId),
       felt(tier),
-      felt(2100),
-      felt(499_000),
-      felt(12),
+      felt(periodBlocks),
+      felt(startBlock),
+      felt(nPeriods),
       felt(1_000_000_000n),
-      felt(3),
-      "0x0",
+      felt(nextPeriod),
+      cancelled ? "0x1" : "0x0",
     ],
   };
 }
