@@ -56,4 +56,59 @@ if (m.contracts !== undefined) {
 if (typeof m.demo_video !== "string") fail("demo_video must be a string (empty until recorded)");
 else ok(m.demo_video ? "demo_video set" : "demo_video present (empty — fill before Aug 29)");
 
+// Mine-rule RPC check: each listed tx must have SUCCEEDED and be routed through
+// one of the declared contracts — an event emitted from one, or a calldata felt
+// naming one. Addresses are compared numerically (BigInt) so 0x0-padding differences
+// don't matter.
+if (process.env.CHECK_RPC && Array.isArray(txs) && txs.length) {
+  const declared = (Array.isArray(m.contracts) ? m.contracts : [])
+    .map((c) => (typeof c === "string" ? c : c?.address))
+    .filter(Boolean)
+    .map((a) => BigInt(a));
+
+  let rpcUrl = process.env.STARKNET_RPC;
+  try {
+    const env = readFileSync(new URL("../.env", import.meta.url), "utf8");
+    const match = env.match(/^\s*STARKNET_RPC\s*=\s*(.+?)\s*$/m);
+    if (match) rpcUrl = match[1].replace(/^["']|["']$/g, "");
+  } catch {}
+
+  if (!rpcUrl) {
+    fail("CHECK_RPC set but no STARKNET_RPC in .env or environment");
+  } else if (!declared.length) {
+    fail("CHECK_RPC set but no contracts declared — nothing to check txs against");
+  } else {
+    const { RpcProvider } = await import("starknet");
+    const provider = new RpcProvider({ nodeUrl: rpcUrl });
+    const matchesDeclared = (felt) => {
+      try { return declared.includes(BigInt(felt)); } catch { return false; }
+    };
+    for (const hash of txs) {
+      try {
+        const [receipt, tx] = await Promise.all([
+          provider.getTransactionReceipt(hash),
+          provider.getTransaction(hash),
+        ]);
+        const succeeded = receipt.execution_status === "SUCCEEDED";
+        const events = Array.isArray(receipt.events) ? receipt.events : [];
+        const eventHit = events.some((ev) => matchesDeclared(ev.from_address));
+        const calldata = Array.isArray(tx?.calldata) ? tx.calldata : [];
+        const calldataHit = calldata.some(matchesDeclared);
+        if (succeeded && (eventHit || calldataHit)) {
+          console.log(`PASS ${hash}`);
+        } else {
+          const why = !succeeded
+            ? `execution_status=${receipt.execution_status}`
+            : "no event from / calldata mention of a declared contract";
+          console.log(`FAIL ${hash} (${why})`);
+          process.exitCode = 1;
+        }
+      } catch (e) {
+        console.log(`FAIL ${hash} (rpc error: ${e.message})`);
+        process.exitCode = 1;
+      }
+    }
+  }
+}
+
 process.exit(process.exitCode || 0);
