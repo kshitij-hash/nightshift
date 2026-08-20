@@ -73,6 +73,17 @@
   <div class="row"><input id="reclaimto" class="wide" placeholder="reclaim to address (empty = this wallet)"></div>
   <div class="row"><button id="reclaimsign" disabled>Sign reclaim (print relay command)</button>
   <button id="reclaimself" class="ghost" disabled>or self-submit (names this wallet as sender)</button></div>
+  <div class="row"><label>self-submit with the legacy v3 owner key
+  <input type="checkbox" id="legacykey" disabled></label>
+  <span class="dim">owner keys are now derived per commitment; the existing v3 subscription predates that</span></div>
+</fieldset>
+
+<fieldset>
+  <legend>6 · gate · present tier to a verifier (signature presentation, linkable)</legend>
+  <div class="row"><label>verifier id <input id="verifier" value="DOOR_1"></label>
+  <span class="dim">0x-hex, or a short string encoded as a felt</span></div>
+  <div class="row"><button id="present" disabled>Sign + present</button>
+  <span class="dim">expiry = current block + 1000, fresh random nonce each press</span></div>
 </fieldset>
 
 <div id="log"><span class="dim">log —</span></div>

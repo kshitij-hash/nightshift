@@ -2,11 +2,16 @@
 // wallet's STRK20 API or plain public calls — no viewing key, no proof
 // handling in this page.
 //
-// Key handling is DEMO-GRADE by declared scope: the creator payout keypair and
-// the subscriber owner keypair are STARK keypairs generated here and kept in
-// localStorage, because the demo wallet plays both roles (PRIVACY.md
-// limitation 5). A production build would hold them in the respective
-// parties' wallets.
+// Key handling is DEMO-GRADE by declared scope: the creator payout keypair is
+// a STARK keypair generated here and kept in localStorage, because the demo
+// wallet plays both roles (PRIVACY.md limitation 5). A production build would
+// hold it in the creator's wallet.
+//
+// The subscriber's owner key is NOT stored. It is derived per commitment from
+// one stored master secret (see ownerPrivFor). The owner key is public: it
+// rides in the subscribe calldata and the tier gate reads it to check a
+// presentation, so one key reused across creators would link a subscriber's
+// commitments to each other for anyone reading the chain.
 //
 // The claim flow is two-phase because of a real constraint: the open-note id
 // is computed by the WALLET (h(NOTE_ID_TAG, channel_key, token, index, 0)) and
@@ -22,6 +27,9 @@ import { createStore } from "@starknet-io/get-starknet-core";
 
 const POOL = "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
 const VAULT = "0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759"; // v3
+// Fill in after `node scripts/deploy-gate.mjs <vault>` lands. Empty means the
+// gate section refuses to build a call rather than sending one to address 0.
+const GATE = "";
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const E18 = 10n ** 18n;
 // Wallet API addresses are PADDED_FELT: 0x + exactly 64 hex. Wallet-standard
@@ -67,9 +75,56 @@ const stored = (key, label) => {
 };
 const subscriberSecret = () => stored("nightshift.subscriber.secret", "subscriber secret");
 const payoutPriv = () => stored("nightshift.payout.priv", "creator payout key");
-const ownerPriv = () => stored("nightshift.owner.priv", "subscriber owner key");
 const payoutPub = () => ec.starkCurve.getStarkKey(payoutPriv());
+
+// --- per-commitment owner key ---------------------------------------------
+// One key per subscription, derived, never stored. The old console kept a
+// single "nightshift.owner.priv" and reused it for every creator; once the gate
+// publishes owner keys, that one key is a join column across every creator the
+// same subscriber pays.
+//
+// Derivation, client-side only (no Cairo mirror needed, since the chain only
+// ever sees the public key):
+//
+//   k = poseidon(subscriberSecret, creatorId, 'NIGHTSHIFT_OWNER') mod n
+//   while k == 0: k += 1
+//
+// n is the STARK curve order. Poseidon's output range is [0, P) with P the
+// STARK prime; P - n is about 2^96, so reducing mod n biases the result by
+// ~2^-155 and needs no rejection sampling. k == 0 is not a valid scalar, so it
+// is incremented rather than accepted. Deterministic: the same master secret
+// and creator id always rebuild the same key, so nothing has to be backed up
+// beyond the master secret.
+//
+// commitment = poseidon(subscriberSecret, creatorId) is 1:1 with creatorId in
+// this console, so keying the derivation on creatorId is keying it on the
+// commitment.
+const CURVE_N = ec.starkCurve.CURVE.n;
+const ownerPrivFor = (creatorIdFelt) => {
+  const h = BigInt(
+    hash.computePoseidonHashOnElements([subscriberSecret(), creatorIdFelt, tag("NIGHTSHIFT_OWNER")]),
+  );
+  let k = h % CURVE_N;
+  if (k === 0n) k = 1n;
+  if (!ec.starkCurve.utils.isValidPrivateKey(k)) throw new Error("derived owner key out of range");
+  return "0x" + k.toString(16).padStart(64, "0");
+};
+const ownerPriv = () => ownerPrivFor(creatorId());
 const ownerPub = () => ec.starkCurve.getStarkKey(ownerPriv());
+
+// LEGACY PATH. Do not delete while the v3 subscription is still cancellable.
+// The subscription already live on the v3 vault recorded the OLD single stored
+// owner key, so only that key can authorize its cancel or reclaim. It is read,
+// never created: this returns null on a machine that never ran the old console.
+const legacyOwnerPriv = () => localStorage.getItem("nightshift.owner.priv");
+const legacyOwnerPub = () => {
+  const p = legacyOwnerPriv();
+  return p ? ec.starkCurve.getStarkKey(p) : null;
+};
+// Which key the self-submit cancel/reclaim buttons sign with. The sign-only
+// buttons ignore this and print a relay line per available key instead.
+const signingOwnerPriv = () =>
+  ($("legacykey")?.checked && legacyOwnerPriv()) ? legacyOwnerPriv() : ownerPriv();
 
 // v3 identity: creator_id = poseidon(caller, token, payout_key), computed
 // on-chain by register_creator with the connected wallet as caller.
@@ -86,6 +141,13 @@ const cancelMsg = () =>
   hash.computePoseidonHashOnElements([tag("NIGHTSHIFT_CANCEL"), commitment()]);
 const reclaimMsg = (to) =>
   hash.computePoseidonHashOnElements([tag("NIGHTSHIFT_RECLAIM"), commitment(), to]);
+// Gate presentation. Mirrors present_nonce_message in src/common.cairo:
+// poseidon(['NIGHTSHIFT_PRESENT', commitment, verifier_id, expiry_block, nonce]).
+const presentMsg = (verifierId, expiryBlock, nonce) =>
+  hash.computePoseidonHashOnElements([
+    tag("NIGHTSHIFT_PRESENT"), commitment(), verifierId,
+    "0x" + BigInt(expiryBlock).toString(16), nonce,
+  ]);
 const sign = (msg, priv) => {
   const s = ec.starkCurve.sign(msg, priv);
   return { r: "0x" + s.r.toString(16), s: "0x" + s.s.toString(16) };
@@ -136,10 +198,16 @@ $("connect").onclick = async () => {
     account = await WalletAccountV6.connect(provider, swo);
     $("who").textContent = `${account.address.slice(0, 10)}… connected`;
     for (const b of ["balances", "state", "register", "subscribe", "charge", "claimprep", "claimsend",
-                     "cancelsign", "cancelself", "reclaimsign", "reclaimself"]) $(b).disabled = false;
+                     "cancelsign", "cancelself", "reclaimsign", "reclaimself", "present"]) $(b).disabled = false;
     log("connected", "ok");
     log(`payout pubkey: ${payoutPub()}`, "dim");
-    log(`owner pubkey:  ${ownerPub()}`, "dim");
+    // Per-commitment, so this line changes with the creator id above it.
+    log(`owner pubkey (creator ${creatorId().slice(0, 10)}…): ${ownerPub()}`, "dim");
+    const legacy = legacyOwnerPub();
+    if (legacy) {
+      $("legacykey").disabled = false;
+      log(`legacy owner pubkey (pre-derivation, v3 subscription only): ${legacy}`, "dim");
+    }
   } catch (e) { logErr("connect failed", e); }
 };
 
@@ -289,11 +357,26 @@ const RELAY_NOTE =
   "any party can submit this line: the vault checks the signature, not the " +
   "sender. That is why cancelling needs no gas and no wallet from the subscriber.";
 
+// The owner keys worth signing with, best first: the derived per-commitment
+// key, then the legacy stored key if this machine has one. Two lines, not one,
+// because the vault stores exactly one owner key per commitment and the console
+// cannot read which (schedule_of stops short of owner_key), so the caller picks
+// by era: derived for anything subscribed after this change, legacy for the v3
+// subscription that predates it.
+const ownerKeyCandidates = () => {
+  const out = [{ label: "derived per-commitment key", priv: ownerPriv() }];
+  const legacy = legacyOwnerPriv();
+  if (legacy) out.push({ label: "legacy stored key, for the existing v3 subscription", priv: legacy });
+  return out;
+};
+
 $("cancelsign").onclick = () => {
   try {
-    const sig = sign(cancelMsg(), ownerPriv());
-    log("cancel signed with the owner key, nothing submitted", "ok");
-    log(`node scripts/relay.mjs cancel ${commitment()} ${sig.r} ${sig.s}`, "ok");
+    for (const k of ownerKeyCandidates()) {
+      const sig = sign(cancelMsg(), k.priv);
+      log(`cancel signed with the ${k.label}, nothing submitted`, "ok");
+      log(`node scripts/relay.mjs cancel ${commitment()} ${sig.r} ${sig.s}`, "ok");
+    }
     log(RELAY_NOTE, "dim");
   } catch (e) { logErr("cancel sign failed", e); }
 };
@@ -301,7 +384,7 @@ $("cancelsign").onclick = () => {
 $("cancelself").onclick = async () => {
   try {
     log("self-submitting: this wallet is recorded as the sender of the cancel", "dim");
-    const sig = sign(cancelMsg(), ownerPriv());
+    const sig = sign(cancelMsg(), signingOwnerPriv());
     const { transaction_hash } = await account.execute({
       contractAddress: VAULT, entrypoint: "cancel",
       calldata: [commitment(), sig.r, sig.s],
@@ -315,9 +398,11 @@ $("cancelself").onclick = async () => {
 $("reclaimsign").onclick = () => {
   try {
     const to = $("reclaimto").value.trim() || account.address;
-    const sig = sign(reclaimMsg(to), ownerPriv());
-    log(`reclaim signed for ${to.slice(0, 10)}…, nothing submitted`, "ok");
-    log(`node scripts/relay.mjs reclaim ${commitment()} ${to} ${sig.r} ${sig.s}`, "ok");
+    for (const k of ownerKeyCandidates()) {
+      const sig = sign(reclaimMsg(to), k.priv);
+      log(`reclaim signed for ${to.slice(0, 10)}… with the ${k.label}, nothing submitted`, "ok");
+      log(`node scripts/relay.mjs reclaim ${commitment()} ${to} ${sig.r} ${sig.s}`, "ok");
+    }
     log(RELAY_NOTE, "dim");
     log("the destination sits inside the signed message: a relay that edits it fails the check", "dim");
   } catch (e) { logErr("reclaim sign failed", e); }
@@ -327,7 +412,7 @@ $("reclaimself").onclick = async () => {
   try {
     const to = $("reclaimto").value.trim() || account.address;
     log("self-submitting: this wallet is recorded as the sender of the reclaim", "dim");
-    const sig = sign(reclaimMsg(to), ownerPriv());
+    const sig = sign(reclaimMsg(to), signingOwnerPriv());
     const { transaction_hash } = await account.execute({
       contractAddress: VAULT, entrypoint: "reclaim",
       calldata: [commitment(), to, sig.r, sig.s],
@@ -336,4 +421,56 @@ $("reclaimself").onclick = async () => {
   } catch (e) { logErr("reclaim failed", e); }
 };
 
+// --- gate: present a tier to a verifier -------------------------------------
+// `present` is a signature presentation, not a proof. The commitment sits in
+// the calldata and in the gate's Presented event, so a verifier, and anyone
+// else reading the chain, can link two presentations of the same subscription
+// to each other, at one gate or across several. What the verifier gets back is
+// (creator_id, tier). What it never gets is a wallet: the signature is by the
+// subscription's owner key, and this console derives one such key per
+// commitment so presentations to different creators' gates share no key.
+
+// A verifier id is a felt: pass 0x-hex through, otherwise treat it as a short
+// string ('DOOR_1'), which is how a human-readable door id becomes a felt.
+const asFelt = (s) =>
+  /^0x[0-9a-fA-F]+$/.test(s) ? s : shortString.encodeShortString(s);
+
+// 31 random bytes stays under the STARK prime without a reduction step.
+const randomNonce = () =>
+  "0x" + [...crypto.getRandomValues(new Uint8Array(31))]
+    .map((b) => b.toString(16).padStart(2, "0")).join("");
+
+// The gate's MAX_PRESENT_WINDOW is one PERIOD_HOUR (2100 blocks), so a 1000
+// block expiry is inside it with room for the transaction to land.
+const PRESENT_WINDOW_BLOCKS = 1000;
+
+$("present").onclick = async () => {
+  try {
+    if (!GATE) throw new Error("GATE is empty: set it in web/app.mjs after the gate deploy");
+    const raw = $("verifier").value.trim();
+    if (!raw) throw new Error("enter a verifier id");
+    const verifierId = asFelt(raw);
+    const now = await provider.getBlockNumber();
+    const expiry = now + PRESENT_WINDOW_BLOCKS;
+    const nonce = randomNonce();
+    const sig = sign(presentMsg(verifierId, expiry, nonce), ownerPriv());
+    log(`present: verifier_id=${verifierId} expiry_block=${expiry} (block ${now} + ${PRESENT_WINDOW_BLOCKS}) nonce=${nonce}`, "dim");
+    const { transaction_hash } = await account.execute({
+      contractAddress: GATE, entrypoint: "present",
+      calldata: [commitment(), verifierId, cd("0x" + BigInt(expiry).toString(16)), nonce, sig.r, sig.s],
+    });
+    log(`present submitted: ${transaction_hash}`, "ok");
+    log(`voyager: https://voyager.online/tx/${transaction_hash}`, "dim");
+    await provider.waitForTransaction(transaction_hash);
+    // The entrypoint's return value is not in the receipt, so read the same
+    // pair straight back off the gate.
+    const r = await provider.callContract({
+      contractAddress: GATE, entrypoint: "tier_of", calldata: [commitment()],
+    });
+    log(`gate returned creator_id=${r[0]} tier=${BigInt(r[1])}`, "ok");
+    log("the commitment travelled in that calldata and in the Presented event: presentations of one subscription are linkable to each other across gates", "dim");
+  } catch (e) { logErr("present failed", e); }
+};
+
 log("ready — connect the wallet to begin (v3 vault " + VAULT.slice(0, 10) + "…)", "dim");
+if (!GATE) log("gate address not set: the present button refuses until GATE is filled in", "dim");

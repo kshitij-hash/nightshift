@@ -8,8 +8,10 @@ CI is green, and the entry scores less than it should, or nothing at all. The po
 that before the deadline rather than after.
 
 ```
-npx strk20-preflight
+node preflight/bin/strk20-preflight.mjs
 ```
+
+The package is not published to npm, so run it from a checkout by path.
 
 ## What it checks
 
@@ -53,7 +55,7 @@ that are routed through it, and run this tool with `--rpc` to confirm which ones
 ## Usage
 
 ```
-npx strk20-preflight [path/to/strk20.json] [--rpc URL] [--offline] [--json]
+node preflight/bin/strk20-preflight.mjs [path/to/strk20.json] [--rpc URL] [--offline] [--json]
 
   path        manifest to check (default: ./strk20.json)
   --rpc URL   Starknet RPC node for the on-chain checks.
@@ -74,7 +76,7 @@ an API key in the path is safe to pass in CI logs.
 ### In CI
 
 ```yaml
-- run: npx strk20-preflight strk20.json
+- run: node preflight/bin/strk20-preflight.mjs strk20.json
   env:
     STARKNET_RPC: ${{ secrets.STARKNET_RPC }}
 ```
@@ -82,8 +84,8 @@ an API key in the path is safe to pass in CI logs.
 ### As a library
 
 ```js
-import { inspectManifest } from "strk20-preflight/src/manifest.mjs";
-import { transactionVerdict } from "strk20-preflight/src/verdict.mjs";
+import { inspectManifest } from "./preflight/src/manifest.mjs";
+import { transactionVerdict } from "./preflight/src/verdict.mjs";
 ```
 
 `transactionVerdict(receipt, tx, declaredContracts)` is pure and takes plain objects, so the

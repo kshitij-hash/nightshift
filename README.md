@@ -40,7 +40,9 @@ vault records:                     vault asserts:
   tier · period_blocks · periods     · block ≥ start + period · length   (never early)
 returns empty span                   · nullifier unspent, then writes it (never twice)
                                      · escrow -= amount                  (never beyond)
-                                   pool credits the charge as an open note
+                                   charge credits the creator's claimable
+                                   balance; no tokens move. Settlement is the
+                                   separate creator-signed Claim
 ```
 
 The standing authorization is not a key held by anyone — it is the escrow the
@@ -60,9 +62,11 @@ question are answered by the same hash.
 Cancellation is authorized by a STARK signature from the subscription's owner
 key over `cancel_message(commitment)`, and the vault checks that signature
 without ever reading the sender. So a cancel costs the subscriber no gas and
-no sender identity: they sign, and any willing party submits. That fills the
-paymaster role in the RFP with strictly less trust than a paymaster, because
-the relay holds nothing and can change nothing. Alter the commitment or the
+no sender identity: they sign, and any willing party submits. For revocation
+only, that covers the paymaster role in the RFP with strictly less trust than a
+paymaster, because the relay holds nothing and can change nothing. Subscribing
+is not covered: it still costs the subscriber the pool's 6 STRK protocol fee
+and the gas for their own transaction. Alter the commitment or the
 reclaim destination and the signature check fails; the worst a relay can do is
 decline to submit. `scripts/relay.mjs` is one such submitter, running from the
 keeper account, and the ops console prints the exact line to hand it.
@@ -79,18 +83,19 @@ are not flattering.
 
 | Path | What |
 |---|---|
-| `src/vault.cairo` | The anonymizer vault: `privacy_invoke` (Subscribe/Release ops), accounted custody, period nullifiers, `schedule_of` / `tier_of` read views |
+| `src/vault.cairo` | The anonymizer vault: `privacy_invoke` (Subscribe/Claim ops) plus the `charge`, `cancel` and `reclaim` entrypoints, accounted custody, period nullifiers, `schedule_of` / `tier_of` read views |
 | `src/mocks.cairo` | `MockPrivacyPool` — an snforge double that replays the deployed pool's invoke sequence with its real revert strings. No other public test harness for this pool exists |
 | `tests/` | The adversarial suite: hostile donations, non-pool callers, early charges, double charges, escrow exhaustion |
 | `site/` | The demo board: keyless, static, reads mainnet over JSON-RPC, committed-snapshot fallback it labels honestly |
 | `web/` | Ops console used to drive the wallet-route pool actions (dry-run first) |
+| `preflight/` | `strk20-preflight`: reads a `strk20.json` the way the sprint indexer reads it and prints where the indexer would silently drop something |
 | `strk20.json` | The sprint manifest: the vault and the transactions routed through it |
 
 ## Build and test
 
 ```
 scarb build          # scarb 2.17.0
-snforge test         # 12 adversarial + lifecycle cases
+snforge test         # 47 adversarial + lifecycle cases across the vault and the gate
 node scripts/check-manifest.mjs
 ```
 
@@ -103,16 +108,31 @@ JS installs use `npm ci --ignore-scripts`, exact pins only.
 - **Accounted custody.** `received = balance_of(self) − accounted[token]`,
   asserted equal to the schedule's exact price — a stray donation cannot mint
   a subscription (tested).
-- **Approve, never transfer.** The vault approves the pool for the exact
-  charge; the pool pulls. The vault never moves tokens outward itself.
+- **Approve for claims, transfer for reclaim.** A claim approves the pool for
+  the exact amount and the pool pulls. A reclaim transfers directly instead,
+  because a second reclaim to the same address must not clobber a standing
+  allowance left by the first.
 - **Block-time calibration.** Periods are denominated in blocks; mainnet runs
-  ~1.7s blocks, so "a day" is ~50,400 blocks, not 2,880. The demo subscription
-  ran its three periods fast — the receipts above are the complete lifecycle,
-  escrow consumed exactly to zero.
+  ~1.7s blocks, so "a day" is ~50,400 blocks, not 2,880. The v2 demo
+  subscription ran its periods fast and is the completed lifecycle: the v2
+  receipts above run escrow to exactly zero. The v3 run is still completing.
 
 The signature-binding hazard class in pool helpers was first shown by the
-Envelope team's finding against the reference escrow helper; NIGHTSHIFT's next
-contract revision binds payouts to a creator-signed claim for the same reason.
+Envelope team's finding against the reference escrow helper; v3 shipped the fix
+for the same reason, binding payouts to a creator-signed claim.
+
+### Scope against the RFP
+
+Session keys are not implemented, and not as an omission: the pool has no such
+primitive, so the standing authorization is escrow the subscriber already
+parted with plus the period nullifier that decides when it may move (see [the
+mechanism](#the-mechanism)). Creator revenue confidentiality is refused rather
+than claimed: a creator's cumulative topline is derivable from public events,
+written out as limitation 2 in [PRIVACY.md](PRIVACY.md). A creator analytics
+dashboard is out of scope for this sprint. The tier gate is a signature
+presentation, not a proof: it hands a verifier `(creator_id, tier)` and the
+commitment, and presentations of one subscription are linkable to each other
+across gates.
 
 ## License
 

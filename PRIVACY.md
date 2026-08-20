@@ -1,9 +1,10 @@
 # What is hidden, what is visible
 
 Privacy claims are worthless without their boundaries. This is the complete
-accounting of what each NIGHTSHIFT operation reveals, verified against the
-actual events and calldata on Starknet mainnet — the same receipts listed in
-`strk20.json`.
+accounting of what each operation below reveals: the vault's subscribe, charge,
+claim, cancel and reclaim, and the gate's present. The vault rows are verified
+against the actual events and calldata on Starknet mainnet: the same receipts
+listed in `strk20.json`.
 
 ## The model in one paragraph
 
@@ -24,6 +25,10 @@ any of them to the address that funded the escrow.
 | **Claim** (v3: creator settlement) | The creator_id, the amount, the open note credited into the pool | When each underlying charge happened is decoupled from settlement: one claim can settle many periods in one private batch |
 | **Nullifier** | `poseidon(commitment, period_index)` — spent exactly once | Everything else. Charges of one subscription share a commitment by design (see Limitations) |
 | **Cancel / reclaim** | Cancel: the commitment, a signature by a bare pubkey, and whichever account submitted the transaction. Reclaim: a public ERC-20 transfer out to the chosen address, an exit edge, public like all pool edges | The subscription history behind it, and who authorized it (the owner key is derived from the subscriber's secret, never an account). Neither entrypoint reads the sender, so the submitting account can be a relay with no relation to the subscriber |
+| **Present** (gate: tier presentation) | The commitment, the verifier id, the expiry block, the nonce, the signature, the returned `creator_id` and `tier`, and whichever account submitted the transaction, all of it repeated in the `Presented` event. Presentations of one subscription are linkable to each other, at one gate and across gates, because every one of them carries the same commitment | The subscriber's wallet: the gate checks the owner key the vault recorded at subscribe, a bare pubkey and never an account. Also the escrow remaining and the period history. A verifier learns the tier a commitment is entitled to and the creator it indexes into, nothing about the payments behind it. One owner key reused across creators would link those commitments to each other, which is why the console derives a fresh key per commitment |
+
+The gate is not deployed yet, so the Present row is read off `src/gate.cairo`
+rather than off a mainnet receipt. Every other row has one.
 
 ## What the subscriber's wallet never signs away
 
