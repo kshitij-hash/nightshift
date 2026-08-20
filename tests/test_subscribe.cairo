@@ -70,11 +70,72 @@ fn subscribe_rejects_wrong_amount() {
 
 #[test]
 #[should_panic(expected: 'NS_WRONG_AMOUNT')]
-fn hostile_donation_cannot_mint_subscription() {
+fn lone_donation_without_pool_delivery_cannot_subscribe() {
+    // A donation is not the pool's withdraw leg. Here the vault holds only a
+    // stray 1-wei donation and the pool delivers no escrow for this subscribe,
+    // so held (accounted + 1) is below accounted + expected and the custody
+    // check rejects it. This is the retained half of the old hostile_donation
+    // test: the permanent-DoS behavior is gone (see
+    // donation_does_not_block_subsequent_subscribe), but a subscribe with no
+    // real delivery behind it still cannot go through.
     let (pool, token, vault, creator_id) = setup();
     token.mint(vault.contract_address, 1);
+    // No pool.transfer_to: the pool delivers nothing for this subscribe.
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-1', creator_id, 0, 4).span(), 0);
+}
+
+#[test]
+fn donation_does_not_block_subsequent_subscribe() {
+    // Regression for the custody-check DoS. A stray 1-wei donation to the vault
+    // must NOT permanently brick subscribe. On the old
+    // `held - accounted == expected` check the second subscribe below reverts
+    // NS_WRONG_AMOUNT forever (held - accounted = TIER_0*4 + 1 != TIER_0*4);
+    // with `held >= accounted + expected` the wei is absorbed as surplus and the
+    // second subscribe succeeds.
+    let (pool, token, vault, creator_id) = setup();
+    start_cheat_block_number(vault.contract_address, 1000);
+
+    // First legitimate subscribe.
     pool.transfer_to(token.contract_address, vault.contract_address, (TIER_0 * 4).into());
     pool.invoke_external(vault.contract_address, subscribe_calldata('c-1', creator_id, 0, 4).span(), 0);
+    assert(vault.accounted(token.contract_address) == (TIER_0 * 4).into(), 'first escrow wrong');
+
+    // Hostile 1-wei donation straight to the vault.
+    token.mint(vault.contract_address, 1);
+
+    // Second legitimate subscribe, different commitment, must still succeed and
+    // store the correct escrow.
+    pool.transfer_to(token.contract_address, vault.contract_address, (TIER_0 * 4).into());
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-2', creator_id, 0, 4).span(), 0);
+
+    assert(vault.is_active('c-2'), 'second subscribe blocked');
+    let (_, _, _, _, n, escrow, next, cancelled) = vault.schedule_of('c-2');
+    assert(n == 4 && escrow == TIER_0 * 4 && next == 0 && !cancelled, 'second schedule wrong');
+}
+
+#[test]
+fn donation_surplus_is_unaccounted() {
+    // After a 1-wei donation plus two subscribes, `accounted` tracks exactly the
+    // sum of the two schedules' prices; the donated wei is surplus the vault
+    // never credits, so the actual balance sits one wei above accounted.
+    let (pool, token, vault, creator_id) = setup();
+    start_cheat_block_number(vault.contract_address, 1000);
+
+    pool.transfer_to(token.contract_address, vault.contract_address, (TIER_0 * 4).into());
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-1', creator_id, 0, 4).span(), 0);
+
+    token.mint(vault.contract_address, 1);
+
+    pool.transfer_to(token.contract_address, vault.contract_address, (TIER_1 * 2).into());
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-2', creator_id, 1, 2).span(), 0);
+
+    // accounted == price('c-1') + price('c-2'); the stray wei is excluded.
+    let expected_accounted: u256 = (TIER_0 * 4 + TIER_1 * 2).into();
+    assert(vault.accounted(token.contract_address) == expected_accounted, 'donation was accounted');
+    // The vault actually holds exactly accounted + the 1 stray wei.
+    assert(
+        token.balance_of(vault.contract_address) == expected_accounted + 1, 'balance != accounted+1',
+    );
 }
 
 #[test]

@@ -257,6 +257,9 @@ pub mod NightshiftVault {
             let key = self.sub_owner_key.entry(commitment).read();
             let msg = cancel_message(commitment);
             assert(check_ecdsa_signature(msg, key, sig_r, sig_s), errors::BAD_SIG);
+            // Cancel settles nothing: a period already due but not yet charged is
+            // not charged on the way out, it is forfeited to the subscriber (see
+            // reclaim). Time-based entitlement is the gate's job, not the vault's.
             self.sub_cancelled.entry(commitment).write(true);
             self.emit(Cancelled { commitment });
         }
@@ -276,6 +279,12 @@ pub mod NightshiftVault {
             let msg = reclaim_message(commitment, to);
             assert(check_ecdsa_signature(msg, key, sig_r, sig_s), errors::BAD_SIG);
 
+            // Refunds the full remaining escrow, including any period already due
+            // but never charged: that period is forfeited to the subscriber by
+            // design. Escrow that never became a charge was never owed to the
+            // creator, so this breaks no vault invariant (accounted drops by the
+            // same amount just below). Whether a due period should have been
+            // consumed before cancel is time-based entitlement, owned by the gate.
             let amount = self.sub_escrow.entry(commitment).read();
             assert(amount > 0, errors::EXHAUSTED);
             self.sub_escrow.entry(commitment).write(0);
@@ -385,11 +394,19 @@ pub mod NightshiftVault {
             let escrow_total: u128 = per_period * n_periods.into();
             let expected: u256 = escrow_total.into();
 
-            // Accounted custody: received == the schedule's exact price.
+            // Accounted custody: the pool's withdraw leg must have delivered AT
+            // LEAST the schedule price. `>=`, not `==`: exact-equality on the
+            // surplus (held - accounted) was a permanent DoS, since a stray 1-wei
+            // donation to the vault makes held - accounted != expected for every
+            // future subscribe, with no recovery path. A lone donation still
+            // cannot subscribe (no withdraw leg, so held == accounted and the
+            // check fails). Credited escrow is exactly per_period * n_periods from
+            // the schedule, never read off `held`; any surplus stays unaccounted
+            // and stuck (the donor's loss), and accounted <= balance still holds.
             let held = IERC20Dispatcher { contract_address: token }
                 .balance_of(get_contract_address());
             let accounted = self.accounted.entry(token).read();
-            assert(held - accounted == expected, errors::WRONG_AMOUNT);
+            assert(held >= accounted + expected, errors::WRONG_AMOUNT);
             self.accounted.entry(token).write(accounted + expected);
 
             self.sub_creator.entry(commitment).write(creator_id);
