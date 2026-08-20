@@ -1,18 +1,13 @@
 // Shared types for the vault, the gate, and the test harness.
 //
-// `OpenNoteDeposit` mirrors `privacy::objects::OpenNoteDeposit` field-for-field
-// (note_id, token, amount) so the vault's return data serde-matches what the
-// pool deserializes, without pulling the privacy package into every consumer.
+// `OpenNoteDeposit` is re-exported from the privacy SDK rather than mirrored, so
+// the vault's return data cannot drift out of serde-agreement with what the pool
+// deserializes: a field added or reordered upstream becomes a compile error here
+// instead of a batch that reverts on mainnet.
 
 use core::poseidon::poseidon_hash_span;
+pub use privacy::objects::OpenNoteDeposit;
 use starknet::ContractAddress;
-
-#[derive(Copy, Drop, Serde, PartialEq, Debug)]
-pub struct OpenNoteDeposit {
-    pub note_id: felt252,
-    pub token: ContractAddress,
-    pub amount: u128,
-}
 
 /// Billing period ladder, in blocks. Mainnet runs ~1.7s blocks, so a day is
 /// ~50,400 blocks. Quantized so a schedule cannot fingerprint a subscriber.
@@ -80,6 +75,20 @@ pub fn cancel_message(commitment: felt252) -> felt252 {
 
 pub fn reclaim_message(commitment: felt252, to: ContractAddress) -> felt252 {
     poseidon_hash_span(['NIGHTSHIFT_RECLAIM', commitment, to.into()].span())
+}
+
+/// Gate messages. The verifier and the expiry height are inside the signed
+/// message, so a presentation captured by verifier A does not verify at
+/// verifier B, and none of them verify past the height the signer picked.
+pub fn present_message(commitment: felt252, verifier_id: felt252, expiry_block: u64) -> felt252 {
+    poseidon_hash_span(['NIGHTSHIFT_PRESENT', commitment, verifier_id, expiry_block.into()].span())
+}
+
+/// One-time key registration at the gate. What this signature does and does not
+/// prove is written out at the top of src/gate.cairo; read it before trusting a
+/// presentation.
+pub fn enroll_message(commitment: felt252, owner_key: felt252) -> felt252 {
+    poseidon_hash_span(['NIGHTSHIFT_ENROLL', commitment, owner_key].span())
 }
 
 pub fn is_ladder_period(period_blocks: u64) -> bool {

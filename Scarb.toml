@@ -12,6 +12,13 @@ description = "Recurring private authorization on the STRK20 privacy pool"
 # [workspace.dependencies] table.
 [dependencies]
 starknet = "2.17.0"
+# STRK20 privacy SDK — the `privacy` member of the starknet-privacy workspace.
+# Pinned to the commit tagged PRIVACY-0.14.3-RC.5 (2026-08-12), the newest tag
+# in that repo; every `PRIVACY-*` tag there is a release candidate, so a SHA is
+# the pin, not the moving tag ref. `privacy::objects::OpenNoteDeposit` is
+# byte-identical at CONTRACT_V2_DEPLOYED_MAINNET_2026-07-08, the revision behind
+# the mainnet pool this vault is invoked by.
+privacy = { git = "https://github.com/starkware-libs/starknet-privacy", rev = "66e3caae8c0201227a6719696d004e30d90aea65" }
 
 [dev-dependencies]
 snforge_std = "0.59.0"
