@@ -8,6 +8,7 @@
   "scripts": {
     "check:manifest": "node scripts/check-manifest.mjs",
     "keeper": "node scripts/keeper.mjs",
+    "relay": "node scripts/relay.mjs",
     "build:console": "./site/node_modules/.bin/esbuild web/app.mjs --bundle --format=esm --outfile=web/app.bundle.mjs"
   },
   "dependencies": {

@@ -67,10 +67,12 @@
 </fieldset>
 
 <fieldset>
-  <legend>5 · cancel / reclaim — owner-key signatures, never a wallet name</legend>
-  <div class="row"><button id="cancel" disabled>Cancel subscription</button></div>
+  <legend>5 · cancel / reclaim — owner-key signatures; any party may submit them</legend>
+  <div class="row"><button id="cancelsign" disabled>Sign cancel (print relay command)</button>
+  <button id="cancelself" class="ghost" disabled>or self-submit (names this wallet as sender)</button></div>
   <div class="row"><input id="reclaimto" class="wide" placeholder="reclaim to address (empty = this wallet)"></div>
-  <div class="row"><button id="reclaim" disabled>Reclaim unspent escrow</button></div>
+  <div class="row"><button id="reclaimsign" disabled>Sign reclaim (print relay command)</button>
+  <button id="reclaimself" class="ghost" disabled>or self-submit (names this wallet as sender)</button></div>
 </fieldset>
 
 <div id="log"><span class="dim">log —</span></div>

@@ -135,7 +135,8 @@ $("connect").onclick = async () => {
     if (!swo) throw new Error("no injected Starknet wallet found");
     account = await WalletAccountV6.connect(provider, swo);
     $("who").textContent = `${account.address.slice(0, 10)}… connected`;
-    for (const b of ["balances", "state", "register", "subscribe", "charge", "claimprep", "claimsend", "cancel", "reclaim"]) $(b).disabled = false;
+    for (const b of ["balances", "state", "register", "subscribe", "charge", "claimprep", "claimsend",
+                     "cancelsign", "cancelself", "reclaimsign", "reclaimself"]) $(b).disabled = false;
     log("connected", "ok");
     log(`payout pubkey: ${payoutPub()}`, "dim");
     log(`owner pubkey:  ${ownerPub()}`, "dim");
@@ -275,9 +276,31 @@ $("claimsend").onclick = async () => {
   } catch (e) { logErr("claim submit failed", e); }
 };
 
-// Cancel: plain public call, authorized only by the owner-key signature.
-$("cancel").onclick = async () => {
+// --- cancel / reclaim: sign here, let anyone submit -------------------------
+// The vault authorizes both entrypoints on the owner-key signature alone and
+// never looks at the sender. So the subscriber's wallet does not have to be
+// the one that submits, and when it is, it writes itself into the transaction
+// as sender for no benefit. The primary buttons therefore sign and stop,
+// printing the exact scripts/relay.mjs line to hand to a relay. The self-
+// submit buttons stay for the case where no relay is at hand, labelled so the
+// cost of pressing them is visible.
+
+const RELAY_NOTE =
+  "any party can submit this line: the vault checks the signature, not the " +
+  "sender. That is why cancelling needs no gas and no wallet from the subscriber.";
+
+$("cancelsign").onclick = () => {
   try {
+    const sig = sign(cancelMsg(), ownerPriv());
+    log("cancel signed with the owner key, nothing submitted", "ok");
+    log(`node scripts/relay.mjs cancel ${commitment()} ${sig.r} ${sig.s}`, "ok");
+    log(RELAY_NOTE, "dim");
+  } catch (e) { logErr("cancel sign failed", e); }
+};
+
+$("cancelself").onclick = async () => {
+  try {
+    log("self-submitting: this wallet is recorded as the sender of the cancel", "dim");
     const sig = sign(cancelMsg(), ownerPriv());
     const { transaction_hash } = await account.execute({
       contractAddress: VAULT, entrypoint: "cancel",
@@ -288,9 +311,22 @@ $("cancel").onclick = async () => {
 };
 
 // Reclaim: unspent escrow back out to a public address (a public exit edge).
-$("reclaim").onclick = async () => {
+// The destination is inside the signed message, so a relay cannot redirect it.
+$("reclaimsign").onclick = () => {
   try {
     const to = $("reclaimto").value.trim() || account.address;
+    const sig = sign(reclaimMsg(to), ownerPriv());
+    log(`reclaim signed for ${to.slice(0, 10)}…, nothing submitted`, "ok");
+    log(`node scripts/relay.mjs reclaim ${commitment()} ${to} ${sig.r} ${sig.s}`, "ok");
+    log(RELAY_NOTE, "dim");
+    log("the destination sits inside the signed message: a relay that edits it fails the check", "dim");
+  } catch (e) { logErr("reclaim sign failed", e); }
+};
+
+$("reclaimself").onclick = async () => {
+  try {
+    const to = $("reclaimto").value.trim() || account.address;
+    log("self-submitting: this wallet is recorded as the sender of the reclaim", "dim");
     const sig = sign(reclaimMsg(to), ownerPriv());
     const { transaction_hash } = await account.execute({
       contractAddress: VAULT, entrypoint: "reclaim",

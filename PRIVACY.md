@@ -23,7 +23,7 @@ any of them to the address that funded the escrow.
 | **Charge** (v3: permissionless call) | The commitment (in public calldata — see Limitations), the period index, the amount, the nullifier, and the caller (the keeper — deliberately, for the nobody-at-a-keyboard proof) | Which subscriber was charged. The commitment is a hash; nothing links it to a wallet. No tokens move — only internal accounting shifts to the creator's claimable balance |
 | **Claim** (v3: creator settlement) | The creator_id, the amount, the open note credited into the pool | When each underlying charge happened is decoupled from settlement: one claim can settle many periods in one private batch |
 | **Nullifier** | `poseidon(commitment, period_index)` — spent exactly once | Everything else. Charges of one subscription share a commitment by design (see Limitations) |
-| **Cancel / reclaim** | Cancel: the commitment and a signature by a bare pubkey — no wallet named. Reclaim: a public ERC-20 transfer out to the chosen address — an exit edge, public like all pool edges | The subscription history behind it, and who authorized it (the owner key is derived from the subscriber's secret, never an account) |
+| **Cancel / reclaim** | Cancel: the commitment, a signature by a bare pubkey, and whichever account submitted the transaction. Reclaim: a public ERC-20 transfer out to the chosen address, an exit edge, public like all pool edges | The subscription history behind it, and who authorized it (the owner key is derived from the subscriber's secret, never an account). Neither entrypoint reads the sender, so the submitting account can be a relay with no relation to the subscriber |
 
 ## What the subscriber's wallet never signs away
 
@@ -60,7 +60,16 @@ any of them to the address that funded the escrow.
 5. **The demo subscription used the demo wallet as its own creator**, so its
    linkage properties understate the two-party case. The commitment mechanism
    is identical either way.
-6. **Timing correlation is real.** An observer correlating pool edges with
+6. **Revocation names no wallet in its authorization, and need not name one in
+   its submission either.** `cancel` and `reclaim` check only the owner-key
+   signature, so any relay can carry a signed cancel (`scripts/relay.mjs`
+   submits one from the keeper account). A subscriber who self-submits instead
+   writes their own wallet into the transaction as sender: that is the
+   trade-off, not a defect in the signature scheme. Two things this does not
+   buy. The relay reads the commitment it is handed, so it learns which
+   subscription is being cancelled, and the timing correlation in item 7
+   applies to a relayed cancel exactly as to any other vault transaction.
+7. **Timing correlation is real.** An observer correlating pool edges with
    vault events by block proximity can make probabilistic guesses, as with any
    pool interaction. Larger anonymity sets weaken this; we do not claim
    immunity to it.

@@ -55,6 +55,18 @@ pre-committed escrow, and the period nullifier — not a mutable counter —
 decides whether the charge is valid. The privacy question and the authorization
 question are answered by the same hash.
 
+## Cancelling is submitter-agnostic
+
+Cancellation is authorized by a STARK signature from the subscription's owner
+key over `cancel_message(commitment)`, and the vault checks that signature
+without ever reading the sender. So a cancel costs the subscriber no gas and
+no sender identity: they sign, and any willing party submits. That fills the
+paymaster role in the RFP with strictly less trust than a paymaster, because
+the relay holds nothing and can change nothing. Alter the commitment or the
+reclaim destination and the signature check fails; the worst a relay can do is
+decline to submit. `scripts/relay.mjs` is one such submitter, running from the
+keeper account, and the ops console prints the exact line to hand it.
+
 ## What the chain learns
 
 A charge names the vault, an amount, a period index, and a nullifier. It does
