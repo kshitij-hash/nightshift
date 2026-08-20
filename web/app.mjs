@@ -231,35 +231,47 @@ $("claimprep").onclick = async () => {
   try {
     const prepared = await account.strk20PrepareInvoke(claimActions("${openNoteIds[0]}", null));
     console.log("prepared claim", prepared);
-    // Fish for the resolved note id: any 0x felt on a note-ish key, anywhere.
-    const found = [];
-    const walk = (o, path) => {
-      if (!o || typeof o !== "object") return;
-      for (const [k, v] of Object.entries(o)) {
-        if (typeof v === "string" && /^0x[0-9a-fA-F]{40,64}$/.test(v) && /note/i.test(path + k)) found.push([path + k, v]);
-        else if (typeof v === "object") walk(v, `${path}${k}.`);
+    // The wallet resolves the placeholder inside the pool's apply_actions
+    // calldata. Our invoke tail is unmistakable in it:
+    //   [variant=1, creator_id, NOTE_ID, amount, sig_r=1, sig_s=1]
+    // so the felt sitting between creator_id and amount IS the note id.
+    const cdArr = (prepared?.call?.calldata ?? []).map((x) => BigInt(x));
+    const amountWei = BigInt(Number($("clamount").value) * 100) * (E18 / 100n);
+    const cid = BigInt(creatorId());
+    let noteId = null;
+    for (let j = 0; j + 4 < cdArr.length; j++) {
+      if (cdArr[j] === cid && cdArr[j + 2] === amountWei && cdArr[j + 3] === 1n && cdArr[j + 4] === 1n) {
+        noteId = "0x" + cdArr[j + 1].toString(16);
+        break;
       }
-    };
-    walk(prepared, "");
-    if (found.length) {
-      log(`prepared — note-id candidates:`, "ok");
-      for (const [p, v] of found) log(`  ${p} = ${v}`, "dim");
-      $("noteid").value = found[0][1];
-      log(`note id auto-filled from ${found[0][0]} — inspect console, then SUBMIT`, "ok");
+    }
+    if (noteId) {
+      $("noteid").value = noteId;
+      log(`prepared — resolved note id: ${noteId}`, "ok");
+      log(`auto-filled. Do nothing else with the wallet, then SIGN + SUBMIT`, "ok");
     } else {
-      log("prepared, but no note-id-shaped field found — see browser console for the full object and fill the note id by hand", "err");
+      log("prepared, but the [creator_id, ?, amount, 1, 1] pattern was not found in apply_actions calldata:", "err");
+      log(cdArr.map((x) => "0x" + x.toString(16)).join(" "), "dim");
+      log("fill the note id by hand from the dump above", "err");
     }
   } catch (e) { logErr("claim prepare failed", e); }
 };
 
-// --- claim, phase 2: sign the literal note id here, submit the same batch ---
+// --- claim, phase 2: sign the RESOLVED note id, submit with the PLACEHOLDER ---
+// The wallet's schema rejects a batch whose open note is not referenced by an
+// ${openNoteIds[N]} placeholder (INVALID_REQUEST_PAYLOAD, observed on
+// mainnet), so the literal id cannot go in the calldata. It does not need to:
+// the wallet resolves the placeholder to the same id the signature binds. If
+// the note index ever drifted between prepare and submit, the resolved id
+// would differ from the signed one and the vault rejects with
+// NS_BAD_SIGNATURE — fail-safe, never a payout to the wrong note.
 $("claimsend").onclick = async () => {
   try {
     const noteId = $("noteid").value.trim();
     if (!/^0x[0-9a-fA-F]+$/.test(noteId)) throw new Error("fill the note id from PREPARE first");
     const amountWei = BigInt(Number($("clamount").value) * 100) * (E18 / 100n);
     const sig = sign(claimMsg(noteId, amountWei), payoutPriv());
-    await run(claimActions(cd(noteId), sig), false, "claim");
+    await run(claimActions("${openNoteIds[0]}", sig), false, "claim");
   } catch (e) { logErr("claim submit failed", e); }
 };
 

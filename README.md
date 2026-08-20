@@ -11,8 +11,9 @@ Live on mainnet. Every claim below has a transaction hash.
 | | |
 |---|---|
 | Demo board | https://nightshift-six-lilac.vercel.app — reads mainnet with no key |
-| Vault (mainnet) | [`0x01f653f21e…8715f338`](https://voyager.online/contract/0x01f653f21e557e70384c8631f9c8f97e0342aa1d5e975bdcaca76bbf8715f338) |
-| Full lifecycle receipts | [subscribe](https://voyager.online/tx/0x03d637dfbcd61ab27c02f4c94f83a3eab1e57f58b1d88dc8882d5095684a47de) · [charge 0](https://voyager.online/tx/0x368e6fe18d704765e505526a616cef68d325d7deb3b138ca08363f0010fd4b4) · [charge 1](https://voyager.online/tx/0x0086edb814112bab5042c22ba6a4711eef502fe102b5179978e9cc81833d21a6) · [charge 2](https://voyager.online/tx/0x031fb82151e3204c2cb3c310a57b6d466fc8d69eb75af600a3d0bf2d26a580f6) |
+| Vault v3 (mainnet) | [`0x277519c8bc…20b3759`](https://voyager.online/contract/0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759) |
+| v3 lifecycle receipts | [subscribe](https://voyager.online/tx/0x2ff717d6f38dd438b9161b4b253715daa3dffaf8107699cd99914f707c747e1) (subscriber, private escrow) · [charge](https://voyager.online/tx/0x35fa2c66507fb3959bd806cd41e457c4140d8b4b22bfabd978e3e8e1cad681e) (keeper on cron) · [claim](https://voyager.online/tx/0xce143894bc2b9f6b0091e1ce214fe531003be6ad84cc892cb71fae17ba51a4) (creator-signed, submitted by a relayer) — three legs, three different senders |
+| v2 receipts | [subscribe](https://voyager.online/tx/0x03d637dfbcd61ab27c02f4c94f83a3eab1e57f58b1d88dc8882d5095684a47de) · [charge 0](https://voyager.online/tx/0x368e6fe18d704765e505526a616cef68d325d7deb3b138ca08363f0010fd4b4) · [charge 1](https://voyager.online/tx/0x0086edb814112bab5042c22ba6a4711eef502fe102b5179978e9cc81833d21a6) · [charge 2](https://voyager.online/tx/0x031fb82151e3204c2cb3c310a57b6d466fc8d69eb75af600a3d0bf2d26a580f6) |
 | What is hidden vs visible | [PRIVACY.md](PRIVACY.md) |
 | Deployments | [DEPLOYMENTS.md](DEPLOYMENTS.md) |
 

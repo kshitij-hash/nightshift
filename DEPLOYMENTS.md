@@ -11,8 +11,9 @@
 | Constructor | `pool = 0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
 | v3 over v2 | charging split from settlement: `charge` is a permissionless call (a cron keeper needs no proof, no pool batch, no wallet API); settlement is a creator-signed `Claim` through `privacy_invoke`; `cancel`/`reclaim` signature-gated by the subscriber's owner key; reclaim pays out by direct transfer; `periods_due` and `period_charged` views |
 
-v3's transactions enter `strk20.json` only together with its address (mine-rule
-atomicity); until then the manifest keeps carrying the v2 set below.
+v3 and its four transactions (register, subscribe, keeper charge, creator
+claim) entered `strk20.json` in one commit (mine-rule atomicity), ahead of the
+v2 set below, which stays declared and listed.
 
 ## v2 (superseded — its four transactions remain the banked strk20.json receipts)
 
