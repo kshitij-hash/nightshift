@@ -12,10 +12,10 @@ import {
 } from "./config";
 import { readBoard, type BoardState } from "./rpc";
 
-// The demo schedule the board narrates when charges exist: daily periods.
-const PERIOD_BLOCKS = 2880;
-const N_PERIODS = 3;
-const PER_PERIOD_WEI = 10n ** 18n; // 1.00 STRK
+// Mirrors the live v3 subscription's on-chain schedule (schedule_of.period_blocks
+// = 2100). Drives the NEXT CHARGE countdown estimate only; the charge itself is
+// block-gated on chain. Kept in sync by hand with the live schedule.
+const PERIOD_BLOCKS = 2100;
 
 function useNow() {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -59,7 +59,12 @@ export default function App() {
     return Math.min(360, ((sinceLast % periodSeconds) / periodSeconds) * 360);
   }, [sinceLast, periodSeconds]);
 
-  const chargedCount = board?.charges.length ?? 0;
+  // Ticker tracks the live v3 subscription only, so v2 history never inflates
+  // the count. Denominator is the live sub's n_periods; the count is clamped to
+  // it so "X of Y" can never read more charged than there are periods.
+  const v3Charges = board?.charges.filter((c) => c.vault === "v3") ?? [];
+  const periodCount = board?.livePeriods ?? v3Charges.length;
+  const chargedCount = Math.min(v3Charges.length, periodCount);
 
   return (
     <div className="page">
@@ -115,9 +120,10 @@ export default function App() {
                     <span className="hero-block">{fmtBlock(last.block)}</span>
                   </div>
                   <div className="hero-body">
-                    Fired by schedule. Settled into the privacy pool. Period
-                    nullifier consumed — this period can never be charged again.
-                    Nobody was at a keyboard.
+                    Fired by schedule. The period nullifier is consumed, so this
+                    period can never be charged again. No tokens moved: the amount
+                    shifts from escrow to the creator's claimable balance, settled
+                    later by a separate creator claim. Nobody was at a keyboard.
                   </div>
                   <div className="hero-meta">
                     tx {truncate(last.txHash)} ·{" "}
@@ -192,7 +198,7 @@ export default function App() {
               <span className="col-time">TIME (UTC)</span>
               <span className="col-block">BLOCK</span>
               <span className="col-amount">AMOUNT</span>
-              <span className="col-null">NULLIFIER CONSUMED</span>
+              <span className="col-null">COMMITMENT</span>
               <span className="col-status">STATUS</span>
               <span className="col-link" />
             </div>
@@ -208,6 +214,12 @@ export default function App() {
                 <div className="feed-row feed-row--charged" key={c.txHash}>
                   <span className="col-dot dot dot--live" />
                   <span className="col-period" style={{ color: "var(--fg-strong)" }}>
+                    <span
+                      style={{ color: "var(--dim)", fontSize: 10, letterSpacing: "0.08em", marginRight: 6 }}
+                      title={c.vault === "v3" ? "v3 Charged event" : "v2 Released event"}
+                    >
+                      {c.vault.toUpperCase()}
+                    </span>
                     {String(c.periodIndex).padStart(2, "0")}
                   </span>
                   <span className="col-time">{t.date} {t.time}</span>
@@ -215,7 +227,7 @@ export default function App() {
                     {fmtBlock(c.block)}
                   </span>
                   <span className="col-amount" style={{ color: "var(--fg-strong)", fontWeight: 500 }}>
-                    {fmtStrk(PER_PERIOD_WEI)} STRK
+                    {c.amountWei !== null ? `${fmtStrk(c.amountWei)} STRK` : ""}
                   </span>
                   <span className="col-null" style={{ color: "var(--dim)" }}>
                     {truncate(c.commitment)}
@@ -233,12 +245,12 @@ export default function App() {
           <div className="ticks">
             <span className="section-title" style={{ fontSize: 10 }}>PERIODS</span>
             <div className="tickbar">
-              {Array.from({ length: N_PERIODS }, (_, i) => (
+              {Array.from({ length: periodCount }, (_, i) => (
                 <span key={i} className={`tick ${i < chargedCount ? "tick--filled" : ""}`} />
               ))}
             </div>
             <span className="ticks-caption">
-              {chargedCount} of {N_PERIODS} charged
+              {chargedCount} of {periodCount} charged
               {chargedCount > 0 ? " · on schedule" : ""}
             </span>
           </div>
@@ -248,9 +260,9 @@ export default function App() {
           <div className="explainer">
             <div className="section-title">WHAT THE CHAIN SEES</div>
             <div className="explainer-body">
-              A charge names the vault, an amount, and a nullifier. It does not
-              name the subscriber. Charges for the same subscription cannot be
-              linked across periods.
+              A charge names the vault, an amount, and a commitment. It does not
+              name the subscriber. Charges of one subscription share that
+              commitment, so they link to each other, never to a wallet.
             </div>
           </div>
           <div className="explainer">
@@ -271,10 +283,6 @@ export default function App() {
             {truncate(VAULT, 8, 8)}
           </a>{" "}
           · every row verifiable on voyager · no key was used to render this page
-        </div>
-        <div className="verbs">
-          <a className="btn btn--primary" href="#verify">VERIFY TIER PROOF</a>
-          <a className="btn btn--ghost" href="#cancel">CANCEL</a>
         </div>
       </footer>
     </div>

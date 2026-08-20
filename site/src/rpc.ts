@@ -33,6 +33,11 @@ export type Charge = {
   timestamp: number;
   periodIndex: number;
   commitment: string;
+  /** Which vault emitted it: v2 "Released" or v3 "Charged". */
+  vault: "v2" | "v3";
+  /** Charged amount in wei. Only v3 Charged carries it (data[2]); v2
+   *  Released has no amount field, so it stays null. */
+  amountWei: bigint | null;
 };
 
 export type BoardState = {
@@ -44,6 +49,9 @@ export type BoardState = {
   activeSubscriptions: number;
   charges: Charge[];
   subscribedEndBlocks: number[];
+  /** n_periods of the live v3 subscription: the honest denominator for the
+   *  period ticker. null when no live v3 sub is known (e.g. snapshot mode). */
+  livePeriods: number | null;
 };
 
 async function rpc<T>(url: string, method: string, params: unknown): Promise<T> {
@@ -104,7 +112,7 @@ async function readFrom(url: string): Promise<BoardState> {
 
   const charges: Charge[] = [];
   const subscribedEndBlocks: number[] = [];
-  const v3Commitments: string[] = [];
+  const v3Subs: { commitment: string; nPeriods: number }[] = [];
   const tsCache = new Map<number, number>();
   const blockTs = async (n: number) => {
     if (!tsCache.has(n)) {
@@ -118,20 +126,24 @@ async function readFrom(url: string): Promise<BoardState> {
     return tsCache.get(n)!;
   };
 
-  // Charge events share a data prefix across versions: commitment, period.
-  const pushCharge = async (e: RawEvent) =>
+  // Charge events share a data prefix across versions: commitment (data[0]),
+  // period (data[1]). Only v3 Charged adds amount (data[2]) and caller (data[3]);
+  // v2 Released stops at the period, so its amount stays null.
+  const pushCharge = async (e: RawEvent, vault: "v2" | "v3") =>
     charges.push({
       txHash: e.transaction_hash,
       block: e.block_number,
       timestamp: await blockTs(e.block_number),
       commitment: e.data[0] ?? "0x0",
       periodIndex: Number(BigInt(e.data[1] ?? "0x0")),
+      vault,
+      amountWei: vault === "v3" ? BigInt(e.data[2] ?? "0x0") : null,
     });
 
   for (const e of evV2.events ?? []) {
     const key = e.keys[0]?.toLowerCase() ?? "";
     if (BigInt(key) === BigInt(SELECTOR_RELEASED)) {
-      await pushCharge(e);
+      await pushCharge(e, "v2");
     } else if (BigInt(key) === BigInt(SELECTOR_SUBSCRIBED)) {
       // v2 Subscribed carries the schedule's end block in data[1].
       subscribedEndBlocks.push(Number(BigInt(e.data[1] ?? "0x0")));
@@ -140,22 +152,25 @@ async function readFrom(url: string): Promise<BoardState> {
   for (const e of evV3.events ?? []) {
     const key = e.keys[0]?.toLowerCase() ?? "";
     if (BigInt(key) === BigInt(SELECTOR_CHARGED)) {
-      await pushCharge(e);
+      await pushCharge(e, "v3");
     } else if (BigInt(key) === BigInt(SELECTOR_SUBSCRIBED)) {
       // v3 Subscribed carries (commitment, creator_id, n_periods) — no end
       // block. Liveness comes from the vault's own is_active view instead.
-      v3Commitments.push(e.data[0] ?? "0x0");
+      v3Subs.push({
+        commitment: e.data[0] ?? "0x0",
+        nPeriods: Number(BigInt(e.data[2] ?? "0x0")),
+      });
     }
   }
   charges.sort((a, b) => b.block - a.block);
 
   const v3Active = await Promise.all(
-    v3Commitments.map((c) =>
+    v3Subs.map((s) =>
       rpc<string[]>(url, "starknet_call", [
         {
           contract_address: VAULT,
           entry_point_selector: SEL_IS_ACTIVE,
-          calldata: [c],
+          calldata: [s.commitment],
         },
         "latest",
       ])
@@ -168,6 +183,12 @@ async function readFrom(url: string): Promise<BoardState> {
     subscribedEndBlocks.filter((end) => end > headBlock).length +
     v3Active.filter(Boolean).length;
 
+  // The period ticker tracks the live v3 subscription. Its n_periods (from the
+  // Subscribed event) is the honest denominator; the contract charges each
+  // period at most once, so the v3 charge count can never exceed it.
+  const liveIdx = v3Active.findIndex(Boolean);
+  const livePeriods = liveIdx >= 0 ? v3Subs[liveIdx].nPeriods : null;
+
   return {
     source: "rpc",
     headBlock,
@@ -176,6 +197,7 @@ async function readFrom(url: string): Promise<BoardState> {
     activeSubscriptions,
     charges,
     subscribedEndBlocks,
+    livePeriods,
   };
 }
 
@@ -192,7 +214,13 @@ export async function readBoard(): Promise<BoardState> {
     headTimestamp: number;
     escrowWei: string;
     activeSubscriptions: number;
-    charges: Charge[];
+    charges: Array<{
+      txHash: string;
+      block: number;
+      timestamp: number;
+      periodIndex: number;
+      commitment: string;
+    }>;
     subscribedEndBlocks: number[];
   };
   return {
@@ -202,8 +230,11 @@ export async function readBoard(): Promise<BoardState> {
     headTimestamp: s.headTimestamp,
     escrowWei: BigInt(s.escrowWei),
     activeSubscriptions: s.activeSubscriptions,
-    charges: s.charges,
+    // The committed snapshot predates the per-row amount/vault fields. Show it
+    // as a v3 row with no decoded amount rather than a fabricated constant.
+    charges: s.charges.map((c) => ({ ...c, vault: "v3" as const, amountWei: null })),
     subscribedEndBlocks: s.subscribedEndBlocks,
+    livePeriods: null,
   };
 }
 

@@ -23,8 +23,9 @@ export const RPC_URLS = [
 export const VAULT_DEPLOY_BLOCK = 13_606_900; // v3, deployed at 13,606,969
 export const VAULT_V2_DEPLOY_BLOCK = 13_554_000;
 
-/** ~seconds per Starknet block, for countdown estimates only. */
-export const SECONDS_PER_BLOCK = 30;
+/** ~seconds per Starknet mainnet block (~1.7s at current cadence), for the
+ *  NEXT CHARGE countdown estimate only. The charge itself is block-gated. */
+export const SECONDS_PER_BLOCK = 1.7;
 
 export const VOYAGER_TX = (hash: string) => `https://voyager.online/tx/${hash}`;
 export const VOYAGER_CONTRACT = (addr: string) =>
