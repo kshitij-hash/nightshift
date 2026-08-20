@@ -21,11 +21,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Same toolchain the vault was built and deployed with — CI must never
+      # build a different tree than the one shipped from the workstation.
       - uses: software-mansion/setup-scarb@v1
         with:
-          scarb-version: "2.20.0"
+          scarb-version: "2.17.0"
       - uses: foundry-rs/setup-snfoundry@v3
         with:
-          starknet-foundry-version: "0.63.0"
+          starknet-foundry-version: "0.59.0"
+      # The privacy dependency is a git workspace whose resolution clones
+      # several public repos. Anonymous clones from shared runner IPs get
+      # rate-limited, which git surfaces as exit 128 inside scarb. Route the
+      # clones through the workflow token instead.
+      - run: git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: scarb build
       - run: snforge test
