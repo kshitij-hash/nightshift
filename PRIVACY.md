@@ -43,16 +43,24 @@ any of them to the address that funded the escrow.
    of a keeper that needs no proof. What v3 decouples is *settlement*: the
    creator's claim reveals nothing about which charges it covers or when
    they fired.
-2. **Edges are public by design** — this is the pool's own model, inherited
+2. **Creator revenue is public per creator id.** `Charged` amounts,
+   `Claimed(creator_id, amount)` events, and the `claimable_of` view make a
+   creator's cumulative topline derivable by anyone — and a creator must
+   publish their `creator_id` for subscribers to find them. NIGHTSHIFT hides
+   the *subscriber*; it does not hide the creator's revenue from competitors.
+   Tier quantization coarsens the picture (an observer sees ladder multiples,
+   not arbitrary amounts), and a creator may run multiple ids, but we do not
+   claim Patreon-style revenue confidentiality.
+3. **Edges are public by design** — this is the pool's own model, inherited
    honestly: escrow entering the vault and any reclaim leaving it are visible
    legs. Privacy lives between the edges.
-3. **Calldata is public.** Anything placed in the external invoke's calldata
+4. **Calldata is public.** Anything placed in the external invoke's calldata
    (tier, schedule shape) is visible. Amounts and periods are quantized to a
    small ladder precisely so a schedule cannot fingerprint a subscriber.
-4. **The demo subscription used the demo wallet as its own creator**, so its
+5. **The demo subscription used the demo wallet as its own creator**, so its
    linkage properties understate the two-party case. The commitment mechanism
    is identical either way.
-5. **Timing correlation is real.** An observer correlating pool edges with
+6. **Timing correlation is real.** An observer correlating pool edges with
    vault events by block proximity can make probabilistic guesses, as with any
    pool interaction. Larger anonymity sets weaken this; we do not claim
    immunity to it.

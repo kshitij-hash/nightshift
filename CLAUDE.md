@@ -39,6 +39,10 @@ that instant IS the submission — there is nothing to submit.
 - NIGHTSHIFT is "a recurring authorization the pool cannot express", built from a period-
   nullifier scheme + accounted custody + a tier gate. NEVER describe it as "private
   subscription payments" or any "payment app whose only idea is that the payment is private".
+- Two privacy overclaims are banned in all docs and demo copy: (1) any claim of creator
+  revenue confidentiality (per-creator topline is publicly derivable; PRIVACY.md limitation 2);
+  (2) describing the tier gate as a proof where the verifier "learns nothing else" (`present`
+  is a signature presentation revealing the commitment, which a verifier can track across gates).
 - README/description style: flat engineer prose. Banned everywhere: utilizes, leverages, employs,
   facilitates, empowers, enables, seeks to, aims to, provides, robust, seamless, cutting-edge,
   revolutionary, innovative, novel, sophisticated, comprehensive, solution, ecosystem,
