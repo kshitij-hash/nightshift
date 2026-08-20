@@ -49,6 +49,8 @@ pub trait INightshiftVault<T> {
     fn schedule_of(self: @T, commitment: felt252) -> (felt252, u8, u64, u64, u32, u128, u32, bool);
     fn tier_of(self: @T, creator_id: felt252, tier: u8) -> (ContractAddress, u128);
     fn periods_due(self: @T, commitment: felt252) -> u32;
+    /// Whether the write-once nullifier for (commitment, period) is consumed.
+    fn period_charged(self: @T, commitment: felt252, period_index: u64) -> bool;
 }
 
 pub mod errors {
@@ -67,6 +69,8 @@ pub mod errors {
     pub const BAD_SIG: felt252 = 'NS_BAD_SIGNATURE';
     pub const CLAIM_TOO_MUCH: felt252 = 'NS_CLAIM_EXCEEDS_BALANCE';
     pub const ZERO_KEY: felt252 = 'NS_ZERO_PAYOUT_KEY';
+    pub const PERIOD_SPENT: felt252 = 'NS_PERIOD_SPENT';
+    pub const ZERO_ADDRESS: felt252 = 'NS_ZERO_ADDRESS';
 }
 
 #[starknet::contract]
@@ -88,6 +92,7 @@ pub mod NightshiftVault {
     trait IERC20<T> {
         fn balance_of(self: @T, account: ContractAddress) -> u256;
         fn approve(ref self: T, spender: ContractAddress, amount: u256) -> bool;
+        fn transfer(ref self: T, recipient: ContractAddress, amount: u256) -> bool;
     }
 
     #[storage]
@@ -208,7 +213,7 @@ pub mod NightshiftVault {
             // Write-once nullifier: the real double-charge defense, independent
             // of the ordering pointer.
             let nullifier = period_nullifier(commitment, idx.into());
-            assert(!self.period_spent.entry(nullifier).read(), errors::EXHAUSTED);
+            assert(!self.period_spent.entry(nullifier).read(), errors::PERIOD_SPENT);
             self.period_spent.entry(nullifier).write(true);
 
             self.sub_next_period.entry(commitment).write(idx + 1);
@@ -266,6 +271,7 @@ pub mod NightshiftVault {
             let creator_id = self.sub_creator.entry(commitment).read();
             assert(creator_id != 0, errors::UNKNOWN_SUB);
             assert(self.sub_cancelled.entry(commitment).read(), errors::CANCELLED);
+            assert(to.is_non_zero(), errors::ZERO_ADDRESS);
             let key = self.sub_owner_key.entry(commitment).read();
             let msg = reclaim_message(commitment, to);
             assert(check_ecdsa_signature(msg, key, sig_r, sig_s), errors::BAD_SIG);
@@ -277,8 +283,12 @@ pub mod NightshiftVault {
             let token = self.creator_token.entry(creator_id).read();
             let accounted = self.accounted.entry(token).read();
             self.accounted.entry(token).write(accounted - amount.into());
-            // Reclaim is a public exit edge, like all pool edges.
-            IERC20Dispatcher { contract_address: token }.approve(to, amount.into());
+            // Reclaim is a public exit edge, like all pool edges. A direct
+            // transfer, not an approval: a second reclaim to the same address
+            // must never clobber a standing allowance, and the recipient is a
+            // plain wallet with no way to execute a transfer_from pull.
+            let ok = IERC20Dispatcher { contract_address: token }.transfer(to, amount.into());
+            assert(ok, errors::EXHAUSTED);
             self.emit(Reclaimed { commitment, amount });
         }
 
@@ -348,6 +358,12 @@ pub mod NightshiftVault {
             }
             due
         }
+
+        fn period_charged(
+            self: @ContractState, commitment: felt252, period_index: u64,
+        ) -> bool {
+            self.period_spent.entry(period_nullifier(commitment, period_index)).read()
+        }
     }
 
     #[generate_trait]
@@ -363,7 +379,11 @@ pub mod NightshiftVault {
             assert(token.is_non_zero(), errors::UNKNOWN_CREATOR);
             assert(tier < self.creator_tiers.entry(creator_id).read(), errors::BAD_TIER);
             let per_period = self.tier_amount.entry((creator_id, tier)).read();
-            let expected: u256 = per_period.into() * n_periods.into();
+            // u128 multiply FIRST: an over-long schedule panics here, before
+            // any state or balance is touched, instead of storing a truncated
+            // escrow later.
+            let escrow_total: u128 = per_period * n_periods.into();
+            let expected: u256 = escrow_total.into();
 
             // Accounted custody: received == the schedule's exact price.
             let held = IERC20Dispatcher { contract_address: token }
@@ -377,7 +397,7 @@ pub mod NightshiftVault {
             self.sub_period_blocks.entry(commitment).write(period_blocks);
             self.sub_start_block.entry(commitment).write(get_block_number());
             self.sub_n_periods.entry(commitment).write(n_periods);
-            self.sub_escrow.entry(commitment).write(per_period * n_periods.into());
+            self.sub_escrow.entry(commitment).write(escrow_total);
             self.sub_owner_key.entry(commitment).write(owner_key);
 
             self.emit(Subscribed { commitment, creator_id, n_periods });

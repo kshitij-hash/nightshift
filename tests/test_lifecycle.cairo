@@ -155,10 +155,63 @@ fn cancel_then_reclaim_returns_unspent_escrow() {
     let (rr, rs) = ok.sign(reclaim_message('c-1', to)).unwrap();
     let before = vault.accounted(token.contract_address);
     vault.reclaim('c-1', to, rr, rs);
-    // 2 periods of escrow left the accounted balance.
+    // 2 periods of escrow left the accounted balance...
     assert(before - vault.accounted(token.contract_address) == (TIER_0 * 2).into(), 'wrong reclaim');
+    // ...and actually arrived: a direct transfer, not an allowance the
+    // recipient would have to know how to pull.
+    assert(token.balance_of(to) == (TIER_0 * 2).into(), 'refund not received');
     let (_, _, _, _, _, escrow, _, cancelled) = vault.schedule_of('c-1');
     assert(escrow == 0 && cancelled, 'not reclaimed/cancelled');
+}
+
+#[test]
+#[should_panic(expected: 'NOTE_ALREADY_DEPOSITED')]
+fn claim_replay_dies_at_the_pool() {
+    // The vault's replay defense is the pool's one-deposit-per-note rule:
+    // prove it. Claim HALF the claimable so the vault-side balance check
+    // would pass again — the replay must die at the pool, not by luck.
+    let (vault, pool, token, creator_id, ck) = charged_up(2);
+    pool.create_open_note('note-1', token.contract_address);
+    let (r, s) = ck.sign(claim_message(creator_id, 'note-1', TIER_0)).unwrap();
+    let op = VaultOp::Claim(nightshift::common::ClaimArgs {
+        creator_id, note_id: 'note-1', amount: TIER_0, sig_r: r, sig_s: s,
+    });
+    let mut cd = array![];
+    op.serialize(ref cd);
+    pool.invoke_external(vault.contract_address, cd.span(), 1);
+    assert(vault.claimable_of(creator_id) == TIER_0, 'first claim wrong');
+    // Byte-identical replay.
+    let mut cd2 = array![];
+    let op2 = VaultOp::Claim(nightshift::common::ClaimArgs {
+        creator_id, note_id: 'note-1', amount: TIER_0, sig_r: r, sig_s: s,
+    });
+    op2.serialize(ref cd2);
+    pool.invoke_external(vault.contract_address, cd2.span(), 1);
+}
+
+#[test]
+#[should_panic(expected: 'NS_BAD_SIGNATURE')]
+fn reclaim_signature_is_bound_to_destination() {
+    let (vault, _, _, _, ok) = subscribe_with_owner();
+    let (cr, cs) = ok.sign(cancel_message('c-1')).unwrap();
+    vault.cancel('c-1', cr, cs);
+    // Subscriber signs a refund to their own address; an interceptor swaps
+    // in a different destination — the signature no longer matches.
+    let intended: ContractAddress = 'my-addr'.try_into().unwrap();
+    let attacker: ContractAddress = 'attacker'.try_into().unwrap();
+    let (r, s) = ok.sign(reclaim_message('c-1', intended)).unwrap();
+    vault.reclaim('c-1', attacker, r, s);
+}
+
+#[test]
+#[should_panic(expected: 'NS_ZERO_ADDRESS')]
+fn reclaim_rejects_zero_destination() {
+    let (vault, _, _, _, ok) = subscribe_with_owner();
+    let (cr, cs) = ok.sign(cancel_message('c-1')).unwrap();
+    vault.cancel('c-1', cr, cs);
+    let zero: ContractAddress = 0.try_into().unwrap();
+    let (r, s) = ok.sign(reclaim_message('c-1', zero)).unwrap();
+    vault.reclaim('c-1', zero, r, s);
 }
 
 #[test]

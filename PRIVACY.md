@@ -20,9 +20,10 @@ any of them to the address that funded the escrow.
 | Operation | Visible on chain | Hidden |
 |---|---|---|
 | **Subscribe** | The vault received N STRK from the pool (a pool `Withdrawal` edge); the commitment hash; tier index, period length, period count (calldata of the external invoke is public) | Who the subscriber is. The pool's withdrawal edge severs the link to the depositing wallet: the tokens left *someone's* shielded balance, provably screened, unlinkably |
-| **Charge (release)** | The vault, the period index, the amount, the nullifier; the open note credited back into the pool | Which subscriber was charged. The commitment appears, but the commitment is a hash — and nothing links it to a wallet |
-| **Nullifier** | `poseidon(commitment, period_index)` — spent exactly once | Everything else. Two charges of the same subscription share a commitment in vault events by design in v2 (see Limitations) |
-| **Cancel / reclaim** (planned v3) | The reclaim is a public ERC-20 transfer out — an exit edge, public like all pool edges | The subscription history behind it |
+| **Charge** (v3: permissionless call) | The commitment (in public calldata — see Limitations), the period index, the amount, the nullifier, and the caller (the keeper — deliberately, for the nobody-at-a-keyboard proof) | Which subscriber was charged. The commitment is a hash; nothing links it to a wallet. No tokens move — only internal accounting shifts to the creator's claimable balance |
+| **Claim** (v3: creator settlement) | The creator_id, the amount, the open note credited into the pool | When each underlying charge happened is decoupled from settlement: one claim can settle many periods in one private batch |
+| **Nullifier** | `poseidon(commitment, period_index)` — spent exactly once | Everything else. Charges of one subscription share a commitment by design (see Limitations) |
+| **Cancel / reclaim** | Cancel: the commitment and a signature by a bare pubkey — no wallet named. Reclaim: a public ERC-20 transfer out to the chosen address — an exit edge, public like all pool edges | The subscription history behind it, and who authorized it (the owner key is derived from the subscriber's secret, never an account) |
 
 ## What the subscriber's wallet never signs away
 
@@ -35,10 +36,13 @@ any of them to the address that funded the escrow.
 
 ## Limitations, stated plainly
 
-1. **v2 charges share a visible commitment.** The `Released` event carries the
-   commitment, so charges of one subscription are linkable *to each other*
-   (not to a wallet). The v3 design moves settlement to creator-claimed
-   batches, decoupling charge timing from settlement.
+1. **Charges of one subscription are linkable to each other — in v3 too.**
+   `charge(commitment)` is a plain public call: the commitment sits in its
+   calldata and in the `Charged` event, so all periods of a subscription are
+   publicly connectable to each other (never to a wallet). This is the price
+   of a keeper that needs no proof. What v3 decouples is *settlement*: the
+   creator's claim reveals nothing about which charges it covers or when
+   they fired.
 2. **Edges are public by design** — this is the pool's own model, inherited
    honestly: escrow entering the vault and any reclaim leaving it are visible
    legs. Privacy lives between the edges.

@@ -159,6 +159,47 @@ fn charge_rejects_unknown_commitment() {
 }
 
 #[test]
+#[should_panic(expected: 'NS_NOT_DUE')]
+fn keeper_race_second_charge_loses() {
+    // Two keepers race the same due period in one block: the pointer has
+    // advanced for the winner, so the loser sees period 1 (not yet due) —
+    // never a double charge.
+    let (_, _, vault, _) = subscribed(3);
+    let keeper_a: ContractAddress = 'keeper-a'.try_into().unwrap();
+    let keeper_b: ContractAddress = 'keeper-b'.try_into().unwrap();
+    start_cheat_caller_address(vault.contract_address, keeper_a);
+    vault.charge('c-1');
+    stop_cheat_caller_address(vault.contract_address);
+    start_cheat_caller_address(vault.contract_address, keeper_b);
+    vault.charge('c-1');
+}
+
+#[test]
+fn charge_consumes_the_period_nullifier() {
+    // Direct read of the write-once map through the view: the nullifier is
+    // the double-charge defense independent of the ordering pointer.
+    let (_, _, vault, _) = subscribed(3);
+    assert(!vault.period_charged('c-1', 0), 'spent before charge');
+    vault.charge('c-1');
+    assert(vault.period_charged('c-1', 0), 'nullifier not consumed');
+    assert(!vault.period_charged('c-1', 1), 'future period spent');
+}
+
+#[test]
+#[should_panic(expected: 'u128_mul Overflow')]
+fn overlong_schedule_panics_before_any_state() {
+    // per_period * n_periods overflowing u128 must panic in the escrow
+    // computation — before the balance check, before any storage write.
+    let (pool, token, vault, _) = setup();
+    let huge: u128 = 0x80000000000000000000000000000000; // 2^127
+    let creator: ContractAddress = 'creator-2'.try_into().unwrap();
+    start_cheat_caller_address(vault.contract_address, creator);
+    let creator_id = vault.register_creator(token.contract_address, 'payout-key-2', array![huge].span());
+    stop_cheat_caller_address(vault.contract_address);
+    pool.invoke_external(vault.contract_address, subscribe_calldata('c-big', creator_id, 0, 4).span(), 0);
+}
+
+#[test]
 fn periods_due_counts_backlog() {
     let (_, _, vault, _) = subscribed(3);
     start_cheat_block_number(vault.contract_address, 100 + PERIOD_HOUR * 5);
