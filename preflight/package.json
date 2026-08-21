@@ -4,10 +4,15 @@
   "description": "Checks a strk20.json hackathon manifest the way the judges' indexer reads it, including the mine-rule routing check against a Starknet RPC node.",
   "type": "module",
   "license": "Apache-2.0",
+  "author": "kshitij-hash",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kshitij-hash/nightshift.git",
     "directory": "preflight"
+  },
+  "homepage": "https://github.com/kshitij-hash/nightshift/tree/main/preflight",
+  "bugs": {
+    "url": "https://github.com/kshitij-hash/nightshift/issues"
   },
   "bin": {
     "strk20-preflight": "bin/strk20-preflight.mjs"
@@ -29,7 +34,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "npm test"
   },
   "dependencies": {
     "starknet": "^10.7.0"

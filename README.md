@@ -21,6 +21,21 @@ Live on mainnet. Every claim below has a transaction hash.
 | What is hidden vs visible | [PRIVACY.md](PRIVACY.md) |
 | Deployments | [DEPLOYMENTS.md](DEPLOYMENTS.md) |
 
+## Where this stands on the STRK20 stack
+
+- **Anonymizer contract.** The vault (`src/vault.cairo`) is a custom
+  `privacy_invoke` anonymizer, deployed to mainnet, built against the
+  `privacy` Cairo dependency pinned in the root `Scarb.toml`.
+- **Wallet API.** The ops console in `web/` drives real pool actions,
+  subscribe escrow and creator claim, through the connected Ready wallet's
+  privacy API (`strk20PrepareInvoke` / `strk20InvokeTransaction`), not a
+  hand-rolled client.
+- **Not used, on purpose: the Privacy SDK route and a self-hosted prover.**
+  The design needs no prover anywhere. The keeper's `charge` is a plain
+  public call against accounted state; the subscriber proves through their own
+  wallet at subscribe, the creator through theirs at claim, so there is no
+  proving service in this repo to run or trust.
+
 ## The problem
 
 A subscription is the most linkable payment pattern there is: the same amount,
@@ -61,6 +76,14 @@ pre-committed escrow, and the period nullifier — not a mutable counter —
 decides whether the charge is valid. The privacy question and the authorization
 question are answered by the same hash.
 
+The mechanism has no payment semantics baked in: escrow, a period nullifier,
+and a signed cancel are the whole vocabulary. A DAO can escrow a contributor's
+stipend through the same pool once and let the keeper charge it weekly; the
+treasury wallet that funded the escrow never appears on chain, and the DAO
+cancels by signature if the engagement ends. The contributor claims like any
+creator, and their receipts are as public as any creator's. Nothing new is
+added here; it is the same schedule read as a grant instead of a subscription.
+
 ## Cancelling is submitter-agnostic
 
 Cancellation is authorized by a STARK signature from the subscription's owner
@@ -99,7 +122,7 @@ are not flattering.
 
 ```
 scarb build          # scarb 2.17.0
-snforge test         # 47 adversarial + lifecycle cases across the vault and the gate
+snforge test         # 65 adversarial + lifecycle cases across the vault and the gate
 node scripts/check-manifest.mjs
 ```
 

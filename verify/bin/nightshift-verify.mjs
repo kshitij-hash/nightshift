@@ -7,7 +7,7 @@
 //
 // Exit codes: 0 the presentation checks out, 1 it does not, 2 usage error.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -230,9 +230,18 @@ export async function run(argv, io = {}) {
   return result.ok ? 0 : 1;
 }
 
-// Importing this file (the tests do) must not run the CLI.
-const invokedDirectly =
-  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+// Importing this file (the tests do) must not run the CLI. npm invokes bin
+// scripts through a node_modules/.bin symlink while import.meta.url resolves
+// to the realpath, so argv[1] must be realpath'd before comparing or the
+// installed CLI silently never runs.
+const invokedDirectly = (() => {
+  if (process.argv[1] === undefined) return false;
+  try {
+    return fileURLToPath(import.meta.url) === realpathSync(resolve(process.argv[1]));
+  } catch {
+    return false;
+  }
+})();
 
 if (invokedDirectly) {
   process.exitCode = await run(process.argv.slice(2));

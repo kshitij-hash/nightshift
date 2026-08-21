@@ -8,10 +8,11 @@ CI is green, and the entry scores less than it should, or nothing at all. The po
 that before the deadline rather than after.
 
 ```
-node preflight/bin/strk20-preflight.mjs
+npx strk20-preflight
 ```
 
-The package is not published to npm, so run it from a checkout by path.
+From a checkout of this repo, `node preflight/bin/strk20-preflight.mjs` runs it
+by path instead.
 
 ## What it checks
 

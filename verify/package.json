@@ -4,10 +4,15 @@
   "description": "Check a NIGHTSHIFT tier presentation off-chain: no transaction, no gas, nothing written to the chain. Reads the vault's views over RPC and checks the owner-key signature.",
   "type": "module",
   "license": "Apache-2.0",
+  "author": "kshitij-hash",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kshitij-hash/nightshift.git",
     "directory": "verify"
+  },
+  "homepage": "https://github.com/kshitij-hash/nightshift/tree/main/verify",
+  "bugs": {
+    "url": "https://github.com/kshitij-hash/nightshift/issues"
   },
   "main": "src/index.mjs",
   "exports": {
@@ -33,7 +38,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepublishOnly": "npm test"
   },
   "dependencies": {
     "starknet": "^10.7.0"

@@ -82,14 +82,13 @@ present until its period 0 is charged.
 
 ## Install
 
-The package lives in this repo under `verify/` and is not published to npm. From
-a checkout:
-
 ```
-npm install /path/to/nightshift/verify
+npm install nightshift-verify
 ```
 
-Node 18 or newer. The only dependency is `starknet`.
+Node 18 or newer. The only dependency is `starknet`. In a monorepo checkout of
+this repo, `npm install /path/to/nightshift/verify` installs it by path
+instead.
 
 ## Use it from a Discord bot
 
