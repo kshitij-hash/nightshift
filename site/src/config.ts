@@ -14,6 +14,10 @@ export const VAULT_V3 =
  *  board keeps decoding its history. */
 export const VAULT_V2 =
   "0x01f653f21e557e70384c8631f9c8f97e0342aa1d5e975bdcaca76bbf8715f338";
+/** The tier gate that reads the v4 vault. Emits Presented; exposes the
+ *  `presentable` entitlement read. */
+export const GATE =
+  "0x4361699018454536ba97aacc85a6ec4ffb974e869335781490021ab5f872f5e";
 export const STRK =
   "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 
