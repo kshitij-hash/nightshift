@@ -1,0 +1,21 @@
+{
+  "name": "telegram-gate-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Example Telegram gate on nightshift-verify: /start issues a challenge, a pasted presentation gets checked off-chain, a matching tier gets a one-time invite link.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "bot.mjs",
+  "scripts": {
+    "start": "node bot.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "grammy": "1.45.1",
+    "nightshift-verify": "file:../../verify",
+    "starknet": "^10.7.0"
+  }
+}
