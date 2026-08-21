@@ -1,0 +1,16 @@
+{
+  "name": "nightshift-demo-charge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "One HTTP route that fires one real charge on one whitelisted NIGHTSHIFT demo subscription, with the rails that keep it from costing more than a day's gas budget.",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=21"
+  },
+  "scripts": {
+    "test": "node --test",
+    "start": "node server.mjs",
+    "start:mock": "NIGHTSHIFT_DEMO_SIGNER=mock node server.mjs"
+  }
+}

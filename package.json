@@ -9,6 +9,8 @@
     "check:manifest": "node scripts/check-manifest.mjs",
     "keeper": "node scripts/keeper.mjs",
     "relay": "node scripts/relay.mjs",
+    "demo-charge": "node demo-charge/server.mjs",
+    "test:demo-charge": "node --test 'demo-charge/test/*.test.mjs'",
     "build:console": "./site/node_modules/.bin/esbuild web/app.mjs --bundle --format=esm --outfile=web/app.bundle.mjs"
   },
   "dependencies": {

@@ -61,11 +61,17 @@ log(`sub=${commitment.slice(0, 10)}… due=${due}`);
 
 let fired = 0;
 while (due > 0n && fired < MAX_CHARGES_PER_RUN) {
-  const { transaction_hash } = await account.execute({
-    contractAddress: vault,
-    entrypoint: "charge",
-    calldata: [commitment],
-  });
+  const call = { contractAddress: vault, entrypoint: "charge", calldata: [commitment] };
+
+  let fee;
+  try {
+    fee = await account.estimateInvokeFee(call);
+  } catch (e) {
+    die(`charge fee estimate failed, the vault would reject this payload: ${e.message}`);
+  }
+  log(`charge estimated overall_fee=${fee.overall_fee ?? "unknown"}`);
+
+  const { transaction_hash } = await account.execute(call);
   log(`charge submitted tx=${transaction_hash}`);
   const receipt = await provider.waitForTransaction(transaction_hash);
   const status = receipt.execution_status ?? receipt.statusReceipt ?? "unknown";
