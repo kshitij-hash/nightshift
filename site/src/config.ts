@@ -3,8 +3,12 @@
 
 export const POOL =
   "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
-/** v3: permissionless charge + creator-signed claim. The live vault. */
+/** v4: paid-window gate semantics, owner_key_of, nonce-consumed public claim.
+ *  The live vault. */
 export const VAULT =
+  "0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e";
+/** v3: superseded; its four receipts stay in strk20.json and on the board. */
+export const VAULT_V3 =
   "0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759";
 /** v2: superseded, but its receipts are the banked strk20.json txs — the
  *  board keeps decoding its history. */
@@ -20,7 +24,8 @@ export const RPC_URLS = [
 ];
 
 /** Blocks the vaults were deployed at — event scans start here. */
-export const VAULT_DEPLOY_BLOCK = 13_606_900; // v3, deployed at 13,606,969
+export const VAULT_DEPLOY_BLOCK = 13_613_300; // v4, deployed at 13,613,373
+export const VAULT_V3_DEPLOY_BLOCK = 13_606_900;
 export const VAULT_V2_DEPLOY_BLOCK = 13_554_000;
 
 /** ~seconds per Starknet mainnet block (~1.7s at current cadence), for the

@@ -9,6 +9,8 @@ import {
   VAULT_DEPLOY_BLOCK,
   VAULT_V2,
   VAULT_V2_DEPLOY_BLOCK,
+  VAULT_V3,
+  VAULT_V3_DEPLOY_BLOCK,
 } from "./config";
 import snapshotJson from "./snapshot.json";
 
@@ -33,8 +35,8 @@ export type Charge = {
   timestamp: number;
   periodIndex: number;
   commitment: string;
-  /** Which vault emitted it: v2 "Released" or v3 "Charged". */
-  vault: "v2" | "v3";
+  /** Which vault emitted it: v2 "Released", v3 or v4 "Charged". */
+  vault: "v2" | "v3" | "v4";
   /** Charged amount in wei. Only v3 Charged carries it (data[2]); v2
    *  Released has no amount field, so it stays null. */
   amountWei: bigint | null;
@@ -83,12 +85,13 @@ async function readFrom(url: string): Promise<BoardState> {
       },
       "latest",
     ]).catch(() => ["0x0", "0x0"]);
-  const [acctV3, acctV2] = await Promise.all([
+  const [acctV4, acctV3, acctV2] = await Promise.all([
     accountedOf(VAULT),
+    accountedOf(VAULT_V3),
     accountedOf(VAULT_V2),
   ]);
   const escrowWei =
-    BigInt(acctV3[0] ?? "0x0") + BigInt(acctV2[0] ?? "0x0");
+    BigInt(acctV4[0] ?? "0x0") + BigInt(acctV3[0] ?? "0x0") + BigInt(acctV2[0] ?? "0x0");
 
   type RawEvent = {
     keys: string[];
@@ -105,14 +108,16 @@ async function readFrom(url: string): Promise<BoardState> {
         chunk_size: 500,
       },
     ]);
-  const [evV3, evV2] = await Promise.all([
+  const [evV4, evV3, evV2] = await Promise.all([
     eventsOf(VAULT, VAULT_DEPLOY_BLOCK),
+    eventsOf(VAULT_V3, VAULT_V3_DEPLOY_BLOCK),
     eventsOf(VAULT_V2, VAULT_V2_DEPLOY_BLOCK),
   ]);
 
   const charges: Charge[] = [];
   const subscribedEndBlocks: number[] = [];
   const v3Subs: { commitment: string; nPeriods: number }[] = [];
+  const v4Subs: { commitment: string; nPeriods: number }[] = [];
   const tsCache = new Map<number, number>();
   const blockTs = async (n: number) => {
     if (!tsCache.has(n)) {
@@ -162,32 +167,58 @@ async function readFrom(url: string): Promise<BoardState> {
       });
     }
   }
+  // v4 indexes its events: the commitment sits in keys[1], not data[0], and
+  // the data array shifts left. Decoding v4 with the v3 layout would render
+  // garbage, which is why this branch exists.
+  for (const e of evV4.events ?? []) {
+    const key = e.keys[0]?.toLowerCase() ?? "";
+    if (BigInt(key) === BigInt(SELECTOR_CHARGED)) {
+      charges.push({
+        txHash: e.transaction_hash,
+        block: e.block_number,
+        timestamp: await blockTs(e.block_number),
+        commitment: e.keys[1] ?? "0x0",
+        periodIndex: Number(BigInt(e.data[0] ?? "0x0")),
+        vault: "v4",
+        amountWei: BigInt(e.data[1] ?? "0x0"),
+      });
+    } else if (BigInt(key) === BigInt(SELECTOR_SUBSCRIBED)) {
+      v4Subs.push({
+        commitment: e.keys[1] ?? "0x0",
+        nPeriods: Number(BigInt(e.data[1] ?? "0x0")),
+      });
+    }
+  }
   charges.sort((a, b) => b.block - a.block);
 
-  const v3Active = await Promise.all(
-    v3Subs.map((s) =>
-      rpc<string[]>(url, "starknet_call", [
-        {
-          contract_address: VAULT,
-          entry_point_selector: SEL_IS_ACTIVE,
-          calldata: [s.commitment],
-        },
-        "latest",
-      ])
-        .then((r) => BigInt(r[0] ?? "0x0") === 1n)
-        .catch(() => false),
-    ),
-  );
+  const isActiveOn = (vault: string, commitment: string) =>
+    rpc<string[]>(url, "starknet_call", [
+      {
+        contract_address: vault,
+        entry_point_selector: SEL_IS_ACTIVE,
+        calldata: [commitment],
+      },
+      "latest",
+    ])
+      .then((r) => BigInt(r[0] ?? "0x0") === 1n)
+      .catch(() => false);
+  const [v3Active, v4Active] = await Promise.all([
+    Promise.all(v3Subs.map((s) => isActiveOn(VAULT_V3, s.commitment))),
+    Promise.all(v4Subs.map((s) => isActiveOn(VAULT, s.commitment))),
+  ]);
 
   const activeSubscriptions =
     subscribedEndBlocks.filter((end) => end > headBlock).length +
-    v3Active.filter(Boolean).length;
+    v3Active.filter(Boolean).length +
+    v4Active.filter(Boolean).length;
 
-  // The period ticker tracks the live v3 subscription. Its n_periods (from the
-  // Subscribed event) is the honest denominator; the contract charges each
-  // period at most once, so the v3 charge count can never exceed it.
-  const liveIdx = v3Active.findIndex(Boolean);
-  const livePeriods = liveIdx >= 0 ? v3Subs[liveIdx].nPeriods : null;
+  // The period ticker tracks the live subscription, v4 first. Its n_periods
+  // (from the Subscribed event) is the honest denominator; the contract
+  // charges each period at most once, so the count can never exceed it.
+  const v4Idx = v4Active.findIndex(Boolean);
+  const v3Idx = v3Active.findIndex(Boolean);
+  const livePeriods =
+    v4Idx >= 0 ? v4Subs[v4Idx].nPeriods : v3Idx >= 0 ? v3Subs[v3Idx].nPeriods : null;
 
   return {
     source: "rpc",

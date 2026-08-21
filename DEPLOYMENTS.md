@@ -1,6 +1,28 @@
 # Deployments
 
-## Starknet mainnet — NightshiftVault v3 (current)
+## Starknet mainnet — NightshiftVault v4 (current)
+
+| What | Value |
+|---|---|
+| NightshiftVault v4 | `0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e` |
+| Class hash | `0x49fdef5acecd3a56812367fda9af38c6f70dfa2a7f5346bceb52e1be3ac847d` |
+| Declare tx | `0x35d581a6245984f2fd2ed2b5d0e0645fe4527c905d92a848b3a50ee1af6301` |
+| Deploy tx | `0x179060199979a1c3777cd00c0b64595ded96022b542cccd51100ea0a93a460d` (block 13,613,373) |
+| Constructor | `pool = 0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
+| v4 over v3 | subscribe custody accepts surplus (a 1-wei donation can no longer brick the entrypoint); `owner_key_of` and `claim_pub_nonce_of` views; nonce-consumed `claim_public` exit that survives the pool blocking the vault as a depositor; every event indexes its filter field; tagged period nullifier; zero-token registration rejected |
+
+## Starknet mainnet — NightshiftGate (current)
+
+| What | Value |
+|---|---|
+| NightshiftGate | `0x4361699018454536ba97aacc85a6ec4ffb974e869335781490021ab5f872f5e` |
+| Class hash | `0x4f7bc8f257b694432602d464de326b1b9f5dfbc2b29266455bff2a2c621b24` |
+| Declare tx | `0x5710e6d93a064a3ae6e7c7446a8c75862baebd0fb42a80afd3ccdb4fa13ebbf` |
+| Deploy tx | `0x45287ad6c8ec696f3bd8b8202d85dcd838b706e78dfa336ba319c5f6cf0a440` |
+| Constructor | `vault = the v4 address above` (post-deploy asserted: `gate.vault()` matches, `owner_key_of` answers) |
+| What it does | `present(commitment, verifier_id, expiry_block, nonce, sig)` admits a paid-through-now subscription to the caller-verifier, burns a per-message nullifier, and emits a keyed `Presented`; `presentable` exposes the entitlement rule as a read |
+
+## v3 (superseded — its four transactions remain banked strk20.json receipts)
 
 | What | Value |
 |---|---|

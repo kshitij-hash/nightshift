@@ -26,10 +26,10 @@ import { RpcProvider, WalletAccountV6, ec, hash, shortString } from "starknet";
 import { createStore } from "@starknet-io/get-starknet-core";
 
 const POOL = "0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a";
-const VAULT = "0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759"; // v3
+const VAULT = "0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e"; // v4
 // Fill in after `node scripts/deploy-gate.mjs <vault>` lands. Empty means the
 // gate section refuses to build a call rather than sending one to address 0.
-const GATE = "";
+const GATE = "0x4361699018454536ba97aacc85a6ec4ffb974e869335781490021ab5f872f5e";
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const E18 = 10n ** 18n;
 // Wallet API addresses are PADDED_FELT: 0x + exactly 64 hex. Wallet-standard

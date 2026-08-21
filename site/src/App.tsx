@@ -62,9 +62,9 @@ export default function App() {
   // Ticker tracks the live v3 subscription only, so v2 history never inflates
   // the count. Denominator is the live sub's n_periods; the count is clamped to
   // it so "X of Y" can never read more charged than there are periods.
-  const v3Charges = board?.charges.filter((c) => c.vault === "v3") ?? [];
-  const periodCount = board?.livePeriods ?? v3Charges.length;
-  const chargedCount = Math.min(v3Charges.length, periodCount);
+  const currentCharges = board?.charges.filter((c) => c.vault === "v4") ?? [];
+  const periodCount = board?.livePeriods ?? currentCharges.length;
+  const chargedCount = Math.min(currentCharges.length, periodCount);
 
   return (
     <div className="page">
@@ -216,7 +216,7 @@ export default function App() {
                   <span className="col-period" style={{ color: "var(--fg-strong)" }}>
                     <span
                       style={{ color: "var(--dim)", fontSize: 10, letterSpacing: "0.08em", marginRight: 6 }}
-                      title={c.vault === "v3" ? "v3 Charged event" : "v2 Released event"}
+                      title={c.vault === "v2" ? "v2 Released event" : `${c.vault} Charged event`}
                     >
                       {c.vault.toUpperCase()}
                     </span>
