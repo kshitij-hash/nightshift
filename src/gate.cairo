@@ -1,9 +1,11 @@
 // The NIGHTSHIFT gate: tier-gated access on top of a subscription the vault
 // already holds. A standalone contract, pointed at one vault address at deploy
 // and only ever reading from it. It requires a vault that exposes
-// owner_key_of; the v3 vault on mainnet
-// (0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759) stores
-// sub_owner_key but has no view for it, so this gate ships alongside the vault
+// owner_key_of, so it targets the v4 vault on mainnet
+// (0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e). The v3
+// vault on mainnet (0x277519c8bc1031188313de4528d1f0159319f8f86651422e89b6fbd920b3759)
+// stores sub_owner_key but has no view for it, which is why this gate could
+// not have shipped alongside v3 and instead ships alongside the vault
 // revision that adds one.
 //
 // What a presentation is. `present` is a signature presentation. The commitment

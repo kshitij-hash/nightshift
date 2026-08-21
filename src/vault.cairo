@@ -1,7 +1,9 @@
-// The NIGHTSHIFT vault v3: the anonymizer contract the STRK20 pool invokes,
-// plus a permissionless charge path and signature-gated lifecycle.
+// The NIGHTSHIFT vault v4 (mainnet:
+// 0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e): the
+// anonymizer contract the STRK20 pool invokes, plus a permissionless charge
+// path and signature-gated lifecycle.
 //
-// v3 separates *charging* from *settlement*:
+// v3 first separated *charging* from *settlement*, and v4 keeps that split:
 //   - charge(commitment): a PLAIN PUBLIC call. Anyone (a keeper on cron, a
 //     relayer, the subscriber) may fire a due charge. It consumes the period
 //     nullifier and moves the period's amount from the subscription's escrow
