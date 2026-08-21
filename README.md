@@ -115,7 +115,10 @@ are not flattering.
 | `tests/` | The adversarial suite: hostile donations, non-pool callers, early charges, double charges, escrow exhaustion |
 | `site/` | The demo board: keyless, static, reads mainnet over JSON-RPC, committed-snapshot fallback it labels honestly |
 | `web/` | Ops console used to drive the wallet-route pool actions (dry-run first) |
-| `preflight/` | `strk20-preflight`: reads a `strk20.json` the way the sprint indexer reads it and prints where the indexer would silently drop something |
+| `verify/` | [`nightshift-verify`](https://www.npmjs.com/package/nightshift-verify), published on npm: checks a tier presentation off-chain from two vault reads, no transaction, no key held by the verifier |
+| `preflight/` | [`strk20-preflight`](https://www.npmjs.com/package/strk20-preflight), published on npm: reads a `strk20.json` the way the sprint indexer reads it and prints where the indexer would silently drop something |
+| `examples/telegram-gate/` | A Telegram door on `nightshift-verify`: challenge in chat, signature from the console, one-use invite link on a live mainnet check |
+| `demo-charge/` | Rate-limited endpoint that fires the permissionless `charge` from a funded account, so a visitor can trigger a real mainnet transaction |
 | `strk20.json` | The sprint manifest: the vault and the transactions routed through it |
 
 ## Build and test
