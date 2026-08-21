@@ -17,6 +17,29 @@ jobs:
           node-version: "22"
       - run: node scripts/check-manifest.mjs
 
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Root install serves verify/, preflight/ and the scripts/ tests, which
+      # resolve starknet by walking up to the root node_modules. The example
+      # and the site carry their own lockfiles and install separately.
+      - run: npm ci --ignore-scripts
+      - run: cd verify && node --test
+      - run: cd preflight && node --test
+      - run: cd examples/telegram-gate && npm ci --ignore-scripts && node --test
+      - run: node --test 'demo-charge/test/*.test.mjs'
+      - run: node --test scripts/creator-metrics.test.mjs
+      - run: node --test scripts/present-message-compat.test.mjs
+      # Drift gate: the generator writes site/src/lib/selectors.ts only when
+      # its output differs, so a dirty tree here means a selector changed
+      # without the committed file following it.
+      - run: node scripts/gen-selectors.mjs && git diff --exit-code site/src/lib/selectors.ts
+      - run: cd site && npm ci --ignore-scripts && npx tsc --noEmit
+
   cairo:
     runs-on: ubuntu-latest
     steps:
