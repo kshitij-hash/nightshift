@@ -68,6 +68,11 @@ The standing authorization is not a key held by anyone — it is the escrow the
 subscriber already parted with, plus cryptographic gates on when and how often
 it can move. There is nothing to steal, revoke, or phish: a keeper who fires a
 charge can only make the vault do exactly what the subscriber committed to.
+This is also what separates the design from any standing authorization built
+as a funded account with policy rules around a live key: a policy can be
+misconfigured and a key can leak, but here no key with spending power exists
+at all. The escrow moves on a hash the subscriber precomputed, or it does not
+move.
 
 Some designs conclude that unattended charging through this pool is impossible
 because nothing can pull from a shielded balance. That is true, and NIGHTSHIFT
