@@ -476,5 +476,5 @@ $("present").onclick = async () => {
   } catch (e) { logErr("present failed", e); }
 };
 
-log("ready — connect the wallet to begin (v3 vault " + VAULT.slice(0, 10) + "…)", "dim");
+log("ready — connect the wallet to begin (v4 vault " + VAULT.slice(0, 10) + "…)", "dim");
 if (!GATE) log("gate address not set: the present button refuses until GATE is filled in", "dim");
