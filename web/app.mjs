@@ -143,11 +143,16 @@ const reclaimMsg = (to) =>
   hash.computePoseidonHashOnElements([tag("NIGHTSHIFT_RECLAIM"), commitment(), to]);
 // Gate presentation. Mirrors present_nonce_message in src/common.cairo:
 // poseidon(['NIGHTSHIFT_PRESENT', commitment, verifier_id, expiry_block, nonce]).
-const presentMsg = (verifierId, expiryBlock, nonce) =>
+// The commitment is a parameter so the on-chain button and the off-chain panel
+// at the bottom of this file hash through one function rather than two copies.
+// Exported so a node script can compare this layout against
+// nightshift-verify's presentMessage without a browser.
+export const presentMessageFor = (commitmentFelt, verifierId, expiryBlock, nonce) =>
   hash.computePoseidonHashOnElements([
-    tag("NIGHTSHIFT_PRESENT"), commitment(), verifierId,
-    "0x" + BigInt(expiryBlock).toString(16), nonce,
+    tag("NIGHTSHIFT_PRESENT"), cd(commitmentFelt), cd(verifierId), cd(expiryBlock), cd(nonce),
   ]);
+const presentMsg = (verifierId, expiryBlock, nonce) =>
+  presentMessageFor(commitment(), verifierId, expiryBlock, nonce);
 const sign = (msg, priv) => {
   const s = ec.starkCurve.sign(msg, priv);
   return { r: "0x" + s.r.toString(16), s: "0x" + s.s.toString(16) };
@@ -201,7 +206,8 @@ $("connect").onclick = async () => {
     // shows what will be signed rather than accepting a name.
     $("verifier").value = cd(account.address);
     for (const b of ["balances", "state", "register", "subscribe", "charge", "claimprep", "claimsend",
-                     "cancelsign", "cancelself", "reclaimsign", "reclaimself", "present"]) $(b).disabled = false;
+                     "cancelsign", "cancelself", "reclaimsign", "reclaimself", "present",
+                     "signpresent"]) $(b).disabled = false;
     log("connected", "ok");
     log(`payout pubkey: ${payoutPub()}`, "dim");
     // Per-commitment, so this line changes with the creator id above it.
@@ -474,6 +480,190 @@ $("present").onclick = async () => {
     log(`gate returned creator_id=${r[0]} tier=${BigInt(r[1])}`, "ok");
     log("the commitment travelled in that calldata and in the Presented event: presentations of one subscription are linkable to each other across gates", "dim");
   } catch (e) { logErr("present failed", e); }
+};
+
+// --- gate: sign a challenge for an external verifier (off-chain) ------------
+// The button above submits `present`, which costs a transaction and leaves a
+// public receipt. A Telegram or Discord gate bot wants neither. It hands out a
+// challenge {verifier_id, nonce, expiry_block}, the subscriber signs that
+// challenge here, and the bot checks the result with the nightshift-verify
+// library, which only reads vault views. Nothing in this panel talks to the
+// network to produce a signature, and the owner key stays in this page.
+//
+// The signed message is the same poseidon layout the on-chain call uses, with
+// the bot's verifier_id, expiry_block and nonce standing in for this wallet's
+// address and a locally rolled nonce. verify/src/index.mjs rebuilds it with
+// presentMessage and checks it with checkPresentSignature, so any drift in the
+// felt forms or the element order surfaces there as bad_signature and nothing
+// more descriptive.
+
+const STARK_PRIME = 2n ** 251n + 17n * 2n ** 192n + 1n;
+// The gate's MAX_PRESENT_WINDOW, which is also nightshift-verify's default
+// maxWindow. Used only to warn about an expiry a verifier would refuse.
+const MAX_PRESENT_WINDOW = 2100;
+
+// Every message shown next to this panel comes from one of these. Anything
+// else is reported as a fixed line, so no thrown object reaches the DOM.
+class ChallengeError extends Error {}
+
+// toFelt from verify/src/index.mjs: same accepted forms, same range check. A
+// bare word is refused here, because short-string encoding only makes sense
+// for a verifier id.
+const challengeFelt = (value, label) => {
+  let out;
+  if (typeof value === "bigint") {
+    out = value;
+  } else if (typeof value === "number") {
+    if (!Number.isSafeInteger(value) || value < 0) throw new ChallengeError(`${label} is not a felt`);
+    out = BigInt(value);
+  } else if (typeof value === "string") {
+    const t = value.trim();
+    if (!/^(0x[0-9a-fA-F]+|[0-9]+)$/.test(t)) throw new ChallengeError(`${label} is not a felt`);
+    out = BigInt(t);
+  } else {
+    throw new ChallengeError(`${label} is missing`);
+  }
+  if (out < 0n || out >= STARK_PRIME) throw new ChallengeError(`${label} is out of field range`);
+  return out;
+};
+
+// toVerifierFelt from verify/src/index.mjs. A door may call itself DOOR_1
+// rather than a number, and the verifier short-string-encodes its own id
+// before the comparison, so both forms have to land on the same felt here.
+const challengeVerifierFelt = (value) => {
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (t === "") throw new ChallengeError("verifier_id is empty");
+    if (!/^(0x[0-9a-fA-F]+|[0-9]+)$/.test(t)) {
+      if (t.length > 31) throw new ChallengeError("verifier_id is longer than a short string");
+      try {
+        return challengeFelt(shortString.encodeShortString(t), "verifier_id");
+      } catch {
+        throw new ChallengeError("verifier_id is not encodable as a short string");
+      }
+    }
+  }
+  return challengeFelt(value, "verifier_id");
+};
+
+// Read the bot's challenge out of whatever the chat client pasted: surrounding
+// whitespace and one pair of code fences are tolerated. Throws ChallengeError
+// with a line fit to show the operator; never returns a partial challenge.
+export function parseChallenge(text) {
+  if (typeof text !== "string") throw new ChallengeError("paste the challenge JSON the bot issued");
+  let body = text.trim();
+  if (body.startsWith("```")) {
+    body = body.replace(/^```[^\n]*\n?/, "").replace(/```\s*$/, "").trim();
+  }
+  if (body === "") throw new ChallengeError("paste the challenge JSON the bot issued");
+  let obj;
+  try {
+    obj = JSON.parse(body);
+  } catch {
+    throw new ChallengeError("that is not valid JSON");
+  }
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+    throw new ChallengeError("the challenge must be a JSON object");
+  }
+  const verifierId = challengeVerifierFelt(obj.verifier_id);
+  const nonce = challengeFelt(obj.nonce, "nonce");
+  let expiryBlock;
+  try {
+    expiryBlock = challengeFelt(obj.expiry_block, "expiry_block");
+  } catch {
+    throw new ChallengeError("expiry_block must be a positive integer");
+  }
+  // A block height is a u64 on-chain, and the presentation carries it as a JSON
+  // number, so the usable range stops at the safe-integer bound.
+  if (expiryBlock === 0n || expiryBlock > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new ChallengeError("expiry_block must be a positive integer below 2^53");
+  }
+  return { verifierId, nonce, expiryBlock };
+}
+
+// The presentation object the bot reads, field for field the shape
+// nightshift-verify's signPresentation returns and readPresentation parses.
+// The owner key is an argument and appears nowhere in the result.
+export function buildPresentation({ commitment: commitmentFelt, verifierId, expiryBlock, nonce, ownerPrivKey }) {
+  const msg = presentMessageFor(commitmentFelt, verifierId, expiryBlock, nonce);
+  let sig;
+  try {
+    sig = sign(msg, ownerPrivKey);
+  } catch {
+    // The signer's own error object is discarded rather than surfaced: it was
+    // called with the private key and nothing built from it goes on screen.
+    throw new ChallengeError("signing failed: the owner key for this creator is unusable");
+  }
+  return {
+    commitment: cd(commitmentFelt),
+    verifier_id: cd(verifierId),
+    expiry_block: Number(expiryBlock),
+    nonce: cd(nonce),
+    sig_r: sig.r,
+    sig_s: sig.s,
+  };
+}
+
+// A read the signature does not need. The head block says whether the bot's
+// expiry is already behind us or sits further out than a verifier's window, so
+// a stale challenge is caught here instead of at the gate. It annotates the log
+// and never blocks or changes what was signed.
+async function noteExpiryDistance(expiryBlock) {
+  try {
+    const now = BigInt(await provider.getBlockNumber());
+    if (expiryBlock < now) {
+      log(`expiry_block ${expiryBlock} is behind head block ${now}: the verifier will answer expired, ask the bot for a fresh challenge`, "err");
+    } else if (expiryBlock > now + BigInt(MAX_PRESENT_WINDOW)) {
+      log(`expiry_block ${expiryBlock} is over ${MAX_PRESENT_WINDOW} blocks past head ${now}: a verifier on the default window answers expiry_too_far`, "err");
+    } else {
+      log(`expiry_block ${expiryBlock} is ${expiryBlock - now} blocks ahead of head ${now}`, "dim");
+    }
+  } catch {
+    log("head block unreadable, so expiry_block went unchecked; the presentation is signed either way", "dim");
+  }
+}
+
+$("signpresent").onclick = () => {
+  const errEl = $("presenterr");
+  errEl.textContent = "";
+  $("presentation").value = "";
+  try {
+    // Parsed first, so a malformed challenge is reported before anything
+    // else runs. The !account guard right below is not normally reachable -
+    // the signpresent button stays disabled until a wallet connects - it is
+    // kept only as a defense against that button state getting out of sync.
+    const challenge = parseChallenge($("challenge").value);
+    if (!account) throw new ChallengeError("connect the wallet first: the owner key is derived per creator id");
+    const presentation = buildPresentation({
+      commitment: commitment(),
+      ...challenge,
+      ownerPrivKey: ownerPriv(),
+    });
+    $("presentation").value = JSON.stringify(presentation);
+    log(`signed commitment=${commitment().slice(0, 10)}… for verifier_id=${presentation.verifier_id} expiry_block=${presentation.expiry_block}: no transaction, no network call, no key out of this page`, "ok");
+    log("the bot learns the commitment and the (creator_id, tier) behind it, and can recognize this subscription again at any gate", "dim");
+    noteExpiryDistance(challenge.expiryBlock);
+  } catch (e) {
+    const text = e instanceof ChallengeError ? e.message : "could not sign this challenge";
+    errEl.textContent = text;
+    log(`sign for verifier: ${text}`, "err");
+  }
+};
+
+$("copypresent").onclick = async () => {
+  const out = $("presentation");
+  if (!out.value) {
+    $("presenterr").textContent = "nothing to copy yet: sign a challenge first";
+    return;
+  }
+  $("presenterr").textContent = "";
+  try {
+    await navigator.clipboard.writeText(out.value);
+    log("presentation copied, paste it back to the bot", "ok");
+  } catch {
+    out.select();
+    $("presenterr").textContent = "the browser blocked the clipboard: the text is selected, copy it by hand";
+  }
 };
 
 log("ready — connect the wallet to begin (v4 vault " + VAULT.slice(0, 10) + "…)", "dim");

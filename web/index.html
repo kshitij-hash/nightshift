@@ -18,7 +18,11 @@
   input { background:#151922; color:#d7dae0; border:1px solid #2a2f3a; border-radius:6px;
           padding:.45em .6em; font:inherit; width: 130px; }
   input.wide { width: 100%; box-sizing: border-box; }
+  textarea { background:#151922; color:#d7dae0; border:1px solid #2a2f3a; border-radius:6px;
+             padding:.45em .6em; font:inherit; font-size:12.5px; width:100%; box-sizing:border-box;
+             resize:vertical; }
   label { margin-right:.9em; }
+  .inline-err { color:#ff6b6b; }
   #log { background:#10141c; border:1px solid #2a2f3a; border-radius:8px; padding:1rem;
          white-space:pre-wrap; word-break:break-all; min-height:8em; font-size:12.5px; }
   #log .ok { color:#5dd39e; } #log .err { color:#ff6b6b; } #log .dim { color:#7b8494; }
@@ -84,6 +88,19 @@
   <span class="dim">not a name a door picks: the gate requires caller == verifier_id, so it is this wallet's address</span></div>
   <div class="row"><button id="present" disabled>Sign + present</button>
   <span class="dim">expiry = current block + 1000, fresh random nonce each press</span></div>
+</fieldset>
+
+<fieldset>
+  <legend>7 · gate · sign for an external verifier (off-chain, no transaction)</legend>
+  <div class="row"><span class="dim">paste the challenge a chat gate bot issued. The signature is built in this page and nothing is submitted.</span></div>
+  <div class="row"><textarea id="challenge" rows="4"
+    placeholder='{"verifier_id": "0x...", "nonce": "0x...", "expiry_block": 1234567}'></textarea></div>
+  <div class="row"><button id="signpresent" disabled>Sign challenge</button>
+  <span id="presenterr" class="inline-err"></span></div>
+  <div class="row"><textarea id="presentation" rows="4" readonly
+    placeholder="presentation JSON, one line: paste this back to the bot"></textarea></div>
+  <div class="row"><button id="copypresent" class="ghost">Copy presentation</button>
+  <span class="dim">the bot checks it with nightshift-verify, which reads vault views only</span></div>
 </fieldset>
 
 <div id="log"><span class="dim">log —</span></div>
