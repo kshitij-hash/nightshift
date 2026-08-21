@@ -138,8 +138,8 @@ fn claim_public_pays_out_and_drains_claimable() {
     let before = vault.accounted(token.contract_address);
 
     let to: ContractAddress = 'payout-addr'.try_into().unwrap();
-    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0 * 2)).unwrap();
-    vault.claim_public(creator_id, to, TIER_0 * 2, r, s);
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0 * 2, 0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0 * 2, 0, r, s);
 
     // The money actually arrived — a direct transfer, not an allowance.
     assert(token.balance_of(to) == (TIER_0 * 2).into(), 'payout not received');
@@ -153,10 +153,40 @@ fn claim_public_takes_part_of_the_balance() {
     // A partial exit leaves the rest claimable, by either leg.
     let (vault, _, token, creator_id, ck) = charged_up(2);
     let to: ContractAddress = 'payout-addr'.try_into().unwrap();
-    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0)).unwrap();
-    vault.claim_public(creator_id, to, TIER_0, r, s);
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0, 0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, 0, r, s);
     assert(token.balance_of(to) == TIER_0.into(), 'partial payout wrong');
     assert(vault.claimable_of(creator_id) == TIER_0, 'remainder wrong');
+}
+
+#[test]
+#[should_panic(expected: 'NS_BAD_NONCE')]
+fn claim_public_replay_dies() {
+    // The state the replay needs: a partial claim leaves TIER_0 claimable, so
+    // a byte-identical resubmission passes every balance check. The consumed
+    // nonce is what kills it; without the nonce this signature would be a
+    // permanent standing order anyone could re-fire as claimable refills.
+    let (vault, _, _, creator_id, ck) = charged_up(2);
+    let to: ContractAddress = 'payout-addr'.try_into().unwrap();
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0, 0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, 0, r, s);
+    assert(vault.claim_pub_nonce_of(creator_id) == 1, 'nonce not consumed');
+    vault.claim_public(creator_id, to, TIER_0, 0, r, s);
+}
+
+#[test]
+fn claim_public_sequences_by_nonce() {
+    // Two successive public claims sign nonces 0 and 1, read from the view.
+    let (vault, _, token, creator_id, ck) = charged_up(2);
+    let to: ContractAddress = 'payout-addr'.try_into().unwrap();
+    let n0 = vault.claim_pub_nonce_of(creator_id);
+    let (r0, s0) = ck.sign(claim_public_message(creator_id, to, TIER_0, n0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, n0, r0, s0);
+    let n1 = vault.claim_pub_nonce_of(creator_id);
+    let (r1, s1) = ck.sign(claim_public_message(creator_id, to, TIER_0, n1)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, n1, r1, s1);
+    assert(token.balance_of(to) == (TIER_0 * 2).into(), 'both payouts wrong');
+    assert(vault.claim_pub_nonce_of(creator_id) == 2, 'nonce sequence wrong');
 }
 
 #[test]
@@ -166,8 +196,8 @@ fn claim_public_rejects_wrong_signer() {
     let (vault, _, _, creator_id, _) = charged_up(1);
     let attacker = KeyPairTrait::<felt252, felt252>::generate();
     let to: ContractAddress = 'attacker-addr'.try_into().unwrap();
-    let (r, s) = attacker.sign(claim_public_message(creator_id, to, TIER_0)).unwrap();
-    vault.claim_public(creator_id, to, TIER_0, r, s);
+    let (r, s) = attacker.sign(claim_public_message(creator_id, to, TIER_0, 0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0, 0, r, s);
 }
 
 #[test]
@@ -178,8 +208,8 @@ fn claim_public_signature_is_bound_to_destination() {
     let (vault, _, _, creator_id, ck) = charged_up(1);
     let intended: ContractAddress = 'creator-addr'.try_into().unwrap();
     let attacker: ContractAddress = 'attacker-addr'.try_into().unwrap();
-    let (r, s) = ck.sign(claim_public_message(creator_id, intended, TIER_0)).unwrap();
-    vault.claim_public(creator_id, attacker, TIER_0, r, s);
+    let (r, s) = ck.sign(claim_public_message(creator_id, intended, TIER_0, 0)).unwrap();
+    vault.claim_public(creator_id, attacker, TIER_0, 0, r, s);
 }
 
 #[test]
@@ -189,8 +219,8 @@ fn claim_public_cannot_exceed_claimable() {
     // what keeps a creator from reaching into other subscriptions' escrow.
     let (vault, _, _, creator_id, ck) = charged_up(1);
     let to: ContractAddress = 'payout-addr'.try_into().unwrap();
-    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0 * 5)).unwrap();
-    vault.claim_public(creator_id, to, TIER_0 * 5, r, s);
+    let (r, s) = ck.sign(claim_public_message(creator_id, to, TIER_0 * 5, 0)).unwrap();
+    vault.claim_public(creator_id, to, TIER_0 * 5, 0, r, s);
 }
 
 #[test]
@@ -198,8 +228,8 @@ fn claim_public_cannot_exceed_claimable() {
 fn claim_public_rejects_zero_destination() {
     let (vault, _, _, creator_id, ck) = charged_up(1);
     let zero: ContractAddress = 0.try_into().unwrap();
-    let (r, s) = ck.sign(claim_public_message(creator_id, zero, TIER_0)).unwrap();
-    vault.claim_public(creator_id, zero, TIER_0, r, s);
+    let (r, s) = ck.sign(claim_public_message(creator_id, zero, TIER_0, 0)).unwrap();
+    vault.claim_public(creator_id, zero, TIER_0, 0, r, s);
 }
 
 // --- cancel + reclaim ---

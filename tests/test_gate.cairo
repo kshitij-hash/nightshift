@@ -461,3 +461,22 @@ fn present_for_unknown_commitment_dies() {
     let (r, s) = ok.sign(present_nonce_message('ghost', VERIFIER, EXPIRY, NONCE)).unwrap();
     gate.present('ghost', VERIFIER, EXPIRY, NONCE, r, s);
 }
+
+#[test]
+fn presentable_tracks_the_paid_window_not_the_flag() {
+    // The read-only twin of present's entitlement rule. Before period 0 is
+    // charged: not presentable. Inside a paid window: presentable, including
+    // the final period, where the vault's raw is_active flag already reads
+    // false. Past the window: not presentable. After cancel: not presentable.
+    let (vault, gate, _, _ok) = setup(2);
+    assert(!gate.presentable('c-1'), 'presentable before charge');
+    vault.charge('c-1');
+    assert(gate.presentable('c-1'), 'not presentable in period 0');
+    set_block(vault, gate, START + PERIOD_HOUR);
+    vault.charge('c-1'); // final period charged: flag drops, entitlement holds
+    assert(!vault.is_active('c-1'), 'flag should read false');
+    assert(gate.presentable('c-1'), 'final period not presentable');
+    set_block(vault, gate, START + PERIOD_HOUR * 2);
+    assert(!gate.presentable('c-1'), 'lapsed window presentable');
+    assert(!gate.presentable('ghost'), 'unknown presentable');
+}

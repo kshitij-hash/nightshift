@@ -75,9 +75,16 @@ pub fn claim_message(creator_id: felt252, note_id: felt252, amount: u128) -> fel
 /// The public claim leg. A separate tag from claim_message on purpose: a
 /// signature the creator produced to settle into a pool note must not also
 /// authorize a transfer to a public address, and vice versa. The destination is
-/// inside the message, so a relayer cannot redirect the payout.
-pub fn claim_public_message(creator_id: felt252, to: ContractAddress, amount: u128) -> felt252 {
-    poseidon_hash_span(['NIGHTSHIFT_CLAIM_PUB', creator_id, to.into(), amount.into()].span())
+/// inside the message, so a relayer cannot redirect the payout. The nonce is
+/// the creator's claim_pub_nonce at signing time (read via claim_pub_nonce_of)
+/// and is consumed on execution: without it a captured signature would be a
+/// standing order anyone could re-fire each time claimable refills.
+pub fn claim_public_message(
+    creator_id: felt252, to: ContractAddress, amount: u128, nonce: felt252,
+) -> felt252 {
+    poseidon_hash_span(
+        ['NIGHTSHIFT_CLAIM_PUB', creator_id, to.into(), amount.into(), nonce].span(),
+    )
 }
 
 pub fn cancel_message(commitment: felt252) -> felt252 {

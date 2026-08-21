@@ -29,6 +29,9 @@ reading the chain can tell that one happened, who made it or to whom. Replay is
 dead because the verifier accepts only the nonce it issued for the request in
 front of it, and a captured `(sig_r, sig_s)` reproduces exactly the one
 `(commitment, verifier_id, expiry_block, nonce)` tuple it was signed over.
+That single-use property is the verifier's to keep: nothing on chain burns an
+off-chain nonce, so retire each issued nonce once its request resolves and
+never accept one twice.
 
 What this does not hide, stated rather than buried: the commitment is stable, so
 one verifier recognizes a returning subscriber across visits, and two verifiers

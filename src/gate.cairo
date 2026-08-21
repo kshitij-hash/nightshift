@@ -104,12 +104,21 @@ pub trait INightshiftGate<T> {
     /// confirm a gate targets the canonical vault; class hash and event selector
     /// are not identity.
     fn vault(self: @T) -> ContractAddress;
-    /// Passthrough to the vault. False for a commitment the vault never saw.
+    /// The vault's RAW liveness flag, passed through unchanged. This is NOT
+    /// this gate's entitlement rule: the flag reads false during the final
+    /// fully-paid period and for every exhausted schedule, paid or not. Gate
+    /// on `presentable`, never on this.
     fn is_active(self: @T, commitment: felt252) -> bool;
+    /// Whether `present` would admit this commitment right now, ignoring the
+    /// signature and replay checks: known, not cancelled, period 0 charged,
+    /// and the paid window covers the current block. The one entitlement rule,
+    /// exposed as a read so integrators cannot reconstruct the wrong one.
+    fn presentable(self: @T, commitment: felt252) -> bool;
     /// Raw (creator_id, tier) from the vault's schedule. (0, 0) for an unknown
-    /// commitment. This is schedule data only and says nothing about liveness: a
-    /// caller that gates on it must read is_active alongside, since a cancelled
-    /// or exhausted subscription still has a tier here.
+    /// commitment. This is schedule data only and says nothing about
+    /// entitlement: a caller that gates on it must read `presentable`
+    /// alongside, since a cancelled or lapsed subscription still has a tier
+    /// here.
     fn tier_of(self: @T, commitment: felt252) -> (felt252, u8);
 }
 
@@ -198,6 +207,7 @@ pub mod NightshiftGate {
 
             // Entitlement, from one schedule read: known, not cancelled, and
             // paid through the current block.
+            let now = get_block_number();
             let vault = INightshiftVaultDispatcher { contract_address: self.vault.read() };
             let (creator_id, tier, pb, start, _n, _escrow, next, cancelled) = vault
                 .schedule_of(commitment);
@@ -214,12 +224,11 @@ pub mod NightshiftGate {
             // any other, so charging period n-1 (which drops vault.is_active to
             // false the instant the subscriber is fully paid) must not end
             // access before the period the subscriber bought has run out.
-            assert(get_block_number() < start + pb * next.into(), errors::ARREARS);
+            assert(now < start + pb * next.into(), errors::ARREARS);
 
             // The signed height must be reachable and near. Both bound a captured
             // presentation: it dies at expiry_block, and expiry_block cannot have
             // been set more than MAX_PRESENT_WINDOW ahead of now.
-            let now = get_block_number();
             assert(now <= expiry_block, errors::EXPIRED);
             assert(expiry_block <= now + MAX_PRESENT_WINDOW, errors::EXPIRY_TOO_FAR);
 
@@ -252,6 +261,18 @@ pub mod NightshiftGate {
 
         fn is_active(self: @ContractState, commitment: felt252) -> bool {
             INightshiftVaultDispatcher { contract_address: self.vault.read() }.is_active(commitment)
+        }
+
+        fn presentable(self: @ContractState, commitment: felt252) -> bool {
+            // The same three conditions present asserts, as a read.
+            let (creator_id, _, pb, start, _, _, next, cancelled) = INightshiftVaultDispatcher {
+                contract_address: self.vault.read(),
+            }
+                .schedule_of(commitment);
+            creator_id != 0
+                && !cancelled
+                && next > 0
+                && get_block_number() < start + pb * next.into()
         }
 
         fn tier_of(self: @ContractState, commitment: felt252) -> (felt252, u8) {

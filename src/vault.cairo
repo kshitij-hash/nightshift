@@ -51,6 +51,7 @@ pub trait INightshiftVault<T> {
         creator_id: felt252,
         to: ContractAddress,
         amount: u128,
+        nonce: felt252,
         sig_r: felt252,
         sig_s: felt252,
     );
@@ -64,6 +65,8 @@ pub trait INightshiftVault<T> {
     /// with no registration step.
     fn owner_key_of(self: @T, commitment: felt252) -> felt252;
     fn claimable_of(self: @T, creator_id: felt252) -> u128;
+    /// The nonce the creator's NEXT claim_public signature must bind.
+    fn claim_pub_nonce_of(self: @T, creator_id: felt252) -> felt252;
     fn schedule_of(self: @T, commitment: felt252) -> (felt252, u8, u64, u64, u32, u128, u32, bool);
     fn tier_of(self: @T, creator_id: felt252, tier: u8) -> (ContractAddress, u128);
     fn periods_due(self: @T, commitment: felt252) -> u32;
@@ -90,6 +93,7 @@ pub mod errors {
     pub const PERIOD_SPENT: felt252 = 'NS_PERIOD_SPENT';
     pub const ZERO_ADDRESS: felt252 = 'NS_ZERO_ADDRESS';
     pub const TRANSFER_FAILED: felt252 = 'NS_TRANSFER_FAILED';
+    pub const BAD_NONCE: felt252 = 'NS_BAD_NONCE';
 }
 
 #[starknet::contract]
@@ -127,6 +131,9 @@ pub mod NightshiftVault {
         tier_amount: Map<(felt252, u8), u128>,
         /// Charged-but-unsettled balance owed to each creator.
         claimable: Map<felt252, u128>,
+        /// creator_id -> next claim_public nonce. Each public claim signature
+        /// binds and consumes one value, so none can fire twice.
+        claim_pub_nonce: Map<felt252, felt252>,
         // subscriptions (0 end_period = none)
         sub_creator: Map<felt252, felt252>,
         sub_tier: Map<felt252, u8>,
@@ -344,7 +351,7 @@ pub mod NightshiftVault {
             // must never clobber a standing allowance, and the recipient is a
             // plain wallet with no way to execute a transfer_from pull.
             let ok = IERC20Dispatcher { contract_address: token }.transfer(to, amount.into());
-            assert(ok, errors::EXHAUSTED);
+            assert(ok, errors::TRANSFER_FAILED);
             self.emit(Reclaimed { commitment, amount });
         }
 
@@ -370,6 +377,7 @@ pub mod NightshiftVault {
             creator_id: felt252,
             to: ContractAddress,
             amount: u128,
+            nonce: felt252,
             sig_r: felt252,
             sig_s: felt252,
         ) {
@@ -378,11 +386,17 @@ pub mod NightshiftVault {
             assert(to.is_non_zero(), errors::ZERO_ADDRESS);
             let owed = self.claimable.entry(creator_id).read();
             assert(amount > 0 && amount <= owed, errors::CLAIM_TOO_MUCH);
+            // One-shot: the nonce is inside the signed message and consumed
+            // here. Without it, a captured signature would be a permanent,
+            // unrevocable standing order anyone could re-fire to the same
+            // destination every time claimable refills.
+            assert(nonce == self.claim_pub_nonce.entry(creator_id).read(), errors::BAD_NONCE);
             // The destination is inside the signed message, so a relayer that
             // carries this call cannot point the payout somewhere else.
-            let msg = claim_public_message(creator_id, to, amount);
+            let msg = claim_public_message(creator_id, to, amount, nonce);
             assert(check_ecdsa_signature(msg, key, sig_r, sig_s), errors::BAD_SIG);
 
+            self.claim_pub_nonce.entry(creator_id).write(nonce + 1);
             self.claimable.entry(creator_id).write(owed - amount);
             let token = self.creator_token.entry(creator_id).read();
             let accounted = self.accounted.entry(token).read();
@@ -410,6 +424,10 @@ pub mod NightshiftVault {
 
         fn owner_key_of(self: @ContractState, commitment: felt252) -> felt252 {
             self.sub_owner_key.entry(commitment).read()
+        }
+
+        fn claim_pub_nonce_of(self: @ContractState, creator_id: felt252) -> felt252 {
+            self.claim_pub_nonce.entry(creator_id).read()
         }
 
         fn claimable_of(self: @ContractState, creator_id: felt252) -> u128 {
