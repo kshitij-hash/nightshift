@@ -6,47 +6,20 @@
 // a plainer alternative: ?creator= and ?demo= are validated here, once, and
 // every consumer downstream gets a typed, already-checked value instead of
 // re-parsing location.search.
-import { Link, Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
 
-import { ThemeToggle } from "./components/theme-toggle";
 import { BoardRoute } from "./routes/board";
 import { CreatorRoute } from "./routes/creator";
 import { VerifyRoute } from "./routes/verify";
 
+// Each route owns its own masthead, because the masthead carries page state
+// the frame cannot know: the chain chip, the snapshot badge, the sentence that
+// describes that surface. The root layout is the page frame and nothing else,
+// which also keeps exactly one h1 on every page.
 function RootLayout() {
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-border-hairline px-4 h-12 flex items-center justify-between shrink-0">
-        <nav className="flex items-center gap-5 text-[13px] font-medium">
-          <span className="tracking-[0.06em] text-text-strong">NIGHTSHIFT</span>
-          <Link
-            to="/"
-            activeOptions={{ exact: true }}
-            activeProps={{ className: "text-text-strong" }}
-            className="text-text-label hover:text-text-default transition-colors"
-          >
-            BOARD
-          </Link>
-          <Link
-            to="/creator"
-            activeProps={{ className: "text-text-strong" }}
-            className="text-text-label hover:text-text-default transition-colors"
-          >
-            CREATOR
-          </Link>
-          <Link
-            to="/verify"
-            activeProps={{ className: "text-text-strong" }}
-            className="text-text-label hover:text-text-default transition-colors"
-          >
-            VERIFY
-          </Link>
-        </nav>
-        <ThemeToggle />
-      </header>
-      <main className="flex-1">
-        <Outlet />
-      </main>
+    <div className="flex min-h-screen flex-col">
+      <Outlet />
     </div>
   );
 }
@@ -70,7 +43,9 @@ const indexRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): BoardSearch => {
     const raw = search.demo;
     if (raw === undefined) return {};
-    return { demo: raw === true || raw === "true" || raw === "1" };
+    // The router parses search values, so ?demo=1 arrives as the number 1 and
+    // ?demo=true as the boolean. Accept every spelling a person would type.
+    return { demo: raw === true || raw === 1 || raw === "true" || raw === "1" };
   },
   component: BoardRoute,
 });

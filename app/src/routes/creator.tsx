@@ -4,6 +4,7 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { Masthead } from "../components/masthead";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
@@ -34,7 +35,12 @@ export function CreatorRoute() {
   };
 
   return (
-    <div className="max-w-[1120px] mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto w-full max-w-[1200px]">
+      <Masthead
+        active="dashboard"
+        sentence="A creator ledger, summed locally from public events. Anyone can derive the same figures."
+      />
+      <div className="space-y-6 px-5 py-8 lg:px-10">
       <div className="text-[13px] uppercase tracking-[0.2em] text-text-label">
         // CREATOR DASHBOARD - LOCAL SUM OVER PUBLIC EVENTS
       </div>
@@ -122,6 +128,7 @@ export function CreatorRoute() {
           </Table>
         </div>
       )}
+      </div>
     </div>
   );
 }
