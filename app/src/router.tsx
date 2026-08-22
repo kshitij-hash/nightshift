@@ -26,16 +26,32 @@ function RootLayout() {
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
-/** felt252 as it shows up in a URL: 0x-prefixed hex, unpadded. */
-const FELT_HEX = /^0x[0-9a-fA-F]+$/;
+/** felt252 as it shows up in a URL: 0x-prefixed hex, unpadded, at most 64
+ *  digits. The upper bound is load-bearing: it is what makes BigInt() safe to
+ *  call on any value that got through. */
+const FELT_HEX = /^0x[0-9a-fA-F]{1,64}$/;
 
 export type BoardSearch = { demo?: boolean };
 export type CreatorSearch = {
+  /** One id, or several separated by commas. A creator running more than one
+   *  registration reads their own local sum by listing them here; the ids are
+   *  linked in this URL and nowhere on chain. */
   creator?: string;
-  /** Set when ?creator= was present but failed FELT_HEX, so the page can
-   *  say what was wrong instead of silently acting as if nothing was pasted. */
+  /** Whatever was present and failed FELT_HEX, so the page can say what was
+   *  wrong instead of acting as if nothing was pasted. Both fields can be set
+   *  at once, when a list mixes usable ids with unusable ones. */
   invalidCreator?: string;
 };
+
+/** Split ?creator= into its entries. Empty entries drop out, so a trailing
+ *  comma is not an id. */
+export const splitCreatorIds = (raw: string | undefined): string[] =>
+  raw === undefined
+    ? []
+    : raw
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -56,7 +72,25 @@ const creatorRoute = createRoute({
   validateSearch: (search: Record<string, unknown>): CreatorSearch => {
     const raw = search.creator;
     if (typeof raw !== "string" || raw.length === 0) return {};
-    return FELT_HEX.test(raw) ? { creator: raw } : { invalidCreator: raw };
+    const good: string[] = [];
+    const bad: string[] = [];
+    // Deduplicated by value, not by string: 0x396c and 0x0396c are one id, and
+    // reading it twice would double every sum this page prints.
+    const seen = new Set<string>();
+    for (const part of splitCreatorIds(raw)) {
+      if (!FELT_HEX.test(part)) {
+        bad.push(part);
+        continue;
+      }
+      const key = BigInt(part).toString();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      good.push(part);
+    }
+    const out: CreatorSearch = {};
+    if (good.length > 0) out.creator = good.join(",");
+    if (bad.length > 0) out.invalidCreator = bad.join(",");
+    return out;
   },
   component: CreatorRoute,
 });

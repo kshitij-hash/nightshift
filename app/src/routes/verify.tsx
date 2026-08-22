@@ -1,28 +1,57 @@
-// Static stub. The real verify surface (challenge paste, sign guidance,
-// verdict, the honest linkability line) is a later phase; this just proves
-// the route exists and renders.
+// The /verify route.
+//
+// The surface itself is loaded on demand. The check is the real one, ported
+// from the published nightshift-verify package, and it needs starknet.js for
+// poseidon and the STARK curve: about 230 kB minified. The board and the
+// creator dashboard need none of that, so this route is the split point and
+// they do not pay for it. Navigating here fetches one extra chunk.
+//
+// This file stays a wrapper on purpose: the surface, its state machine and its
+// components all live under components/verify/.
+
+import { lazy, Suspense } from "react";
+
 import { Masthead } from "../components/masthead";
+
+const SENTENCE =
+  "Check a tier presentation against vault state. Two read-only calls: it moves nothing and it signs nothing.";
+
+const VerifySurface = lazy(() =>
+  import("../components/verify/surface").then((m) => ({ default: m.VerifySurface })),
+);
+
+/** The frame the surface arrives into. It mirrors the real layout rather than
+ *  flashing a spinner, so the page does not jump when the chunk lands. */
+function VerifyFallback() {
+  return (
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col">
+      <Masthead active="verify" sentence={SENTENCE} />
+      <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="flex flex-col">
+            {["01", "02", "03"].map((n) => (
+              <div
+                key={n}
+                className="flex items-center gap-3 border border-t-0 border-border-panel px-5 py-5 first:border-t"
+              >
+                <span className="inline-flex h-6 w-7 shrink-0 items-center justify-center border border-border-field text-[11px] text-text-caption tabular-nums">
+                  {n}
+                </span>
+                <span className="h-3 w-48 max-w-full bg-surface-fill" />
+              </div>
+            ))}
+          </div>
+          <div className="h-40 border border-border-panel" />
+        </div>
+      </main>
+    </div>
+  );
+}
 
 export function VerifyRoute() {
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
-      <Masthead
-        active="verify"
-        sentence="Check a tier presentation against vault state. The check is a read; it moves nothing."
-      />
-      <div className="space-y-4 px-5 py-8 lg:px-10">
-        <div className="text-[13px] uppercase tracking-[0.2em] text-text-label">
-          // VERIFY - TIER-GATE PRESENTATION CHECK
-        </div>
-        <p className="text-[14px] text-text-prose">
-          This surface is not built yet. It will accept a challenge, walk through the sign step, and
-          show a verdict against the exact REASONS vocabulary the gate returns.
-        </p>
-        <p className="text-[12px] text-text-caption">
-          A presentation reveals the commitment to the verifier and to every reader of the chain.
-          Repeat presentations of one subscription are linkable across gates.
-        </p>
-      </div>
-    </div>
+    <Suspense fallback={<VerifyFallback />}>
+      <VerifySurface />
+    </Suspense>
   );
 }
