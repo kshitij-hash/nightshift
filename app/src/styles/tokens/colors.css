@@ -1,0 +1,79 @@
+/* Dark theme palette (default). Two-color semantics: gray = settled, orange =
+   live. Green is not in this system. */
+:root {
+  color-scheme: dark;
+
+  /* --- surfaces: two-step background, the border does elevation --- */
+  --bg-1: #0a0a0c;          /* page ground */
+  --bg-2: #0c0c0f;          /* sunken: table headers, sticky footers */
+  --bg-3: #0d0d10;          /* panel / card / charged row */
+  --bg-4: #1c1e23;          /* fill: unlit ticks, meter track */
+  --bg-5: #151922;          /* field interior (ops console) */
+
+  /* --- borders: hairlines carry all elevation --- */
+  --line-rule: #17181c;     /* page rules, feed outline */
+  --line-soft: #141519;     /* row dividers inside a feed */
+  --line-panel: #222429;    /* panel + card border. 1.26:1 on --bg-1. Decorative
+                               grouping only, so exempt from WCAG 1.4.11, which
+                               governs borders that IDENTIFY a control. Never use
+                               it on something clickable. */
+  --line-field: #5a606d;    /* input, ghost button, any interactive edge.
+                               3.13:1 on --bg-1, clearing the 1.4.11 non-text
+                               floor. Was #2a2d34 at 1.45:1. */
+  --line-ghost: #3a3f49;    /* unlit tick outlines, disabled marks. NON-TEXT. */
+
+  /* --- text: five legible steps on --bg-1, coldest at the bottom.
+         Every step clears WCAG AA 4.5:1 against the page ground. --- */
+  --ink-1: #f2f2f4;         /* 17.7:1  strong: numerals, headings, key cells */
+  --ink-2: #d8dae0;         /* 14.2:1  default body text */
+  --ink-3: #a8adb8;         /*  8.79:1 prose paragraphs */
+  --ink-4: #8b94a4;         /*  6.46:1 labels, section markers, units */
+  --ink-5: #757d8d;         /*  4.78:1 captions, provenance, inactive rows */
+  --ink-6: #3a3f49;         /*  1.89:1 DEPRECATED as text. Use --line-ghost for
+                               non-text marks; --text-ghost now resolves to
+                               --ink-5 so no string renders below AA. */
+
+  /* --- the one accent --- */
+  --accent: #e4572e;
+  --accent-hover: #ff7a50;
+  --accent-wash: rgba(228, 87, 46, 0.15);
+  --accent-ring: rgba(228, 87, 46, 0.55);
+
+  /* --- destructive: irreversible actions and verify failure, nowhere else --- */
+  --destructive: oklch(0.55 0.19 25);
+  --destructive-fg: #ffffff;
+
+  /* --- charts: orange leads, everything else is gray --- */
+  --chart-1: #e4572e;
+  --chart-2: oklch(0.72 0.045 70);
+  --chart-3: oklch(0.55 0.015 250);
+  --chart-4: oklch(0.72 0.01 250);
+  --chart-5: oklch(0.35 0.01 250);
+
+  /* --- semantic aliases --- */
+  --surface-page: var(--bg-1);
+  --surface-sunken: var(--bg-2);
+  --surface-panel: var(--bg-3);
+  --surface-fill: var(--bg-4);
+  --surface-field: var(--bg-5);
+  --surface-overlay: rgba(0, 0, 0, 0.75);
+
+  --border-hairline: var(--line-rule);
+  --border-row: var(--line-soft);
+  --border-panel: var(--line-panel);
+  --border-field: var(--line-field);
+  --border-ghost: var(--line-ghost);
+
+  --text-strong: var(--ink-1);
+  --text-default: var(--ink-2);
+  --text-prose: var(--ink-3);
+  --text-label: var(--ink-4);
+  --text-caption: var(--ink-5);
+  --text-ghost: var(--ink-5);         /* was --ink-6, which failed AA at 1.89:1 */
+  --text-link: var(--accent);
+
+  --signal-live: var(--accent);      /* live, just-changed, needs attention */
+  --signal-settled: var(--ink-4);    /* charged, historical, resolved */
+  --signal-pending: var(--ink-5);    /* window not open yet */
+  --signal-fail: var(--destructive);
+}

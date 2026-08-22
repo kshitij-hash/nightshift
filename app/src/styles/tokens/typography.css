@@ -1,0 +1,42 @@
+/* Geist Mono only. No sans anywhere in this system.
+   Three weights, hard limit: 400 data · 500 labels/interactive · 600 headings/numerals. */
+:root {
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --weight-data: 400;
+  --weight-label: 500;
+  --weight-heading: 600;
+
+  /* six named roles - always use a role, never a one-off size */
+  --type-display-size: 44px;
+  --type-display-lh: 1.05;
+  --type-display-weight: 600;
+
+  --type-heading-size: 20px;
+  --type-heading-lh: 1.2;
+  --type-heading-weight: 600;
+
+  --type-label-size: 13px;
+  --type-label-lh: 1.4;
+  --type-label-weight: 500;
+
+  --type-body-size: 14px;
+  --type-body-lh: 1.55;
+  --type-body-weight: 400;
+
+  --type-caption-size: 12px;
+  --type-caption-lh: 1.4;
+  --type-caption-weight: 400;
+
+  --type-micro-size: 11px;
+  --type-micro-lh: 1.3;
+  --type-micro-weight: 400;
+
+  /* tracking */
+  --track-display: -0.02em;   /* hero numerals */
+  --track-normal: 0;
+  --track-marker: 0.2em;      /* // SECTION MARKER */
+  --track-tag: 0.14em;        /* state tags, chips */
+  --track-wordmark: 0.06em;   /* NIGHTSHIFT */
+  --track-column: 0.08em;     /* table column headers */
+}

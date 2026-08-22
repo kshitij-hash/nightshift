@@ -1,0 +1,33 @@
+/* Two easings. Never introduce a third. Motion only reports state change. */
+:root {
+  --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-instant: 80ms;
+  --dur-fast: 120ms;
+  --dur-quick: 150ms;
+  --dur-base: 180ms;
+  --dur-slow: 480ms;
+  --dur-draw: 700ms;
+
+  --stagger-row: 20ms;
+  --heartbeat: 1000ms;
+  --flash-row: 900ms;
+  --flash-number: 400ms;
+}
+
+@keyframes ns-heartbeat { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes ns-row-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes ns-spin { to { transform: rotate(360deg); } }
+/* A just-landed row: 2px inset accent border that fades over 900ms, once. */
+@keyframes ns-row-flash { from { box-shadow: inset 2px 0 0 var(--accent); } to { box-shadow: inset 2px 0 0 transparent; } }
+/* A number that just changed: accent wash fading over 400ms. */
+@keyframes ns-value-flash { from { background: var(--accent-wash); } to { background: transparent; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

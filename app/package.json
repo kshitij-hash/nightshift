@@ -1,0 +1,45 @@
+{
+  "name": "nightshift-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "NIGHTSHIFT frontend rebuild, P1 scaffold: tokens, theme, router, data layer, shadcn source copies.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint",
+    "test": "node --test test/*.test.mjs",
+    "smoke:rpc": "esbuild src/lib/board.ts --bundle --format=esm --platform=node --target=node20 --outfile=.smoke/board-bundle.mjs && node test/rpc-smoke.mjs"
+  },
+  "dependencies": {
+    "@number-flow/react": "0.6.2",
+    "@radix-ui/react-dialog": "1.1.23",
+    "@radix-ui/react-slot": "1.3.3",
+    "@radix-ui/react-tabs": "1.1.21",
+    "@radix-ui/react-tooltip": "1.2.16",
+    "@tanstack/react-query": "5.101.4",
+    "@tanstack/react-router": "1.170.31",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.33.0",
+    "motion": "13.1.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "recharts": "3.10.1",
+    "sonner": "2.0.8",
+    "tailwind-merge": "3.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "26.2.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "4.7.0",
+    "oxlint": "1.79.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
+  }
+}

@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+/* Design tokens: dark is the :root default, light applies under
+   html[data-theme="light"] via theme-light.css. */
+@import "./tokens/base.css";
+@import "./tokens/colors.css";
+@import "./tokens/theme-light.css";
+@import "./tokens/fonts.css";
+@import "./tokens/motion.css";
+@import "./tokens/spacing.css";
+@import "./tokens/typography.css";
+
+/* shadcn bridge layer: the shadcn variable contract, aliased to our own
+   design tokens so copied shadcn components consume our system instead of
+   their own defaults. Nothing here introduces a new color; every value is a
+   var() reference into colors.css / theme-light.css. */
+:root {
+  --radius: 0.25rem; /* 4px, the system's radius base */
+
+  --background: var(--surface-page);
+  --foreground: var(--text-default);
+
+  --card: var(--surface-panel);
+  --card-foreground: var(--text-default);
+  --popover: var(--surface-panel);
+  --popover-foreground: var(--text-default);
+
+  --primary: var(--accent);
+  --primary-foreground: #fefaf8; /* near-white text on the accent fill */
+
+  --secondary: var(--surface-fill);
+  --secondary-foreground: var(--text-default);
+
+  --muted: var(--surface-fill);
+  --muted-foreground: var(--text-caption); /* deliberately quieter than a typical default */
+
+  --accent-bridge: var(--accent-wash); /* shadcn's "accent" = hover/active wash, not the brand color */
+  --accent-bridge-foreground: var(--accent);
+
+  --destructive-bridge: var(--destructive);
+  --destructive-bridge-foreground: var(--destructive-fg);
+
+  --border-bridge: var(--border-panel); /* card/dialog/table borders: decorative grouping */
+  --input-bridge: var(--border-field);  /* input/interactive edge: clears the non-text contrast floor */
+  --ring-bridge: var(--accent-ring);
+
+  --sidebar: var(--bg-1);
+  --sidebar-foreground: var(--text-default);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: #fefaf8;
+  --sidebar-accent: var(--surface-fill);
+  --sidebar-accent-foreground: var(--text-default);
+  --sidebar-border: var(--border-panel);
+  --sidebar-ring: var(--accent-ring);
+}
+
+/* Tailwind v4 theme wiring. @theme inline keeps every value as a live var()
+   reference (not a resolved constant), so the light/dark and any future
+   theme swap on <html data-theme="..."> propagates straight through to every
+   Tailwind utility built from these tokens - no rebuild, no duplicate rule. */
+@theme inline {
+  --font-mono: var(--font-mono);
+
+  /* radius: explicit non-negative sm/md steps rather than calc() off
+     --radius, so a future change to --radius can never push a derived step
+     negative. One scale, 0/2/4/8, per the system's radius rule. */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+
+  /* shadcn contract, consuming the bridge above */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent-bridge);
+  --color-accent-foreground: var(--accent-bridge-foreground);
+  --color-destructive: var(--destructive-bridge);
+  --color-destructive-foreground: var(--destructive-bridge-foreground);
+  --color-border: var(--border-bridge);
+  --color-input: var(--input-bridge);
+  --color-ring: var(--ring-bridge);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* raw tokens, exposed directly so utilities like bg-surface-panel or
+     text-ink-4 work without an arbitrary-value escape hatch */
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-bg-4: var(--bg-4);
+  --color-bg-5: var(--bg-5);
+  --color-surface-page: var(--surface-page);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-fill: var(--surface-fill);
+  --color-surface-field: var(--surface-field);
+  --color-line-rule: var(--line-rule);
+  --color-line-soft: var(--line-soft);
+  --color-line-panel: var(--line-panel);
+  --color-line-field: var(--line-field);
+  --color-line-ghost: var(--line-ghost);
+  --color-border-hairline: var(--border-hairline);
+  --color-border-row: var(--border-row);
+  --color-border-panel: var(--border-panel);
+  --color-border-field: var(--border-field);
+  --color-border-ghost: var(--border-ghost);
+  --color-ink-1: var(--ink-1);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-ink-4: var(--ink-4);
+  --color-ink-5: var(--ink-5);
+  --color-text-strong: var(--text-strong);
+  --color-text-default: var(--text-default);
+  --color-text-prose: var(--text-prose);
+  --color-text-label: var(--text-label);
+  --color-text-caption: var(--text-caption);
+  --color-text-ghost: var(--text-ghost);
+  --color-text-link: var(--text-link);
+  --color-ns-accent: var(--accent);
+  --color-ns-accent-hover: var(--accent-hover);
+  --color-signal-live: var(--signal-live);
+  --color-signal-settled: var(--signal-settled);
+  --color-signal-pending: var(--signal-pending);
+  --color-signal-fail: var(--signal-fail);
+}
+
+/* Every digit that changes or is compared reads as tabular. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

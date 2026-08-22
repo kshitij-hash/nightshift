@@ -1,0 +1,11 @@
+/* Geist Mono, the only family in this system. font-display: optional so a
+   slow load never reflows text; the fallback stack below is metric-close
+   enough that the swap, if it happens, is not disruptive.
+   Self-hosted: latin subset, variable weight 400-600, one woff2 file. */
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: optional;
+  src: url("../../assets/fonts/geist-mono-latin-400-600.woff2") format("woff2");
+}

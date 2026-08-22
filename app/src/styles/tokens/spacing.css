@@ -1,0 +1,38 @@
+/* Base unit 4px. Density is deliberate: the board is dense, the dashboard sparser. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* radius: 4px base scale. Sharper than most default component libraries,
+     on purpose. */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+
+  --border-width: 1px;
+
+  /* layout */
+  --content-max: 1120px;
+  --gutter: 56px;
+  --gutter-mobile: 20px;
+
+  /* density */
+  --row-height: 34px;
+  --row-pad-y: 13px;
+  --row-pad-x: 18px;
+  --panel-pad-y: 22px;
+  --panel-pad-x: 26px;
+  --hero-pad-y: 32px;
+  --hero-pad-x: 36px;
+
+  /* hit targets */
+  --hit-desktop: 24px;
+  --hit-mobile: 44px;
+}

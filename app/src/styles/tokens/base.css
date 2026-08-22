@@ -1,0 +1,21 @@
+/* Document-level defaults. Everything else is component-scoped. */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { color-scheme: dark; }
+body {
+  background: var(--surface-page);
+  color: var(--text-default);
+  font-family: var(--font-mono);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-lh);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-wrap: pretty;
+}
+a { color: var(--text-link); text-decoration: none; }
+a:hover { color: var(--accent-hover); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+}
+td, th, .tabular { font-variant-numeric: tabular-nums; }
