@@ -50,15 +50,15 @@ export function StatTile({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1 border border-border-panel px-5 py-4">
-      <div className="text-[10px] font-medium tracking-[0.18em] text-text-label">{label}</div>
+      <div className="text-[11px] font-medium tracking-[0.18em] text-text-label">{label}</div>
       <div
         className="font-semibold tabular-nums text-text-strong"
-        style={{ fontSize: 30, lineHeight: 1.1, letterSpacing: "-0.01em" }}
+        style={{ fontSize: 20, lineHeight: 1.2, letterSpacing: "-0.01em" }}
       >
         <Flash token={token}>{value}</Flash>
         {unit ? <span className="text-[14px] font-normal text-text-label"> {unit}</span> : null}
       </div>
-      <div className="text-[10px] leading-[1.45] text-text-caption">{caption}</div>
+      <div className="text-[11px] leading-[1.45] text-text-caption">{caption}</div>
     </div>
   );
 }

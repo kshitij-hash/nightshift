@@ -230,7 +230,7 @@ export function FailureVerdict({
         ) : null}
       </div>
 
-      <p className="text-[12.5px] leading-[1.6] text-text-prose">
+      <p className="text-[13px] leading-[1.6] text-text-prose">
         {isRpc
           ? "Nothing was decided. Every configured endpoint failed before the vault answered, so the check has no result to report either way."
           : "A failure here is not a fault in the page. It is the honest answer this vault gives for this commitment right now, and a gate should refuse access in exactly these words."}

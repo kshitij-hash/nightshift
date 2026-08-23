@@ -31,7 +31,7 @@ export function LinkabilityNote({
           linkability disclosure, shown where it applies
         </span>
       </div>
-      <p className="text-[12.5px] leading-[1.65] text-text-default">
+      <p className="text-[13px] leading-[1.65] text-text-default">
         Presenting reveals the commitment
         {commitment ? (
           <>
@@ -45,7 +45,7 @@ export function LinkabilityNote({
         subscription carries the same one, so a single gate recognizes a returning subscriber and
         two gates comparing notes can tell they saw the same subscription.
       </p>
-      <p className="text-[12.5px] leading-[1.65] text-text-prose">
+      <p className="text-[13px] leading-[1.65] text-text-prose">
         What the verifier does not see is a wallet. The check runs against the STARK owner key the
         vault recorded at subscribe time, a bare public key and never an account address. The
         escrow remaining and the period history stay out of the presentation too. A subscriber who

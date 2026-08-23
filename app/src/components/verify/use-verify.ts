@@ -5,8 +5,9 @@
 // route file stays a layout and so every transition is visible in one place.
 //
 // Nothing here holds key material. The only things this hook keeps are a
-// challenge (public), a pasted presentation (a signature over that challenge)
-// and a verdict.
+// challenge (public), a presentation text (a signature over that challenge,
+// pasted or produced by src/lib/wallet/keys.ts and adopted with
+// usePresentation) and a verdict.
 
 import { useCallback, useRef, useState } from "react";
 
@@ -189,6 +190,23 @@ export function useVerify() {
     [state.challenge],
   );
 
+  /** Step 02, self-sign path: this page produced the presentation itself
+   *  (src/lib/wallet/keys.ts, with a master secret already in this browser),
+   *  so it goes straight into step 03 rather than asking for a copy and a
+   *  paste. Still just text moving between two steps of local state; nothing
+   *  here is checked until VERIFY is pressed. */
+  const usePresentation = useCallback((text: string) => {
+    setState((s) => ({
+      ...s,
+      step: 3,
+      phase: "idle",
+      presentationText: text,
+      presentationError: null,
+      verdict: null,
+      checkedAtBlock: null,
+    }));
+  }, []);
+
   /** rpc_error is the one failure with a retry: the vault state was never
    *  read, so the verdict is unknown rather than negative. */
   const retry = useCallback(() => {
@@ -211,5 +229,15 @@ export function useVerify() {
     state.verdict !== null && !state.verdict.ok ? state.verdict.reason : null;
   const isRpcError = failureReason === REASONS.RPC_ERROR;
 
-  return { state, goToStep, submitChallenge, generateChallenge, check, retry, reset, isRpcError };
+  return {
+    state,
+    goToStep,
+    submitChallenge,
+    generateChallenge,
+    check,
+    usePresentation,
+    retry,
+    reset,
+    isRpcError,
+  };
 }

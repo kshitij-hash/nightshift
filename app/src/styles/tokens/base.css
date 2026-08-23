@@ -1,21 +1,33 @@
-/* Document-level defaults. Everything else is component-scoped. */
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-html { color-scheme: dark; }
-body {
-  background: var(--surface-page);
-  color: var(--text-default);
-  font-family: var(--font-mono);
-  font-size: var(--type-body-size);
-  line-height: var(--type-body-lh);
-  font-variant-numeric: tabular-nums;
-  -webkit-font-smoothing: antialiased;
-  text-wrap: pretty;
+/* Document-level defaults. Everything else is component-scoped.
+ *
+ * These live in @layer base on purpose. Tailwind v4 puts its utilities in
+ * @layer utilities, and an UNLAYERED rule outranks every layered one whatever
+ * its specificity, so an unlayered `a { color: … }` here beat `text-…` on every
+ * anchor in the app: the nav's active route could not be told from an inactive
+ * one, and the filled primary button rendered accent text on an accent fill
+ * when its trigger was a link. Inside @layer base the cascade is the normal one
+ * again: these are the defaults, a utility asking for something else wins, and
+ * an anchor that asks for nothing still gets the link colour.
+ */
+@layer base {
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { color-scheme: dark; }
+  body {
+    background: var(--surface-page);
+    color: var(--text-default);
+    font-family: var(--font-mono);
+    font-size: var(--type-body-size);
+    line-height: var(--type-body-lh);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-wrap: pretty;
+  }
+  a { color: var(--text-link); text-decoration: none; }
+  a:hover { color: var(--accent-hover); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent-ring);
+    outline-offset: 2px;
+  }
+  td, th, .tabular { font-variant-numeric: tabular-nums; }
 }
-a { color: var(--text-link); text-decoration: none; }
-a:hover { color: var(--accent-hover); }
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
-  outline: 2px solid var(--accent-ring);
-  outline-offset: 2px;
-}
-td, th, .tabular { font-variant-numeric: tabular-nums; }

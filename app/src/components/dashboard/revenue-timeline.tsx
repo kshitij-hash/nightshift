@@ -101,7 +101,7 @@ export function RevenueTimeline({
               dataKey="amountLabel"
               position="top"
               fill="var(--text-caption)"
-              fontSize={10}
+              fontSize={11}
             />
           ) : null}
         </Bar>
@@ -123,7 +123,7 @@ export function RevenueTimeline({
               value: compact ? `${last.cumulativeLabel} total` : `cumulative ${last.cumulativeLabel} STRK`,
               position: compact ? "top" : "right",
               fill: "var(--chart-1)",
-              fontSize: 10,
+              fontSize: 11,
             }}
           />
         ) : null}

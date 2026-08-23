@@ -14,7 +14,12 @@ import NumberFlow from "@number-flow/react";
 import { useState } from "react";
 
 import { cn } from "../../lib/utils";
+import { CaveatDisclosure } from "../board/primitives";
 import { usePrefersReducedMotion } from "./use-media";
+
+// The caveat affordance lives with the other shared primitives now: the board
+// and the verify surface open the same kind of fine print with it.
+export { CaveatDisclosure };
 
 const NUMBER_TIMING = { duration: 480, easing: "cubic-bezier(0.25, 1, 0.5, 1)" } as const;
 const OPACITY_TIMING = { duration: 180, easing: "cubic-bezier(0.25, 1, 0.5, 1)" } as const;
@@ -76,29 +81,34 @@ export function LiveNumber({
   );
 }
 
-export function CaveatDisclosure({ caveat }: { caveat: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="flex flex-col gap-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={cn(
-          "inline-flex w-fit min-h-11 items-center rounded-sm border border-border-field px-1.5",
-          "text-[10px] font-medium tracking-[0.14em] uppercase md:min-h-6",
-          "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
-          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-          open ? "text-ns-accent border-ns-accent" : "text-text-label hover:text-ns-accent",
-        )}
-      >
-        {open ? "caveat, shown" : "caveat"}
-      </button>
-      {open ? (
-        <p className="max-w-[46ch] text-[11px] leading-[1.45] text-text-caption">{caveat}</p>
-      ) : null}
-    </div>
-  );
+/**
+ * A basis reads as one or more clauses. The clauses that carry the arithmetic
+ * stay under the figure, where a reader checks the label against the rule; the
+ * clauses that say why the rule is the right one are reasoning, and they go
+ * behind the caveat toggle with the rest of the fine print.
+ *
+ * The split is on the shape of a clause rather than on a hand-kept list, so a
+ * basis edited in the metrics layer still lands on the right side of the line.
+ */
+const FORMULA = /[=<>*]|^(sum|mean|count|histogram|median|schedule_of|vault |not cancelled)/;
+
+export function splitBasis(basis: string): { formula: string; reasoning: string | null } {
+  const clauses = basis
+    .split(";")
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+  let cut = clauses.length;
+  for (let i = 0; i < clauses.length; i++) {
+    if (!FORMULA.test(clauses[i]!)) {
+      cut = i;
+      break;
+    }
+  }
+  if (cut === 0) return { formula: basis, reasoning: null };
+  return {
+    formula: clauses.slice(0, cut).join(" · "),
+    reasoning: cut < clauses.length ? clauses.slice(cut).join(". ") : null,
+  };
 }
 
 export function MetricTile({
@@ -106,6 +116,9 @@ export function MetricTile({
   value,
   unit,
   basis,
+  /** "checked at block N", kept out of the basis string so the split cannot
+   *  push it behind the toggle with the reasoning. */
+  asOf,
   caveat,
   /** Prefixed to the figure when a scan was capped and the number is a floor. */
   floor = false,
@@ -118,12 +131,19 @@ export function MetricTile({
   value: React.ReactNode;
   unit?: string;
   basis: string;
+  asOf?: string;
   caveat?: string;
   floor?: boolean;
   token: string;
   footer?: React.ReactNode;
   className?: string;
 }) {
+  // The formula and the block it was checked at stay under the figure. The
+  // reasoning behind the rule joins the caveat, so one affordance holds
+  // everything a reader can ask for and the tile stays three lines tall.
+  const split = splitBasis(basis);
+  const formula = asOf ? `${split.formula} · ${asOf}` : split.formula;
+  const behind = [split.reasoning, caveat].filter((s) => s).join(" ") || undefined;
   return (
     <div
       className={cn(
@@ -131,21 +151,21 @@ export function MetricTile({
         className,
       )}
     >
-      <div className="text-[10px] font-medium tracking-[0.18em] text-text-label">{label}</div>
+      <div className="text-[11px] font-medium tracking-[0.18em] text-text-label">{label}</div>
       <div
         className="font-semibold tabular-nums text-text-strong"
-        style={{ fontSize: 30, lineHeight: 1.1, letterSpacing: "-0.01em" }}
+        style={{ fontSize: 20, lineHeight: 1.2, letterSpacing: "-0.01em" }}
       >
         {floor ? <span className="text-text-label">{"≥ "}</span> : null}
         <Flash token={token}>{value}</Flash>
         {unit ? <span className="text-[13px] font-normal text-text-label"> {unit}</span> : null}
       </div>
-      <p className="max-w-[46ch] text-[10px] leading-[1.5] text-text-caption">
+      <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
         {floor ? "counted in the range that was read, not a total. " : null}
-        {basis}
+        {formula}
       </p>
       {footer}
-      {caveat ? <CaveatDisclosure caveat={caveat} /> : null}
+      {behind ? <CaveatDisclosure caveat={behind} /> : null}
     </div>
   );
 }

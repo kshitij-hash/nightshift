@@ -33,14 +33,16 @@ export function FailureVocabulary() {
           <TableRow key={n.reason}>
             {/* The prose column wraps: the shared cell is built for a dense
                 numeric row, and a sentence is not one. */}
+            {/* At rest a reason string is vocabulary, not a failure: red is
+                reserved for the string an actual verdict came back with. */}
             <TableCell
-              className="py-2.5 align-top text-[13px] break-all whitespace-normal text-destructive"
+              className="py-2.5 align-top text-[13px] break-all whitespace-normal text-text-default"
               style={{ height: "auto" }}
             >
               {n.reason}
             </TableCell>
             <TableCell
-              className="py-2.5 align-top text-[12.5px] leading-[1.55] whitespace-normal text-text-prose"
+              className="py-2.5 align-top text-[13px] leading-[1.55] whitespace-normal text-text-prose"
               style={{ height: "auto" }}
             >
               {n.meaning}

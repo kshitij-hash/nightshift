@@ -25,7 +25,7 @@ export function DashboardFooter({ ids }: { ids: string[] }) {
         <HashCopy value={VAULT} display={truncate(VAULT)} className="text-[12px]" />
         <span>·</span>
         <a href={`${VOYAGER_CONTRACT(VAULT)}#events`} target="_blank" rel="noreferrer">
-          every figure re-derivable from the event log ↗
+          verify on voyager ↗
         </a>
         <span>· no key was used to render this page</span>
       </p>
@@ -38,7 +38,7 @@ export function DashboardFooter({ ids }: { ids: string[] }) {
         >
           npm nightshift-verify ↗
         </a>
-        <Link to="/" className="inline-flex min-h-11 items-center md:min-h-6">
+        <Link to="/board" className="inline-flex min-h-11 items-center md:min-h-6">
           the evidence board
         </Link>
       </div>

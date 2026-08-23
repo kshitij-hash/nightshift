@@ -224,12 +224,14 @@ export function Mechanism({ labels }: { labels: MechanismLabels }) {
 
   return (
     <svg
-      viewBox="0 0 1210 566"
-      width={1210}
-      height={566}
+      // The sheet scales against its viewBox rather than holding a fixed pixel
+      // width: at 1210px it was wider than the panel that holds it, so the
+      // drawing was clipped and the panel scrolled sideways.
+      viewBox="-8 0 1226 578"
+      width="100%"
       role="img"
       aria-label="Axonometric section of the vault: escrow enters from the privacy pool, is held and accounted, the period wheel is block gated, the nullifier gate is write once, each charge exits to the creator's claimable balance."
-      style={{ display: "block", overflow: "visible" }}
+      style={{ display: "block", height: "auto" }}
     >
       {/* sheet header */}
       <Tx at={[4, 22]} size={11} fill={LAB} track=".18em" t="FIG. 1 · VAULT v4 · SECTION THROUGH THE PERIOD MECHANISM" />
@@ -272,7 +274,7 @@ export function Mechanism({ labels }: { labels: MechanismLabels }) {
       {levelRows.map(([yy, lab]) => (
         <g key={yy}>
           <Ln a={PJ(82, yy, 48)} b={PJ(112, yy, 48)} s={GHOST} d="2 4" />
-          {lab ? <Tx at={PJ(79, yy, 48)} dy={2} anchor="end" size={8.5} t={`${lab} `} /> : null}
+          {lab ? <Tx at={PJ(79, yy, 48)} dy={2} anchor="end" size={9} t={`${lab} `} /> : null}
         </g>
       ))}
       <Ln a={PJ(82, 4.5, 48)} b={PJ(112, 4.5, 48)} s={ACC} w={1.8} />
@@ -328,7 +330,7 @@ export function Mechanism({ labels }: { labels: MechanismLabels }) {
       {outlets.map(([z, s, lab]) => (
         <g key={lab}>
           <Box x={186} y={6} z={z} w={22} h={8} d={10} s={s} />
-          <Tx at={PJ(189, 14, z)} dy={-3} size={8.5} fill={s === ACC ? ACC : INK} t={lab} />
+          <Tx at={PJ(189, 14, z)} dy={-3} size={9} fill={s === ACC ? ACC : INK} t={lab} />
         </g>
       ))}
       <Arrow a={PJ(190, 10, 43)} b={PJ(220, 10, 43)} />

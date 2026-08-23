@@ -39,6 +39,13 @@ jobs:
       # without the committed file following it.
       - run: node scripts/gen-selectors.mjs && git diff --exit-code site/src/lib/selectors.ts
       - run: cd site && npm ci --ignore-scripts && npx tsc --noEmit
+      # The app is the product frontend; it gates on its own install, types,
+      # lint, tests and build.
+      - run: cd app && npm ci --ignore-scripts
+      - run: cd app && npx tsc --noEmit
+      - run: cd app && npx oxlint
+      - run: cd app && node --test test/*.test.mjs
+      - run: cd app && npm run build
 
   cairo:
     runs-on: ubuntu-latest

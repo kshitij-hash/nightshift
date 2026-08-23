@@ -6,7 +6,10 @@
 import { Skeleton } from "../ui/skeleton";
 import { SectionHead } from "./primitives";
 
-const bar = "bg-surface-fill animate-none rounded-none";
+// max-w-full only: the bar keeps the real measurement of the value it stands
+// in for, and stops at the edge of its container on a phone rather than
+// pushing the page sideways before anything has been read.
+const bar = "bg-surface-fill animate-none rounded-none max-w-full";
 
 function Bar({ w, h = 10 }: { w: number; h?: number }) {
   return <Skeleton className={bar} style={{ width: w, height: h }} />;
@@ -20,20 +23,13 @@ export function BoardSkeleton() {
   return (
     <div className="flex flex-col gap-8" aria-busy="true" aria-label="reading the vault">
       <div className="flex flex-col border border-border-panel bg-surface-panel lg:flex-row">
-        <div className="flex flex-col items-center gap-4 border-b border-border-panel px-8 py-7 lg:border-r lg:border-b-0">
+        <div className="flex flex-col items-center gap-4 border-b border-border-panel px-6 py-7 lg:border-r lg:border-b-0 lg:px-8">
           {/* The dial is hairlines, so its placeholder is hairlines too. */}
-          <div
-            className="flex items-center justify-center rounded-full border border-border-panel"
-            style={{ width: 320, height: 320 }}
-          >
-            <div
-              className="flex items-center justify-center rounded-full border border-border-row"
-              style={{ width: 252, height: 252 }}
-            >
-              <div
-                className="rounded-full border border-border-row bg-surface-panel"
-                style={{ width: 204, height: 204 }}
-              />
+          {/* 208 on a phone and 320 above it, the two sizes the real dial is
+              rendered at, so the placeholder measures what arrives. */}
+          <div className="flex h-[208px] w-[208px] items-center justify-center rounded-full border border-border-panel md:h-[320px] md:w-[320px]">
+            <div className="flex h-[164px] w-[164px] items-center justify-center rounded-full border border-border-row md:h-[252px] md:w-[252px]">
+              <div className="h-[133px] w-[133px] rounded-full border border-border-row bg-surface-panel md:h-[204px] md:w-[204px]" />
             </div>
           </div>
           <Bar w={280} />

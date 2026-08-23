@@ -122,7 +122,7 @@ export function ChartContainer({
         "[&_.recharts-cartesian-axis-line]:stroke-border-panel",
         "[&_.recharts-cartesian-axis-tick-line]:stroke-transparent",
         "[&_.recharts-cartesian-axis-tick_text]:fill-[var(--text-caption)]",
-        "[&_.recharts-cartesian-axis-tick_text]:text-[10px]",
+        "[&_.recharts-cartesian-axis-tick_text]:text-[11px]",
         "[&_.recharts-cartesian-grid_line]:stroke-border-row",
         "[&_.recharts-reference-line_line]:stroke-border-panel",
         // the hover cursor is a hairline, not a translucent block

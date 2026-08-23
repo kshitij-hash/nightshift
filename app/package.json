@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint",
     "test": "node --test test/*.test.mjs",
-    "smoke:rpc": "esbuild src/lib/board.ts --bundle --format=esm --platform=node --target=node20 --outfile=.smoke/board-bundle.mjs && node test/rpc-smoke.mjs"
+    "smoke:rpc": "esbuild src/lib/board.ts --bundle --format=esm --platform=node --target=node20 --outfile=.smoke/board-bundle.mjs && node test/rpc-smoke.mjs",
+    "smoke:subscriptions": "esbuild test/subscriptions-entry.ts --bundle --format=esm --platform=node --target=node20 --outfile=.smoke/subscriptions-bundle.mjs && esbuild src/lib/board.ts --bundle --format=esm --platform=node --target=node20 --outfile=.smoke/board-bundle.mjs && node test/subscriptions-smoke.mjs"
   },
   "dependencies": {
     "@number-flow/react": "0.6.2",
@@ -19,6 +20,7 @@
     "@radix-ui/react-slot": "1.3.3",
     "@radix-ui/react-tabs": "1.1.21",
     "@radix-ui/react-tooltip": "1.2.16",
+    "@starknet-io/get-starknet-core": "6.0.1",
     "@tanstack/react-query": "5.101.4",
     "@tanstack/react-router": "1.170.31",
     "class-variance-authority": "0.7.1",

@@ -23,6 +23,7 @@ import { utcStamp } from "./derive";
 import type { WindowInfo } from "./derive";
 import { HashCopy, SectionHead, StatusDot } from "./primitives";
 import type { DotState } from "./primitives";
+import { useMediaQuery } from "./use-clock";
 import { useRowEntrance } from "./use-fresh-rows";
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -156,13 +157,18 @@ export function ChargeFeed({
   caption: string;
 }) {
   const entrance = useRowEntrance(rows.map((r) => r.key));
+  // One variant is in the DOM at a time. Rendering both and hiding one with a
+  // CSS breakpoint put every row and the caption on the page twice, which a
+  // screen reader reads twice and a find-in-page finds twice.
+  const wide = useMediaQuery("(min-width: 768px)");
 
   return (
     <div className="flex flex-col gap-3">
       <SectionHead note={note}>// CHARGE FEED · DECODED FROM MAINNET EVENTS</SectionHead>
 
-      {/* Desktop and tablet: the full evidence table. */}
-      <div className="hidden border border-border-hairline md:block">
+      {wide ? (
+      /* Desktop and tablet: the full evidence table. */
+      <div className="border border-border-hairline">
         <Table>
           <TableHeader>
             <TableRow>
@@ -188,7 +194,7 @@ export function ChargeFeed({
                   </TableCell>
                   <TableCell className="text-text-strong">
                     {r.vaultTag ? (
-                      <span className="mr-1.5 text-[10px] tracking-[0.08em] text-text-label">
+                      <span className="mr-1.5 text-[11px] tracking-[0.08em] text-text-label">
                         {r.vaultTag}
                       </span>
                     ) : null}
@@ -227,8 +233,8 @@ export function ChargeFeed({
                     <span
                       className={
                         r.muted
-                          ? "text-[10px] tracking-[0.14em] text-text-caption"
-                          : "text-[10px] tracking-[0.14em] text-text-label"
+                          ? "text-[11px] tracking-[0.14em] text-text-caption"
+                          : "text-[11px] tracking-[0.14em] text-text-label"
                       }
                     >
                       {r.status}
@@ -256,9 +262,9 @@ export function ChargeFeed({
           <TableCaption>{caption}</TableCaption>
         </Table>
       </div>
-
-      {/* Phone: the same rows as two-line cards. Same entrance, same flash. */}
-      <div className="border border-border-hairline md:hidden">
+      ) : (
+      /* Phone: the same rows as two-line cards. Same entrance, same flash. */
+      <div className="border border-border-hairline">
         {rows.map((r, i) => {
           const kind = r.txFull ? entrance(r.key) : "load";
           return (
@@ -271,7 +277,7 @@ export function ChargeFeed({
                 <StatusDot state={r.dot} size={8} />
                 <span className="text-[13px] text-text-strong">
                   {r.vaultTag ? (
-                    <span className="mr-1 text-[10px] tracking-[0.08em] text-text-label">
+                    <span className="mr-1 text-[11px] tracking-[0.08em] text-text-label">
                       {r.vaultTag}
                     </span>
                   ) : null}
@@ -283,7 +289,7 @@ export function ChargeFeed({
                     <span className="font-normal text-text-label"> STRK</span>
                   </span>
                 ) : null}
-                <span className="ml-auto text-[10px] tracking-[0.14em] text-text-label">
+                <span className="ml-auto text-[11px] tracking-[0.14em] text-text-label">
                   {r.status}
                 </span>
                 {r.href ? (
@@ -317,6 +323,7 @@ export function ChargeFeed({
           {caption}
         </p>
       </div>
+      )}
     </div>
   );
 }

@@ -12,7 +12,7 @@ export function BoardFooter({ snapshot }: { snapshot: boolean }) {
       <p className="text-[12px] leading-[1.5] text-text-caption">
         vault <HashCopy value={VAULT} display={truncate(VAULT)} className="text-[12px]" /> ·{" "}
         <a href={`${VOYAGER_CONTRACT(VAULT)}#events`} target="_blank" rel="noreferrer">
-          every row verifiable on voyager ↗
+          verify on voyager ↗
         </a>{" "}
         · {snapshot ? "this render used committed data, not a key" : "no key was used to render this page"}
       </p>

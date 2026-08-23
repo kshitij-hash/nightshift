@@ -1,15 +1,21 @@
 // The evidence board.
 //
 // Reading order is the argument: the instrument says the vault is running, the
-// tiles say what it holds, the strip says what it is watching, the feed proves
-// every charge, and the band below explains the machine. Everything above the
-// fold comes from one vault read plus one schedule read; nothing on this page
-// is a placeholder and nothing is rounded into a claim the chain does not make.
+// tiles say what it holds, the feed proves every charge, the strip under it
+// names the subscription those periods belong to, the charge panel lets a
+// reader add one row, and the band below explains the machine, three shut
+// lines until it is asked for. Everything above the fold comes from one vault
+// read plus one schedule read; nothing on this page is a placeholder and
+// nothing is rounded into a claim the chain does not make. The charge panel is
+// the one element here that writes, and it writes only when pressed.
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
+import { useCallback } from "react";
 
 import { BoardFooter } from "../components/board/board-footer";
 import { buildFeedRows, ChargeFeed } from "../components/board/charge-feed";
+import { ChargePanel } from "../components/board/charge-panel";
 import {
   chargeLagBlocks,
   deriveTicks,
@@ -35,7 +41,7 @@ import { TickBar } from "../components/board/tick-bar";
 import { useChainClock, useMediaQuery } from "../components/board/use-clock";
 import { useArrivalPulse } from "../components/board/use-fresh-rows";
 import { REPLAY_INTERVAL_SECS, useReplay } from "../components/board/use-replay";
-import { Masthead } from "../components/masthead";
+import { Masthead, MastheadSentence } from "../components/masthead";
 import { Badge } from "../components/ui/badge";
 import { fmtBlock, SECONDS_PER_BLOCK } from "../config";
 import { useBoard } from "../query/useBoard";
@@ -45,7 +51,7 @@ const SENTENCE =
   "A vault charges a subscription on schedule. The subscriber's wallet is never named on chain.";
 
 export function BoardRoute() {
-  const search = useSearch({ from: "/" });
+  const search = useSearch({ from: "/board" });
   const { data, isPending, isError, error } = useBoard();
 
   const commitment = data ? liveCommitment(data.charges) : null;
@@ -64,10 +70,21 @@ export function BoardRoute() {
   const now = useChainClock(data ? data.headTimestamp : null, !isSnapshot);
   const wide = useMediaQuery("(min-width: 768px)");
 
+  // The charge panel writes; this page reads. The hand-off between them is one
+  // invalidation: a charge that was accepted makes both reads stale, so they
+  // are re-run, and the arrival choreography this page already owns (the
+  // instrument's flare, the feed row's entrance) runs when the new event shows
+  // up in them. The panel does not animate that landing a second time.
+  const queryClient = useQueryClient();
+  const onCharged = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["board"] });
+    void queryClient.invalidateQueries({ queryKey: ["schedule"] });
+  }, [queryClient]);
+
   if (isPending) {
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-        <Masthead active="dashboard" sentence={SENTENCE} right="reading starknet mainnet" />
+        <Masthead active="board" sentence={SENTENCE} right="reading starknet mainnet" />
         <main className="flex-1 px-5 py-8 lg:px-10">
           <BoardSkeleton />
         </main>
@@ -80,7 +97,7 @@ export function BoardRoute() {
     // reaching this branch means the query itself broke, not the chain read.
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-        <Masthead active="dashboard" sentence={SENTENCE} />
+        <Masthead active="board" sentence={SENTENCE} />
         <main className="flex-1 px-5 py-8 lg:px-10">
           <p className="text-[14px] text-destructive">
             The board query failed to run: {error instanceof Error ? error.message : String(error)}.
@@ -112,20 +129,19 @@ export function BoardRoute() {
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col">
       <Masthead
-        active="dashboard"
+        active="board"
+        deferSentence
         sentence={SENTENCE}
         right={`starknet mainnet · block time ~${SECONDS_PER_BLOCK} s${
           schedule ? ` · period ${schedule.periodBlocks} blocks` : ""
         }`}
         chip={<ChainChip mode={mode} headBlock={data.headBlock} />}
         badge={
+          // Demo mode says so in the chain chip and in the banner. A third
+          // pill in the masthead would be the same sentence a third time.
           mode === "snapshot" ? (
             <Badge variant="outline" className="border-ns-accent text-ns-accent">
               SNAPSHOT @ BLOCK {fmtBlock(data.headBlock)}
-            </Badge>
-          ) : mode === "demo" ? (
-            <Badge variant="outline" className="border-ns-accent text-ns-accent">
-              DEMO REPLAY
             </Badge>
           ) : null
         }
@@ -158,6 +174,13 @@ export function BoardRoute() {
             size={wide ? 320 : 208}
           />
 
+          {/* On a phone the sentence reads better after the instrument it
+              describes, and the instrument gets the first screen. */}
+          <MastheadSentence
+            sentence={SENTENCE}
+            className="-mx-5 border-t border-b-0 px-5 md:hidden"
+          />
+
           <StatRow
             custodyWei={data.escrowWei}
             chargeCount={charges.length}
@@ -166,8 +189,6 @@ export function BoardRoute() {
             asOfBlock={data.headBlock}
             still={mode === "snapshot"}
           />
-
-          {schedule ? <SubjectStrip schedule={schedule} perPeriodWei={perPeriodWei} /> : null}
 
           <div className="flex flex-col gap-3">
             {charges.length === 0 ? (
@@ -193,12 +214,21 @@ export function BoardRoute() {
                 <span />
               )}
               {coveredPeriods !== null ? (
-                <span className="text-[10px] leading-[1.45] text-text-caption">
+                <span className="text-[11px] leading-[1.45] text-text-caption">
                   escrow covers {coveredPeriods} further periods
                 </span>
               ) : null}
             </div>
+            {schedule ? <SubjectStrip schedule={schedule} perPeriodWei={perPeriodWei} /> : null}
           </div>
+
+          <ChargePanel
+            commitment={commitment}
+            nextPeriod={schedule ? schedule.nextPeriod : null}
+            perPeriodWei={perPeriodWei}
+            windowBlock={nextWindow.block}
+            onSubmitted={onCharged}
+          />
         </div>
 
         <div className="border-t border-border-hairline">

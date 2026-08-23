@@ -73,6 +73,9 @@ export function Heartbeat({
   const circ = 2 * Math.PI * ar;
   const na = ((progress * 360 - 90) * Math.PI) / 180;
   const face = R - 58 * u;
+  // A finished or stopped schedule draws its arc at track weight in the track
+  // ink: the accent's 6px stroke is reserved for an arc that is still
+  // advancing, and the label under the numeral says which one this is.
   const arcCol = dead ? "var(--ink-5)" : "var(--accent)";
   // The track is a fill in dark and a hairline gray in light: the same figure
   // needs a different value on each ground to read the same.
@@ -103,7 +106,7 @@ export function Heartbeat({
           r={ar}
           fill="none"
           stroke={arcCol}
-          strokeWidth={6 * u}
+          strokeWidth={dead ? 1 : 6 * u}
           strokeLinecap="butt"
           strokeDasharray={`${circ * progress} ${circ}`}
           transform={`rotate(-90 ${c} ${c})`}
@@ -157,7 +160,7 @@ export function Heartbeat({
                 x={c + Math.cos(a) * r}
                 y={c + Math.sin(a) * r + 3}
                 textAnchor="middle"
-                fontSize={8.5}
+                fontSize={11}
                 fill="var(--ink-5)"
                 letterSpacing="0.06em"
                 style={{ fontFamily: "var(--font-mono)" }}
@@ -174,14 +177,14 @@ export function Heartbeat({
       >
         <div
           className="whitespace-nowrap text-text-label"
-          style={{ fontSize: compact ? 8.5 : 9, letterSpacing: "0.18em" }}
+          style={{ fontSize: 11, letterSpacing: "0.18em" }}
         >
           {label}
         </div>
         <div
           className="font-semibold tabular-nums"
           style={{
-            fontSize: compact ? 20 : 30,
+            fontSize: 20,
             lineHeight: 1,
             letterSpacing: "-0.01em",
             color: dead ? "var(--ink-4)" : "var(--ink-1)",
@@ -199,14 +202,14 @@ export function Heartbeat({
         />
         <div
           className="whitespace-nowrap text-text-caption"
-          style={{ fontSize: compact ? 8.5 : 9.5, letterSpacing: "0.1em" }}
+          style={{ fontSize: 11, letterSpacing: "0.1em" }}
         >
           {sub} <span className="text-text-label">{subValue}</span>
         </div>
         {live ? (
           <div
             className="mt-1 flex items-center gap-1"
-            style={{ fontSize: compact ? 8.5 : 9, letterSpacing: "0.14em", color: "var(--accent)" }}
+            style={{ fontSize: 11, letterSpacing: "0.14em", color: "var(--accent)" }}
           >
             <StatusDot state="live" size={compact ? 4 : 6} beat />
             {liveLabel}

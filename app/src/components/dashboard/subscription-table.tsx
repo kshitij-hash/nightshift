@@ -23,8 +23,43 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { STATE_IS_LIVE, stampUtc } from "./derive";
 import type { SubscriptionRow, SubState } from "./derive";
+
+/** Each tag carries its own definition, on the tag, instead of in a paragraph
+ *  of five definitions under the table that a reader has to hold in their head
+ *  while they scan rows. */
+const STATE_MEANING: Record<SubState, string> = {
+  ACTIVE: "the vault would charge again.",
+  ENTITLED: "a gate would admit right now.",
+  ARREARS: "a period is past its due height and uncharged.",
+  CANCELLED: "the subscriber signed a cancel.",
+  EXHAUSTED: "escrow can no longer cover the next charge.",
+};
+
+const MONEY_MEANING: Record<string, string> = {
+  CONTRACTED:
+    "the tier price times n_periods from schedule_of, which is what the subscription committed to.",
+  "ESCROW LEFT": "what the vault still holds against this commitment.",
+};
+
+/** A header cell that answers what its column measures. */
+function DefinedHead({ label }: { label: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className="cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {label}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[36ch]">{MONEY_MEANING[label]}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function StateTags({ states }: { states: SubState[] }) {
   if (states.length === 0) {
@@ -33,13 +68,22 @@ function StateTags({ states }: { states: SubState[] }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       {states.map((s) => (
-        <Badge
-          key={s}
-          variant="outline"
-          className={STATE_IS_LIVE[s] ? "border-ns-accent text-ns-accent" : undefined}
-        >
-          {s}
-        </Badge>
+        <Tooltip key={s}>
+          <TooltipTrigger asChild>
+            <span
+              tabIndex={0}
+              className="cursor-help rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Badge
+                variant="outline"
+                className={STATE_IS_LIVE[s] ? "border-ns-accent text-ns-accent" : undefined}
+              >
+                {s}
+              </Badge>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[36ch]">{STATE_MEANING[s]}</TooltipContent>
+        </Tooltip>
       ))}
     </span>
   );
@@ -71,7 +115,7 @@ function ReceiptLink({
       title={label}
       className="inline-flex min-h-11 items-center px-2 text-[12px] whitespace-nowrap md:min-h-6"
     >
-      {compact ? "↗" : "voyager ↗"}
+      {compact ? "↗" : "verify on voyager ↗"}
     </a>
   );
 }
@@ -92,8 +136,12 @@ export function SubscriptionTable({ rows }: { rows: SubscriptionRow[] }) {
               <TableHead className="px-2.5">TIER</TableHead>
               <TableHead className="px-2.5">CADENCE (BLOCKS)</TableHead>
               <TableHead className="px-2.5 text-right">PERIODS</TableHead>
-              <TableHead className="px-2.5 text-right">CONTRACTED</TableHead>
-              <TableHead className="px-2.5 text-right">ESCROW LEFT</TableHead>
+              <TableHead className="px-2.5 text-right">
+                <DefinedHead label="CONTRACTED" />
+              </TableHead>
+              <TableHead className="px-2.5 text-right">
+                <DefinedHead label="ESCROW LEFT" />
+              </TableHead>
               <TableHead className="px-2.5">FIRST CHARGE (UTC)</TableHead>
               <TableHead className="px-2.5">LAST CHARGE (UTC)</TableHead>
               <TableHead className="px-2.5">STATE</TableHead>

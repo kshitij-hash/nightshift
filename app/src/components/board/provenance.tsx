@@ -9,17 +9,23 @@ import { StatusDot } from "./primitives";
 
 export type BoardMode = "live" | "snapshot" | "demo";
 
-/** The masthead chip: which chain, which block, or which failure. */
+/** The masthead chip: which chain, which block, or which failure.
+ *
+ *  On a phone the qualifier is dropped and the block number is kept, because
+ *  the block is the part that changes and the chrome has one row to spend on
+ *  it. The full wording is in the DOM either way, so a screen reader and a
+ *  find-in-page get the whole chip at any width. */
 export function ChainChip({ mode, headBlock }: { mode: BoardMode; headBlock: number }) {
   const live = mode === "live";
+  const qualifier =
+    mode === "snapshot" ? "RPC UNREACHABLE · SERVING" : mode === "demo" ? "DEMO REPLAY ·" : "MAINNET ·";
+  const value = mode === "snapshot" ? "SNAPSHOT" : `BLOCK ${fmtBlock(headBlock)}`;
   return (
-    <span className="inline-flex items-center gap-2 border border-border-panel px-2.5 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label">
+    <span className="inline-flex items-center gap-2 border border-border-panel px-2 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label md:px-2.5">
       <StatusDot state={live ? "live" : "pending"} size={6} beat={live} />
-      {mode === "snapshot"
-        ? "RPC UNREACHABLE · SERVING SNAPSHOT"
-        : mode === "demo"
-          ? `DEMO REPLAY · BLOCK ${fmtBlock(headBlock)}`
-          : `MAINNET · BLOCK ${fmtBlock(headBlock)}`}
+      <span className="hidden md:inline">{qualifier}&nbsp;</span>
+      <span className="sr-only md:hidden">{qualifier} </span>
+      {value}
     </span>
   );
 }
@@ -44,7 +50,7 @@ export function SnapshotBanner({ snapshotBlock }: { snapshotBlock: number }) {
         rel="noreferrer"
         className="text-[12px]"
       >
-        check the source on voyager ↗
+        verify on voyager ↗
       </a>
     </div>
   );
@@ -60,17 +66,18 @@ export function DemoBanner({
   intervalSecs: number;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border border-ns-accent bg-surface-sunken px-5 py-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge variant="outline" className="border-ns-accent text-ns-accent">
+    <div className="flex flex-wrap items-start justify-between gap-4 border border-ns-accent bg-surface-sunken px-5 py-4">
+      <div className="flex flex-wrap items-start gap-3">
+        {/* The badge sits on the first line of the paragraph, not on its
+            optical middle: one pixel of correction against the cap height. */}
+        <Badge variant="outline" className="mt-px border-ns-accent text-ns-accent">
           DEMO REPLAY
         </Badge>
         <p className="max-w-[860px] text-[13px] leading-[1.7] text-text-prose">
-          This board was opened with ?demo=1. The vault read is the real one, and so are the rows:
-          the last {total} charges are held back and re-fired every {intervalSecs} seconds so the
-          arrival choreography can be watched on demand. {landed} of {total} have landed in this
-          pass. Nothing was added, nothing was invented, and the countdown on the dial is the replay
-          timer, not a chain deadline. Drop the query parameter for the live board.
+          Opened with ?demo=1. The vault read and the rows are real; the last {total} charges are
+          held back and re-fired every {intervalSecs} seconds so the arrival can be watched on
+          demand. {landed} of {total} landed this pass. The dial countdown is the replay timer, not
+          a chain deadline.
         </p>
       </div>
     </div>

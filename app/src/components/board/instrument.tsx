@@ -91,7 +91,7 @@ export function InstrumentPanel(props: InstrumentPanelProps) {
           dead={dial.dead}
           flare={flare}
         />
-        <div className="max-w-[340px] text-center text-[10px] leading-[1.45] tracking-[0.08em] text-text-caption">
+        <div className="max-w-[340px] text-center text-[11px] leading-[1.45] tracking-[0.08em] text-text-caption">
           FIG. A · HEARTBEAT · ONE REVOLUTION = ONE PERIOD
           {props.window.periodSecs !== null
             ? ` = ${Math.round(props.window.periodSecs / SECONDS_PER_BLOCK)} BLOCKS`
@@ -130,7 +130,7 @@ export function InstrumentPanel(props: InstrumentPanelProps) {
         </div>
 
         <div className="flex flex-1 flex-col gap-3 px-6 py-6 lg:px-8">
-          <div className="text-[10px] font-medium tracking-[0.18em] text-text-label">
+          <div className="text-[11px] font-medium tracking-[0.18em] text-text-label">
             LAST AUTONOMOUS CHARGE
           </div>
           {lastCharge ? (
@@ -142,10 +142,10 @@ export function InstrumentPanel(props: InstrumentPanelProps) {
                 >
                   {utcTime(lastCharge.timestamp)}
                 </span>
-                <span className="text-[15px] text-text-label">UTC · BLOCK</span>
+                <span className="text-[14px] text-text-label">UTC · BLOCK</span>
                 <span
                   className="font-semibold tabular-nums"
-                  style={{ fontSize: 24, color: "var(--accent)" }}
+                  style={{ fontSize: 20, color: "var(--accent)" }}
                 >
                   {fmtBlock(lastCharge.block)}
                 </span>
@@ -153,12 +153,9 @@ export function InstrumentPanel(props: InstrumentPanelProps) {
               <p className="max-w-[560px] text-[14px] leading-[1.55] text-text-prose">
                 Fired by schedule
                 {lagBlocks !== null && lagSecs !== null
-                  ? `, ${lagBlocks} blocks after its window opened, about ${lagSecs} s`
+                  ? ` ${lagBlocks} blocks after its window opened, about ${lagSecs} s`
                   : ""}
-                . The period nullifier is consumed, so period {lastCharge.periodIndex} can never be
-                charged again. No tokens moved to a wallet: the amount shifts from escrow to the
-                creator's claimable balance, settled later by a claim the creator signs. Nobody was
-                at a keyboard.
+                . Nobody was at a keyboard.
               </p>
               <div className="text-[12px] leading-[1.5] text-text-caption">
                 {utcStamp(lastCharge.timestamp)} UTC ·{" "}
@@ -169,9 +166,9 @@ export function InstrumentPanel(props: InstrumentPanelProps) {
                   </>
                 ) : null}
                 <a href={VOYAGER_TX(lastCharge.txHash)} target="_blank" rel="noreferrer">
-                  verify this charge on voyager
+                  verify on voyager ↗
                 </a>{" "}
-                · submitted by a permissionless keeper call ·{" "}
+                · nullifier consumed · escrow moved to claimable, not to a wallet ·{" "}
                 <span className="text-text-label">T+{hms(tPlus)} since</span>
               </div>
             </>

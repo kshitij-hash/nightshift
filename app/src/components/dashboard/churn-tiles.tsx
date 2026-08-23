@@ -38,7 +38,7 @@ export function ChurnTiles({
         floor={floor}
         basis="commitments that can never charge again, split by why: escrow spent against a subscriber cancel"
         footer={
-          <p className="max-w-[46ch] text-[10px] leading-[1.5] text-text-caption">
+          <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
             {churn.endedOnCancel === 0
               ? "No subscriber has cancelled. A subscription ends when its escrow is spent. It does not renew itself, and the vault cannot ask."
               : `${churn.endedOnCancel} ended on a subscriber cancel, which returns the remaining escrow to the subscriber on reclaim. The rest ran their escrow out.`}
@@ -51,7 +51,7 @@ export function ChurnTiles({
         token={String(churn.medianPeriodsCharged)}
         value={
           churn.medianPeriodsCharged === null ? (
-            <span className="text-[15px] font-normal text-text-prose">nothing has ended yet</span>
+            <span className="text-[14px] font-normal text-text-prose">nothing has ended yet</span>
           ) : (
             <LiveNumber
               value={churn.medianPeriodsCharged}
@@ -63,7 +63,7 @@ export function ChurnTiles({
         basis="median of the charge count over commitments that can never charge again"
         footer={
           churn.ended === 1 ? (
-            <p className="max-w-[46ch] text-[10px] leading-[1.5] text-text-caption">
+            <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
               One subscription has ended, so the median is that subscription.
             </p>
           ) : null

@@ -14,6 +14,7 @@
 import { fmtBlock } from "../../config";
 import { parsePresentation, REASONS } from "../../lib/verify";
 import { SectionHead, StatusDot } from "../board/primitives";
+import { HiddenAndVisible } from "../board/story-band";
 import { Masthead } from "../masthead";
 import { Badge } from "../ui/badge";
 import { FailureVocabulary } from "./failure-vocabulary";
@@ -28,9 +29,13 @@ const SENTENCE =
 
 function Chip({ block }: { block: number | null }) {
   return (
-    <span className="inline-flex items-center gap-2 border border-border-panel px-2.5 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label">
+    // The "MAINNET ·" qualifier hides below md so the chip fits the phone
+    // chrome's one row; it stays in the DOM for a screen reader.
+    <span className="inline-flex items-center gap-2 border border-border-panel px-2 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label md:px-2.5">
       <StatusDot state={block === null ? "pending" : "settled"} size={6} />
-      {block === null ? "MAINNET · NOT READ YET" : `MAINNET · BLOCK ${fmtBlock(block)}`}
+      <span className="hidden md:inline">MAINNET&nbsp;·&nbsp;</span>
+      <span className="sr-only md:hidden">MAINNET · </span>
+      {block === null ? "NOT READ YET" : `BLOCK ${fmtBlock(block)}`}
     </span>
   );
 }
@@ -44,18 +49,17 @@ function NoVerdictYet() {
         <Badge variant="outline">NO VERDICT YET</Badge>
         <span className="text-[11px] text-text-caption">nothing has been checked</span>
       </div>
-      <p className="text-[12.5px] leading-[1.6] text-text-prose">
-        A verdict is one of two things. Either the creator id and tier the vault holds for that
-        commitment, with the filled badge, or the first check that refused, printed in the exact
-        string the check returned. The whole vocabulary of refusals is at the bottom of this page,
-        so a refusal can be read before it is caused.
+      <p className="text-[13px] leading-[1.6] text-text-prose">
+        A verdict is either the creator id and tier the vault holds for that commitment, or the
+        first check that refused, in the exact string it returned. The whole vocabulary is below.
       </p>
     </div>
   );
 }
 
 export function VerifySurface() {
-  const { state, goToStep, submitChallenge, generateChallenge, check, retry, reset } = useVerify();
+  const { state, goToStep, submitChallenge, generateChallenge, check, usePresentation, retry, reset } =
+    useVerify();
   const { challenge, verdict } = state;
 
   const parsedPresentation = parsePresentation(state.presentationText);
@@ -106,13 +110,14 @@ export function VerifySurface() {
                 active={state.step === 2}
                 done={state.step === 3}
                 onOpen={() => goToStep(2)}
-                summary="Signing happens in the ops console, panel 7, with the subscription owner key. This page never sees it."
+                summary="Signed here with a derived owner key when this browser holds one, or in the ops console, panel 7. Either way this page never sees the private key."
               >
                 {challenge ? (
                   <SignStep
                     challenge={challenge}
                     source={state.challengeSource}
                     onSigned={() => goToStep(3)}
+                    onUsePresentation={usePresentation}
                   />
                 ) : null}
               </StepShell>
@@ -158,6 +163,16 @@ export function VerifySurface() {
               />
             )}
             <LinkabilityNote commitment={commitment} heading="WHAT THE VERIFIER LEARNS" />
+            {/* The right rail runs to the foot of the step column, and the
+                question it was leaving unanswered is the one the board answers
+                with this table. It is the same table, in the place a reader is
+                already asking it. */}
+            <div className="flex flex-col gap-3">
+              <SectionHead note="the two columns are the product">
+                // HIDDEN AND VISIBLE
+              </SectionHead>
+              <HiddenAndVisible />
+            </div>
           </div>
         </div>
 

@@ -75,7 +75,8 @@ export function MetricTiles({
         value={<LiveNumber value={strk(metrics.grossRevenue.value)} decimals={2} />}
         unit="STRK"
         floor={floor}
-        basis={`${metrics.grossRevenue.basis} · ${asOf}`}
+        basis={metrics.grossRevenue.basis}
+        asOf={asOf}
         caveat={metrics.grossRevenue.caveat}
       />
 
@@ -91,7 +92,8 @@ export function MetricTiles({
         }
         unit="STRK"
         floor={floor}
-        basis={`${metrics.settledVsUnsettled.basis} · ${asOf}`}
+        basis={metrics.settledVsUnsettled.basis}
+        asOf={asOf}
         caveat={metrics.settledVsUnsettled.caveat}
         footer={
           <InvariantTag
@@ -108,10 +110,11 @@ export function MetricTiles({
         value={<LiveNumber value={strk(metrics.escrowedRunRate30d.value)} decimals={2} />}
         unit="STRK"
         floor={floor}
-        basis={`${metrics.escrowedRunRate30d.basis} · ${asOf}`}
+        basis={metrics.escrowedRunRate30d.basis}
+        asOf={asOf}
         caveat={metrics.escrowedRunRate30d.caveat}
         footer={
-          <p className="max-w-[46ch] text-[10px] leading-[1.5] text-text-caption">
+          <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
             Escrow on hand covers {covered} further period{covered === 1 ? "" : "s"}. A run rate is
             a claim about the future, and this one is bounded by escrow already committed.
           </p>
@@ -123,7 +126,8 @@ export function MetricTiles({
         token={String(metrics.activeSubscriptions.value)}
         value={<LiveNumber value={metrics.activeSubscriptions.value} />}
         floor={floor}
-        basis={`${metrics.activeSubscriptions.basis} · ${asOf}`}
+        basis={metrics.activeSubscriptions.basis}
+        asOf={asOf}
         caveat={metrics.activeSubscriptions.caveat}
       />
 
@@ -132,7 +136,8 @@ export function MetricTiles({
         token={String(metrics.currentlyEntitled.value)}
         value={<LiveNumber value={metrics.currentlyEntitled.value} />}
         floor={floor}
-        basis={`${metrics.currentlyEntitled.basis} · ${asOf}`}
+        basis={metrics.currentlyEntitled.basis}
+        asOf={asOf}
         caveat={metrics.currentlyEntitled.caveat}
       />
 
@@ -142,10 +147,11 @@ export function MetricTiles({
         value={<LiveNumber value={metrics.arrears.value.count} />}
         unit={metrics.arrears.value.count === 1 ? "subscription" : "subscriptions"}
         floor={floor}
-        basis={`${metrics.arrears.basis} · ${asOf}`}
+        basis={metrics.arrears.basis}
+        asOf={asOf}
         caveat={metrics.arrears.caveat}
         footer={
-          <p className="max-w-[46ch] text-[10px] leading-[1.5] text-text-caption">
+          <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
             {metrics.arrears.value.count === 0
               ? "No window has passed unpaid while escrow was available."
               : `Worst backlog: ${metrics.arrears.value.maxPeriodsDue} period(s) past their due height.`}

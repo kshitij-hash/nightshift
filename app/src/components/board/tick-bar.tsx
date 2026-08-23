@@ -37,7 +37,7 @@ export function TickBar({
   return (
     <div className="flex flex-wrap items-center gap-3">
       {label ? (
-        <span className="text-[10px] leading-[1.45] tracking-[0.18em] text-text-caption">
+        <span className="text-[11px] leading-[1.45] tracking-[0.18em] text-text-caption">
           {label}
         </span>
       ) : null}

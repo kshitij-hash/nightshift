@@ -2,6 +2,10 @@
 // here changes: it is the explanation, not the instrument. Three parts, in
 // this order: what the machine is, what the chain can and cannot see, and the
 // row-by-row receipts for every claim above.
+//
+// All three arrive shut. A reader who came for the instrument gets the
+// instrument; the explanation is three 44px lines that say what is inside and
+// how much of it, and each opens when it is asked for.
 
 import {
   fmtBlock,
@@ -21,7 +25,7 @@ import { chargesOf, utcStamp } from "./derive";
 import type { TickState } from "./derive";
 import { Mechanism } from "./mechanism-figure";
 import type { MechanismLabels } from "./mechanism-figure";
-import { HashCopy, SectionHead } from "./primitives";
+import { Disclosure, HashCopy } from "./primitives";
 import { TickBar } from "./tick-bar";
 
 const LEGEND: Array<[string, string, string]> = [
@@ -162,7 +166,12 @@ function receipts(charges: Charge[], schedule: Schedule | null | undefined): Rec
   return rows;
 }
 
-function mechanismLabels(
+/** The four numbers FIG. 1 is annotated with, taken from the same reads the
+ *  instrument above it runs on so the drawing cannot drift away from the
+ *  board. Exported because the landing renders the same figure from the same
+ *  reads, and a second copy of this arithmetic would be a second thing to keep
+ *  in step. */
+export function mechanismLabels(
   schedule: Schedule | null | undefined,
   perPeriodWei: bigint | null,
   charged: number,
@@ -199,6 +208,55 @@ function mechanismLabels(
   };
 }
 
+/**
+ * The two columns that are the product, as one table. The board keeps it
+ * inside the hidden-and-visible disclosure; /verify renders the same table in
+ * the verdict column, where the question it answers is the one a reader is
+ * already asking.
+ */
+export function HiddenAndVisible() {
+  return (
+    <>
+      <div className="overflow-x-auto border border-border-hairline">
+        <table className="w-full min-w-[560px] caption-bottom border-collapse text-left font-mono">
+          <thead className="bg-surface-sunken">
+            <tr className="border-b border-border-hairline">
+              <th className="h-8 px-3 text-[13px] font-medium tracking-[0.08em] text-text-label">
+                {" "}
+              </th>
+              <th className="h-8 w-[38%] px-3 text-[13px] font-medium tracking-[0.08em] text-text-label">
+                WHAT THE CHAIN SEES
+              </th>
+              <th className="h-8 w-[38%] px-3 text-[13px] font-medium tracking-[0.08em] text-text-label">
+                WHAT IT NEVER SEES
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {SEE_ROWS.map(([a, b, c]) => (
+              <tr key={a} className="border-b border-border-row last:border-0">
+                <td className="px-3 py-3 align-top text-[13px] text-text-default">{a}</td>
+                <td className="px-3 py-3 align-top text-[13px] leading-[1.7] text-text-prose">
+                  {b}
+                </td>
+                <td className="px-3 py-3 align-top text-[13px] leading-[1.7] text-text-caption">
+                  {c}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[12px] leading-[1.5] text-text-caption">
+        Read the middle column as the cost and the right as the claim. Charges of one subscription
+        share a commitment, so they link to each other; a presentation of that subscription is
+        linkable across gates. Both limitations are stated where they matter, not here for the
+        first time.
+      </p>
+    </>
+  );
+}
+
 export function StoryBand({
   charges,
   schedule,
@@ -216,15 +274,16 @@ export function StoryBand({
   const charged = ticks.filter((t) => t === "ok" || t === "late").length;
 
   return (
-    <div className="flex flex-col gap-16 py-16">
-      <section className="flex flex-col gap-6">
-        <SectionHead note="drawn as an engineering section, not an illustration">
-          // THE MECHANISM · WHAT ACTUALLY RUNS
-        </SectionHead>
+    <div className="flex flex-col py-4">
+      <Disclosure
+        marker="// THE MECHANISM"
+        teaser="escrow in once, block-gated period wheel, write-once nullifier, claim out."
+        count="figure and six steps."
+      >
         <div className="flex flex-wrap items-baseline justify-between gap-8">
           <p
             className="max-w-[760px] font-semibold text-text-strong"
-            style={{ fontSize: 30, lineHeight: 1.15, letterSpacing: "-0.01em" }}
+            style={{ fontSize: 20, lineHeight: 1.2, letterSpacing: "-0.01em" }}
           >
             A recurring authorization the pool cannot express, built as a machine that charges on
             schedule with nobody at a keyboard.
@@ -235,68 +294,39 @@ export function StoryBand({
             be charged early, twice, or beyond what it escrowed.
           </p>
         </div>
-        <div className="overflow-x-auto border border-border-panel bg-surface-sunken px-7 py-6">
+        <div className="border border-border-panel bg-surface-sunken px-7 py-6">
           <Mechanism labels={labels} />
         </div>
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3">
           {LEGEND.map(([n, title, body]) => (
             <div key={n} className="flex flex-col gap-2 border-t border-border-row pt-3.5">
               <div className="flex items-center gap-3">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-text-caption text-[10px] text-text-label">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-text-caption text-[11px] text-text-label">
                   {n}
                 </span>
-                <span className="text-[10px] font-medium tracking-[0.18em] text-text-strong">
+                <span className="text-[11px] font-medium tracking-[0.18em] text-text-strong">
                   {title}
                 </span>
               </div>
-              <p className="text-[12.5px] leading-[1.7] text-text-prose">{body}</p>
+              <p className="text-[13px] leading-[1.7] text-text-prose">{body}</p>
             </div>
           ))}
         </div>
-      </section>
+      </Disclosure>
 
-      <section className="flex flex-col gap-6">
-        <SectionHead note="the two columns are the product">// HIDDEN AND VISIBLE</SectionHead>
-        <div className="overflow-x-auto border border-border-hairline">
-          <table className="w-full min-w-[720px] caption-bottom border-collapse text-left font-mono">
-            <thead className="bg-surface-sunken">
-              <tr className="border-b border-border-hairline">
-                <th className="h-8 px-3 text-[13px] font-medium tracking-[0.08em] text-text-label">
-                  {" "}
-                </th>
-                <th className="h-8 w-[38%] px-3 text-[13px] font-medium tracking-[0.08em] text-text-label">
-                  WHAT THE CHAIN SEES
-                </th>
-                <th className="h-8 w-[38%] px-3 text-[13px] font-medium tracking-[0.08em] text-text-label">
-                  WHAT IT NEVER SEES
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {SEE_ROWS.map(([a, b, c]) => (
-                <tr key={a} className="border-b border-border-row last:border-0">
-                  <td className="px-3 py-3 align-top text-[13px] text-text-default">{a}</td>
-                  <td className="px-3 py-3 align-top text-[12.5px] leading-[1.7] text-text-prose">
-                    {b}
-                  </td>
-                  <td className="px-3 py-3 align-top text-[12.5px] leading-[1.7] text-text-caption">
-                    {c}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-[12px] leading-[1.5] text-text-caption">
-          Read the middle column as the cost and the right as the claim. Charges of one subscription
-          share a commitment, so they link to each other; a presentation of that subscription is
-          linkable across gates. Both limitations are stated where they matter, not here for the
-          first time.
-        </p>
-      </section>
+      <Disclosure
+        marker="// HIDDEN AND VISIBLE"
+        teaser="what the chain sees, and what it never sees."
+        count={`${SEE_ROWS.length} rows.`}
+      >
+        <HiddenAndVisible />
+      </Disclosure>
 
-      <section className="flex flex-col gap-6">
-        <SectionHead note="every claim above has a row here">// THE RECEIPTS</SectionHead>
+      <Disclosure
+        marker="// THE RECEIPTS"
+        teaser="every claim above, as an address, a package or a transaction."
+        count={`${rows.length} rows.`}
+      >
         <div className="flex flex-col border border-border-hairline">
           {rows.map((r, i) => (
             <div
@@ -305,10 +335,10 @@ export function StoryBand({
                 i ? "border-t border-border-row" : ""
               } ${i % 2 ? "" : "bg-surface-panel"}`}
             >
-              <span className="w-[92px] shrink-0 text-[10px] leading-[1.45] tracking-[0.14em] text-text-caption">
+              <span className="w-[92px] shrink-0 text-[11px] leading-[1.45] tracking-[0.14em] text-text-caption">
                 {r.kind}
               </span>
-              <span className="min-w-0 flex-1 text-[12.5px] leading-[1.7] text-text-prose">
+              <span className="min-w-0 flex-1 text-[13px] leading-[1.7] text-text-prose">
                 {r.what}
               </span>
               <span className="w-full text-[13px] sm:w-[330px] sm:text-right">
@@ -333,7 +363,7 @@ export function StoryBand({
             <TickBar states={ticks} caption={`${charged} of ${ticks.length} charged`} />
           ) : null}
         </div>
-      </section>
+      </Disclosure>
     </div>
   );
 }

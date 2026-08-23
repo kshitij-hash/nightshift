@@ -21,9 +21,13 @@ const EVENTS_LINK = `${VOYAGER_CONTRACT(VAULT)}#events`;
 /** The masthead chip: which chain, and how far the scan got. */
 export function ChainChip({ headBlock, live }: { headBlock: number | null; live: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2 border border-border-panel px-2.5 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label">
+    // The "MAINNET ·" qualifier hides below md so the chip fits the phone
+    // chrome's one row; it stays in the DOM for a screen reader.
+    <span className="inline-flex items-center gap-2 border border-border-panel px-2 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label md:px-2.5">
       <StatusDot state={live ? "live" : "pending"} size={6} beat={live} />
-      {headBlock === null ? "MAINNET · NO READ YET" : `MAINNET · BLOCK ${fmtBlock(headBlock)}`}
+      <span className="hidden md:inline">MAINNET&nbsp;·&nbsp;</span>
+      <span className="sr-only md:hidden">MAINNET · </span>
+      {headBlock === null ? "NO READ YET" : `BLOCK ${fmtBlock(headBlock)}`}
     </span>
   );
 }
@@ -45,9 +49,9 @@ export function ProvenanceBanner({
           Computed from public mainnet events. Anyone can derive this, and no key was used.
         </p>
       </div>
-      <p className="text-[10px] leading-[1.5] text-text-caption">
+      <p className="text-[11px] leading-[1.5] text-text-caption">
         source: Subscribed, Charged, Claimed, Cancelled, Reclaimed and Presented events at vault{" "}
-        <HashCopy value={VAULT} display={truncate(VAULT)} className="text-[10px]" /> ·{" "}
+        <HashCopy value={VAULT} display={truncate(VAULT)} className="text-[11px]" /> ·{" "}
         {capped ? "scan stopped at its page cap" : "scan complete"} to block{" "}
         {fmtBlock(ledger.headBlock)}
       </p>
@@ -67,7 +71,7 @@ export function PartialScanBanner({ ledger }: { ledger: CreatorLedger }) {
         <Badge variant="outline" className="border-ns-accent text-ns-accent">
           {capped ? "PARTIAL SCAN" : "INCOMPLETE READ"}
         </Badge>
-        <span className="text-[10px] leading-[1.5] tracking-[0.14em] text-text-label uppercase">
+        <span className="text-[11px] leading-[1.5] tracking-[0.14em] text-text-label uppercase">
           {notes.length} read{notes.length === 1 ? "" : "s"} came back short of block{" "}
           {fmtBlock(ledger.headBlock)}
         </span>
@@ -101,7 +105,7 @@ export function UnknownCreator({
     <div className="flex flex-col gap-5 border border-border-panel bg-surface-panel px-6 py-7">
       <div className="flex flex-wrap items-center gap-3">
         <Badge variant="outline">NO EVENTS AT THIS VAULT</Badge>
-        <span className="text-[10px] tracking-[0.14em] text-text-label uppercase">
+        <span className="text-[11px] tracking-[0.14em] text-text-label uppercase">
           scan reached block {fmtBlock(ledger.headBlock)} and matched 0 events
         </span>
       </div>
@@ -130,7 +134,7 @@ export function UnknownCreator({
         </p>
       )}
       <a href={EVENTS_LINK} target="_blank" rel="noreferrer" className="w-fit text-[12px]">
-        read the vault event log on voyager ↗
+        verify on voyager ↗
       </a>
     </div>
   );

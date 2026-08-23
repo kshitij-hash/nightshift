@@ -9,6 +9,10 @@
   --dur-base: 180ms;
   --dur-slow: 480ms;
   --dur-draw: 700ms;
+  /* The persona router's tab swap: the body crossfades and the underline moves
+     on this one clock, so the eye has something continuous to follow while the
+     body is briefly empty. */
+  --dur-swap: 160ms;
 
   --stagger-row: 20ms;
   --heartbeat: 1000ms;
@@ -23,6 +27,9 @@
 @keyframes ns-row-flash { from { box-shadow: inset 2px 0 0 var(--accent); } to { box-shadow: inset 2px 0 0 transparent; } }
 /* A number that just changed: accent wash fading over 400ms. */
 @keyframes ns-value-flash { from { background: var(--accent-wash); } to { background: transparent; } }
+/* A persona tab body arriving: crossfade plus 6px of travel, nothing scales.
+   The frame it lands in is not resized, so the page below never jumps. */
+@keyframes ns-persona-in { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

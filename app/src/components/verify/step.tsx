@@ -141,7 +141,7 @@ export function TextInput({
 /** A key/value readout in the data register: label left, value right. */
 export function KeyValue({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return (
-    <dl className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
+    <dl className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[13px]">
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-text-label">{k}</dt>

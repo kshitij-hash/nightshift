@@ -53,7 +53,9 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Content
       data-slot="tabs-content"
       className={cn(
-        "flex-1 outline-none",
+        // The panel is focusable, so it keeps a visible indicator of its own
+        // rather than relying on the document default it opts out of.
+        "flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "data-[state=inactive]:opacity-0 data-[state=active]:opacity-100 transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-in-out)]",
         className,
       )}

@@ -50,9 +50,11 @@ const SENTENCE =
   "A creator ledger, summed in this browser from the vault's public event log. Anyone can derive the same figures.";
 const RIGHT = "read only · no wallet connected · no key required";
 
-/** 48px between sections against the board's 32, and a wider gutter. The two
- *  surfaces are not supposed to measure the same. */
-const SECTIONS = "flex flex-col gap-12 py-10";
+/** The dashboard's rhythm is not uniform: the metrics and the timeline under
+ *  them are one thought at 32px, and the two sections that follow are separate
+ *  ones at 64px. */
+const SECTIONS = "flex flex-col gap-8 py-10";
+const BREAK = "mt-8";
 const PAGE = "mx-auto flex w-full max-w-[1200px] flex-col";
 const GUTTER = "flex-1 px-5 lg:px-10";
 
@@ -98,14 +100,10 @@ export function CreatorRoute() {
               <SectionHead note="the same figures, whoever asks">
                 // WHAT THIS PAGE DERIVES
               </SectionHead>
-              <p className="max-w-[70ch] text-[14px] leading-[1.7] text-text-prose">
-                Gross revenue and its settlement split, the escrowed run rate, how many
-                subscriptions are funded and how many a gate would admit right now, arrears, the
-                per-charge timeline, one row per commitment with its lifecycle, and churn measured
-                over the subscriptions that have ended. Each figure prints the rule it came from
-                underneath itself. There is no demo creator button here: an empty dashboard is a
-                legitimate state, and inventing one would put a number on this page that the chain
-                never produced.
+              <p className="max-w-[130ch] text-[14px] leading-[1.7] text-text-prose">
+                Gross revenue and its split, the escrowed run rate, funded and entitled
+                subscriptions, arrears, the timeline, one row per commitment, and churn. Each
+                figure prints the rule it came from, and an empty dashboard is a legitimate state.
               </p>
             </section>
           </div>
@@ -230,24 +228,39 @@ export function CreatorRoute() {
                 ) : (
                   <div className="flex flex-col gap-4 border border-border-panel bg-surface-panel px-4 py-6 lg:px-6">
                     <RevenueTimeline points={points} compact={narrow} height={narrow ? 190 : 250} />
-                    <p className="max-w-[100ch] border-t border-border-row pt-4 text-[13px] leading-[1.7] text-text-prose">
-                      Establishes: {points.length} charge{points.length === 1 ? "" : "s"} totalling{" "}
-                      {last ? last.cumulativeLabel : "0.00"} STRK landed against {rows.length}{" "}
-                      commitment{rows.length === 1 ? "" : "s"}
-                      {first && last
-                        ? ` between ${stampUtc(first.ts)} and ${stampUtc(last.ts)}`
-                        : ""}
-                      , each at or after the block its period was due, which the vault asserts on
-                      chain. Does not establish: who subscribed, whether one subscriber holds more
-                      than one of these commitments, or any revenue that did not pass through this
-                      vault. A per-creator topline is publicly derivable from these events. This
-                      page derives it and claims nothing more.
-                    </p>
+                    <dl className="flex max-w-[100ch] flex-col gap-2 border-t border-border-row pt-4">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+                        <dt className="w-[168px] shrink-0 text-[11px] font-medium tracking-[0.18em] text-text-label">
+                          ESTABLISHES
+                        </dt>
+                        <dd className="text-[13px] leading-[1.7] text-text-prose">
+                          {points.length} charge{points.length === 1 ? "" : "s"} totalling{" "}
+                          {last ? last.cumulativeLabel : "0.00"} STRK landed against {rows.length}{" "}
+                          commitment{rows.length === 1 ? "" : "s"}
+                          {first && last
+                            ? ` between ${stampUtc(first.ts)} and ${stampUtc(last.ts)}`
+                            : ""}
+                          , each at or after the block its period was due, which the vault asserts
+                          on chain.
+                        </dd>
+                      </div>
+                      <div className="flex flex-col gap-1 sm:flex-row sm:gap-4">
+                        <dt className="w-[168px] shrink-0 text-[11px] font-medium tracking-[0.18em] text-text-label">
+                          DOES NOT ESTABLISH
+                        </dt>
+                        <dd className="text-[13px] leading-[1.7] text-text-prose">
+                          who subscribed, whether one subscriber holds more than one of these
+                          commitments, or any revenue that did not pass through this vault, and a
+                          per-creator topline is publicly derivable from these events, which is all
+                          this page claims.
+                        </dd>
+                      </div>
+                    </dl>
                   </div>
                 )}
               </section>
 
-              <section className="flex flex-col gap-5">
+              <section className={`flex flex-col gap-5 ${BREAK}`}>
                 <SectionHead
                   note={`${rows.length} row${rows.length === 1 ? "" : "s"} · state tags carry the lifecycle`}
                 >
@@ -256,13 +269,7 @@ export function CreatorRoute() {
                 <SubscriptionTable rows={rows} />
                 <div className="flex flex-col gap-4">
                   <p className="max-w-[100ch] text-[12px] leading-[1.6] text-text-caption">
-                    CONTRACTED is the tier price times n_periods from schedule_of, which is what the
-                    subscription committed to; ESCROW LEFT is what the vault still holds against it.
-                    The commitment is public, the wallet that funded it is not, and the vault never
-                    learned it. ACTIVE means the vault would charge again. ENTITLED means a gate
-                    would admit right now. EXHAUSTED means escrow can no longer cover the next
-                    charge. CANCELLED means the subscriber signed a cancel. ARREARS means a period
-                    is past its due height and uncharged.
+                    Every state tag and money column carries its definition. Hover or focus it.
                   </p>
                   <div className="flex flex-wrap items-start gap-4">
                     <p className="max-w-[70ch] text-[12px] leading-[1.6] text-text-caption">
@@ -279,7 +286,7 @@ export function CreatorRoute() {
                 </div>
               </section>
 
-              <section className="flex flex-col gap-5">
+              <section className={`flex flex-col gap-5 ${BREAK}`}>
                 <SectionHead note="measured over subscriptions that have ended, not modelled">
                   // CHURN
                 </SectionHead>

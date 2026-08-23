@@ -156,7 +156,7 @@ export function Readout({
 }) {
   return (
     <div className={cn("flex min-w-0 flex-1 flex-col gap-1 px-5 py-3.5", className)}>
-      <div className="text-[10px] font-medium tracking-[0.18em] whitespace-nowrap text-text-label">
+      <div className="text-[11px] font-medium tracking-[0.18em] whitespace-nowrap text-text-label">
         {label}
       </div>
       <div
@@ -169,7 +169,7 @@ export function Readout({
       >
         {value}
       </div>
-      <div className="text-[10px] leading-[1.45] text-text-caption">{caption}</div>
+      <div className="text-[11px] leading-[1.45] text-text-caption">{caption}</div>
     </div>
   );
 }
@@ -183,8 +183,122 @@ export function Cap({
   className?: string;
 }) {
   return (
-    <span className={cn("text-[10px] leading-[1.45] text-text-caption", className)}>
+    <span className={cn("text-[11px] leading-[1.45] text-text-caption", className)}>
       {children}
     </span>
+  );
+}
+
+/**
+ * A band row that stays shut until it is asked for: a 44px summary line
+ * carrying the section marker, one line of what is inside, and the count, over
+ * content that only enters the reading order once it is opened.
+ *
+ * Native details/summary, so keyboard and screen reader behaviour come from
+ * the element rather than from a hand-rolled toggle.
+ */
+export function Disclosure({
+  marker,
+  teaser,
+  count,
+  children,
+  className,
+}: {
+  marker: string;
+  teaser: string;
+  count?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <details className={cn("group border-b border-border-row", className)}>
+      <summary
+        className={cn(
+          "flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-1 py-2",
+          "outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "[&::-webkit-details-marker]:hidden",
+        )}
+      >
+        <span className="text-[13px] font-medium tracking-[0.2em] whitespace-nowrap text-text-label transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] group-open:text-ns-accent">
+          {marker}
+        </span>
+        {/* On a phone the marker and the count take the first line and the
+            teaser takes the next, rather than three columns fighting over
+            350px and the teaser losing. */}
+        <span className="order-last w-full min-w-0 text-[13px] leading-[1.5] text-text-prose md:order-none md:w-auto md:flex-1">
+          {teaser}
+        </span>
+        {count ? (
+          <span className="ml-auto text-[12px] whitespace-nowrap text-text-caption md:ml-0">
+            {count}
+          </span>
+        ) : null}
+      </summary>
+      <div className="flex flex-col gap-6 pt-4 pb-10">{children}</div>
+    </details>
+  );
+}
+
+/**
+ * The caveat affordance: a small labelled toggle that opens its sentence in
+ * place, rather than a hover-only tooltip a touch reader can never reach. It
+ * started on the dashboard tile and is shared from here, because the board and
+ * the verify surface need the same affordance for the same reason.
+ *
+ * `popover` floats the body over the layout instead of pushing it down, for
+ * the places where the row it hangs off has to stay one row.
+ */
+export function CaveatDisclosure({
+  caveat,
+  label = "caveat",
+  openLabel,
+  popover = false,
+  children,
+  className,
+}: {
+  caveat?: string;
+  label?: string;
+  openLabel?: string;
+  popover?: boolean;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const body = children ?? caveat;
+  return (
+    <div className={cn("flex flex-col gap-1.5", popover && "relative", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className={cn(
+          "inline-flex min-h-11 w-fit items-center rounded-sm border border-border-field px-1.5",
+          "text-[11px] font-medium tracking-[0.14em] uppercase md:min-h-6",
+          "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+          "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+          open ? "border-ns-accent text-ns-accent" : "text-text-label hover:text-ns-accent",
+        )}
+      >
+        {open ? (openLabel ?? `${label}, shown`) : label}
+      </button>
+      {open ? (
+        popover ? (
+          <div className="absolute top-full left-0 z-20 mt-1.5 w-[280px] border border-border-panel bg-surface-panel px-3 py-2.5">
+            <div className="text-[11px] leading-[1.45] text-text-caption">{body}</div>
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "text-[11px] leading-[1.45] text-text-caption",
+              // A caveat sentence is measured; a caller that passes its own
+              // content brings its own measure.
+              children ? undefined : "max-w-[46ch]",
+            )}
+          >
+            {body}
+          </div>
+        )
+      ) : null}
+    </div>
   );
 }

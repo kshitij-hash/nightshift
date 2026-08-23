@@ -1,4 +1,6 @@
-// The creator id control, in two sizes.
+// The creator id control, in two sizes: the whole entry surface while nothing
+// has been pasted, and one bar row once an id is in the URL and the figures
+// under it are what the page is for.
 //
 // One id or several: a creator running more than one registration (one per
 // token, one per product) reads their own total by pasting each id. The sum
@@ -16,7 +18,7 @@ import { useRef, useState } from "react";
 import { fmtStrk, truncate } from "../../config";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
-import { HashCopy } from "../board/primitives";
+import { CaveatDisclosure, HashCopy } from "../board/primitives";
 import type { IdSummary } from "./derive";
 import { LiveNumber } from "./tile";
 
@@ -55,7 +57,7 @@ function IdField({
     <div className="flex flex-col gap-2">
       <label
         htmlFor="creator-id"
-        className="text-[10px] font-medium tracking-[0.18em] text-text-label"
+        className="text-[11px] font-medium tracking-[0.18em] text-text-label"
       >
         CREATOR ID (HEX)
       </label>
@@ -103,7 +105,10 @@ function IdField({
   );
 }
 
-function IdRow({
+/** The bar form of one id: index, hash, what it summed to, how many charges,
+ *  on one line. A dashboard keyed by a pasted id spends its top on the figures,
+ *  not on the field that was already used. */
+function IdBarRow({
   index,
   id,
   summary,
@@ -115,32 +120,26 @@ function IdRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-border-row px-3 py-2 first:border-t-0">
-      <span className="text-[10px] tabular-nums text-text-caption">
-        {String(index + 1).padStart(2, "0")}
-      </span>
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] tabular-nums">
+      <span className="text-[11px] text-text-caption">{String(index + 1).padStart(2, "0")}</span>
       <HashCopy value={id} display={truncate(id)} tone="default" className="text-[13px]" />
-      {/* An id that matched nothing gets no figure at all. A 0.00 next to it
-          would read as a measured total rather than as an absence. */}
-      <span className="ml-auto text-[12px] tabular-nums text-text-default">
-        {summary === undefined ? (
-          "reading"
-        ) : summary.seen ? (
-          <>
+      {summary === undefined ? (
+        <span className="text-[12px] text-text-caption">· reading</span>
+      ) : summary.seen ? (
+        <>
+          <span className="text-text-caption">·</span>
+          <span className="text-text-strong">
             {fmtStrk(summary.grossWei)}
             <span className="text-text-label"> STRK</span>
-          </>
-        ) : (
-          ""
-        )}
-      </span>
-      <span className="w-[104px] text-right text-[10px] text-text-caption">
-        {summary === undefined
-          ? "not read yet"
-          : summary.seen
-            ? `${summary.charges} charge${summary.charges === 1 ? "" : "s"}`
-            : "no events"}
-      </span>
+          </span>
+          <span className="text-text-caption">·</span>
+          <span className="text-[12px] text-text-caption">
+            {summary.charges} charge{summary.charges === 1 ? "" : "s"}
+          </span>
+        </>
+      ) : (
+        <span className="text-[12px] text-text-caption">· no events</span>
+      )}
       <Button
         variant="ghost"
         size="sm"
@@ -150,9 +149,12 @@ function IdRow({
       >
         REMOVE
       </Button>
-    </div>
+    </span>
   );
 }
+
+const SUM_NOTE =
+  "Only the creator can sum their own ids. Any sum across ids is computed in this browser from events that were already public, and the list stays in this page and its URL. Each id's topline is derivable by anyone on its own. That two ids belong to one person is not on chain, and pasting them here does not put it there.";
 
 export function CreatorIds({
   ids,
@@ -166,6 +168,7 @@ export function CreatorIds({
   onChange: (ids: string[]) => void;
   variant: "entry" | "bar";
 }) {
+  const [adding, setAdding] = useState(false);
   const add = (id: string) => {
     const exists = ids.some((existing) => BigInt(existing) === BigInt(id));
     if (exists) return;
@@ -178,33 +181,13 @@ export function CreatorIds({
   const totalWei = (summaries ?? []).reduce((a, s) => a + s.grossWei, 0n);
   const byId = new Map((summaries ?? []).map((s) => [BigInt(s.id).toString(), s]));
 
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-5",
-        variant === "entry"
-          ? "border border-border-panel bg-surface-panel px-6 py-7"
-          : "border border-border-panel bg-surface-panel px-5 py-5",
-      )}
-    >
-      {variant === "entry" ? (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-[13px] font-medium tracking-[0.2em] text-text-label">
-            // PASTE A CREATOR ID
-          </h2>
-          <p className="max-w-[70ch] text-[14px] leading-[1.7] text-text-prose">
-            This dashboard reads one creator's ledger out of the vault's public event log. Nothing
-            is stored, nothing is sent anywhere, and no wallet is connected. Paste an id to start.
-          </p>
-        </div>
-      ) : null}
-
-      <IdField onAdd={add} onBackspaceEmpty={removeLast} compact={variant === "bar"} />
-
-      {ids.length > 0 ? (
-        <div className="flex flex-col border border-border-row bg-surface-sunken">
+  // --- an id is already in the URL: one bar row, and the field on request ---
+  if (variant === "bar") {
+    return (
+      <div className="flex flex-col gap-3 border border-border-panel bg-surface-panel px-5 py-3">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {ids.map((id, i) => (
-            <IdRow
+            <IdBarRow
               key={id}
               index={i}
               id={id}
@@ -213,15 +196,13 @@ export function CreatorIds({
             />
           ))}
           {ids.length > 1 ? (
-            <div className="flex flex-wrap items-center gap-3 border-t border-border-panel px-3 py-2.5">
-              <span className="text-[10px] font-medium tracking-[0.18em] text-text-label">
+            <span className="inline-flex items-center gap-2">
+              <span className="text-[11px] font-medium tracking-[0.18em] text-text-label">
                 LOCAL SUM
               </span>
-              <span className="ml-auto text-[16px] font-semibold tabular-nums text-text-strong">
+              <span className="text-[14px] font-semibold tabular-nums text-text-strong">
                 {summaries === undefined ? (
-                  <span className="text-[12px] font-normal text-text-caption">
-                    reading the event log
-                  </span>
+                  <span className="text-[12px] font-normal text-text-caption">reading</span>
                 ) : (
                   <>
                     <LiveNumber value={Number(fmtStrk(totalWei))} decimals={2} />
@@ -229,28 +210,43 @@ export function CreatorIds({
                   </>
                 )}
               </span>
-            </div>
+            </span>
           ) : null}
+          <span className="ml-auto flex flex-wrap items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="min-h-11 md:min-h-6"
+              aria-expanded={adding}
+              onClick={() => setAdding((v) => !v)}
+            >
+              {adding ? "ADD ID, OPEN" : "ADD ID"}
+            </Button>
+            <CaveatDisclosure caveat={SUM_NOTE} />
+          </span>
         </div>
-      ) : null}
+        {adding ? <IdField onAdd={add} onBackspaceEmpty={removeLast} compact /> : null}
+      </div>
+    );
+  }
+
+  // --- nothing pasted yet: the full form, which is the whole page ----------
+  return (
+    <div className="flex flex-col gap-5 border border-border-panel bg-surface-panel px-6 py-7">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-[13px] font-medium tracking-[0.2em] text-text-label">
+          // PASTE A CREATOR ID
+        </h2>
+        <p className="max-w-[70ch] text-[14px] leading-[1.7] text-text-prose">
+          This dashboard reads one creator's ledger out of the vault's public event log. Nothing is
+          stored, nothing is sent anywhere, and no wallet is connected. Paste an id to start.
+        </p>
+      </div>
+
+      <IdField onAdd={add} onBackspaceEmpty={removeLast} compact={false} />
 
       <div className="flex flex-wrap items-start gap-3">
-        {ids.length > 0 ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="min-h-11 md:min-h-6"
-            onClick={() => onChange([])}
-          >
-            CLEAR ALL
-          </Button>
-        ) : null}
-        <p className="max-w-[70ch] text-[11px] leading-[1.5] text-text-caption">
-          Only the creator can sum their own ids. Any sum across ids is computed in this browser
-          from events that were already public, and the list stays in this page and its URL. Each
-          id's topline is derivable by anyone on its own. That two ids belong to one person is not
-          on chain, and pasting them here does not put it there.
-        </p>
+        <p className="max-w-[70ch] text-[11px] leading-[1.5] text-text-caption">{SUM_NOTE}</p>
       </div>
     </div>
   );

@@ -1,15 +1,23 @@
 // Code-based TanStack Router setup. File-based routing needs a Vite plugin
 // to generate the route tree; code-based routing needs nothing extra and
-// this app only has three routes, so code-based is the simpler choice here.
+// this app only has five routes, so code-based is the simpler choice here.
 //
 // Typed search-param schemas are the reason TanStack Router was chosen over
-// a plainer alternative: ?creator= and ?demo= are validated here, once, and
-// every consumer downstream gets a typed, already-checked value instead of
-// re-parsing location.search.
-import { Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+// a plainer alternative: ?creator=, ?demo=, ?for= and ?tab= are validated here,
+// once, and every consumer downstream gets a typed, already-checked value
+// instead of re-parsing location.search.
+import {
+  Outlet,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  redirect,
+} from "@tanstack/react-router";
 
 import { BoardRoute } from "./routes/board";
 import { CreatorRoute } from "./routes/creator";
+import { LandingRoute } from "./routes/landing";
+import { ManageRoute } from "./routes/manage";
 import { VerifyRoute } from "./routes/verify";
 
 // Each route owns its own masthead, because the masthead carries page state
@@ -32,6 +40,17 @@ const rootRoute = createRootRoute({ component: RootLayout });
 const FELT_HEX = /^0x[0-9a-fA-F]{1,64}$/;
 
 export type BoardSearch = { demo?: boolean };
+
+/** Which persona the landing's router opens on. In the URL so a link handed to
+ *  a creator does not land them on the subscriber's story. */
+export type PersonaId = "subscribe" | "creator" | "verify";
+export type LandingSearch = { for?: PersonaId };
+
+/** ?demo= arrives parsed: the router turns ?demo=1 into the number 1 and
+ *  ?demo=true into the boolean. Accept every spelling a person would type. */
+const readDemo = (raw: unknown): boolean =>
+  raw === true || raw === 1 || raw === "true" || raw === "1";
+
 export type CreatorSearch = {
   /** One id, or several separated by commas. A creator running more than one
    *  registration reads their own local sum by listing them here; the ids are
@@ -53,15 +72,32 @@ export const splitCreatorIds = (raw: string | undefined): string[] =>
         .map((part) => part.trim())
         .filter((part) => part.length > 0);
 
+// The landing. It also answers for the board's old address: the board lived at
+// / until the restructure, and ?demo=1 is in the recorded demo plan and in
+// links already handed out, so /?demo=1 forwards to /board?demo=1 instead of
+// opening a landing page with a search param it has no use for.
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
+  validateSearch: (search: Record<string, unknown>): LandingSearch & BoardSearch => {
+    const raw = search.for;
+    const out: LandingSearch & BoardSearch = {};
+    if (raw === "creator" || raw === "verify" || raw === "subscribe") out.for = raw;
+    if (search.demo !== undefined && readDemo(search.demo)) out.demo = true;
+    return out;
+  },
+  beforeLoad: ({ search }) => {
+    if (search.demo === true) throw redirect({ to: "/board", search: { demo: true } });
+  },
+  component: LandingRoute,
+});
+
+const boardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/board",
   validateSearch: (search: Record<string, unknown>): BoardSearch => {
-    const raw = search.demo;
-    if (raw === undefined) return {};
-    // The router parses search values, so ?demo=1 arrives as the number 1 and
-    // ?demo=true as the boolean. Accept every spelling a person would type.
-    return { demo: raw === true || raw === 1 || raw === "true" || raw === "1" };
+    if (search.demo === undefined) return {};
+    return { demo: readDemo(search.demo) };
   },
   component: BoardRoute,
 });
@@ -101,7 +137,31 @@ const verifyRoute = createRoute({
   component: VerifyRoute,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, creatorRoute, verifyRoute]);
+/** Which of the three signing flows is open, when one is. Optional, because
+ *  /manage's subject is the reader's own subscriptions and the flows are the
+ *  action layer under them: a bare /manage opens the list, not a form. Present
+ *  in the URL so a flow can be linked to and so a reload lands back on it. */
+export type ManageTab = "subscribe" | "cancel" | "claim";
+export type ManageSearch = { tab?: ManageTab };
+
+const manageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/manage",
+  validateSearch: (search: Record<string, unknown>): ManageSearch => {
+    const raw = search.tab;
+    if (raw === "cancel" || raw === "claim" || raw === "subscribe") return { tab: raw };
+    return {};
+  },
+  component: ManageRoute,
+});
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  boardRoute,
+  creatorRoute,
+  manageRoute,
+  verifyRoute,
+]);
 
 export const router = createRouter({ routeTree });
 
