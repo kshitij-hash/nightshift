@@ -13,7 +13,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
 
-import { BoardFooter } from "../components/board/board-footer";
 import { buildFeedRows, ChargeFeed } from "../components/board/charge-feed";
 import { ChargePanel } from "../components/board/charge-panel";
 import {
@@ -33,7 +32,7 @@ import {
   SnapshotBanner,
 } from "../components/board/provenance";
 import type { BoardMode } from "../components/board/provenance";
-import { BoardSkeleton, EmptyFeed } from "../components/board/skeletons";
+import { BoardSkeleton, EmptyFeed, PendingChip } from "../components/board/skeletons";
 import { StatRow } from "../components/board/stat-tiles";
 import { StoryBand } from "../components/board/story-band";
 import { SubjectStrip } from "../components/board/subject-strip";
@@ -41,14 +40,12 @@ import { TickBar } from "../components/board/tick-bar";
 import { useChainClock, useMediaQuery } from "../components/board/use-clock";
 import { useArrivalPulse } from "../components/board/use-fresh-rows";
 import { REPLAY_INTERVAL_SECS, useReplay } from "../components/board/use-replay";
-import { Masthead, MastheadSentence } from "../components/masthead";
+import { Masthead } from "../components/masthead";
+import { SiteFooter } from "../components/site-footer";
 import { Badge } from "../components/ui/badge";
-import { fmtBlock, SECONDS_PER_BLOCK } from "../config";
+import { fmtBlock } from "../config";
 import { useBoard } from "../query/useBoard";
 import { useSchedule } from "../query/useSchedule";
-
-const SENTENCE =
-  "A vault charges a subscription on schedule. The subscriber's wallet is never named on chain.";
 
 export function BoardRoute() {
   const search = useSearch({ from: "/board" });
@@ -84,9 +81,15 @@ export function BoardRoute() {
   if (isPending) {
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-        <Masthead active="board" sentence={SENTENCE} right="reading starknet mainnet" />
-        <main className="flex-1 px-5 py-8 lg:px-10">
-          <BoardSkeleton />
+        {/* The chip matches the loaded masthead, so this page opens at the
+            height it lands at. It is never simply absent on this surface:
+            while the head block is still being read it says so, rather than
+            leaving a gap that reads as "this page is not on a chain". */}
+        <Masthead active="board" chip={<PendingChip />} />
+        <main className="flex-1 px-5 lg:px-10">
+          <div className="flex flex-col gap-8 py-8">
+            <BoardSkeleton />
+          </div>
         </main>
       </div>
     );
@@ -97,7 +100,7 @@ export function BoardRoute() {
     // reaching this branch means the query itself broke, not the chain read.
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-        <Masthead active="board" sentence={SENTENCE} />
+        <Masthead active="board" />
         <main className="flex-1 px-5 py-8 lg:px-10">
           <p className="text-[14px] text-destructive">
             The board query failed to run: {error instanceof Error ? error.message : String(error)}.
@@ -130,11 +133,6 @@ export function BoardRoute() {
     <div className="mx-auto flex w-full max-w-[1200px] flex-col">
       <Masthead
         active="board"
-        deferSentence
-        sentence={SENTENCE}
-        right={`starknet mainnet · block time ~${SECONDS_PER_BLOCK} s${
-          schedule ? ` · period ${schedule.periodBlocks} blocks` : ""
-        }`}
         chip={<ChainChip mode={mode} headBlock={data.headBlock} />}
         badge={
           // Demo mode says so in the chain chip and in the banner. A third
@@ -172,13 +170,6 @@ export function BoardRoute() {
             replayProgress={replay ? replay.progress : 0}
             flare={flare}
             size={wide ? 320 : 208}
-          />
-
-          {/* On a phone the sentence reads better after the instrument it
-              describes, and the instrument gets the first screen. */}
-          <MastheadSentence
-            sentence={SENTENCE}
-            className="-mx-5 border-t border-b-0 px-5 md:hidden"
           />
 
           <StatRow
@@ -241,7 +232,15 @@ export function BoardRoute() {
         </div>
       </main>
 
-      <BoardFooter snapshot={mode === "snapshot"} />
+      <SiteFooter
+        snapshot={mode === "snapshot"}
+        links={[
+          { label: "npm nightshift-verify", href: "https://www.npmjs.com/package/nightshift-verify" },
+          { label: "npm strk20-preflight", href: "https://www.npmjs.com/package/strk20-preflight" },
+          { label: "source on github", href: "https://github.com/kshitij-hash/nightshift" },
+          { label: "verify a tier presentation", to: "/verify" },
+        ]}
+      />
     </div>
   );
 }

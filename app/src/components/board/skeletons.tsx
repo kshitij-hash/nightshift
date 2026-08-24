@@ -4,7 +4,26 @@
 // a page that has not read the chain yet has nothing to report.
 
 import { Skeleton } from "../ui/skeleton";
-import { SectionHead } from "./primitives";
+import { SectionHead, StatusDot } from "./primitives";
+
+/**
+ * The chain chip, before there is a head block to put in it.
+ *
+ * An app surface never simply omits the chip while it reads. A gap where the
+ * chip goes reads as "this page is not on a chain", and it also means the
+ * masthead is a different height in the two states on the narrow layouts where
+ * the chip wraps. This says the true thing at the real size instead.
+ */
+export function PendingChip() {
+  return (
+    <span className="inline-flex items-center gap-2 border border-border-panel px-2 py-1.5 text-[11px] tracking-[0.1em] whitespace-nowrap text-text-label md:px-2.5">
+      <StatusDot state="pending" size={6} />
+      <span className="hidden md:inline">MAINNET&nbsp;·&nbsp;</span>
+      <span className="sr-only md:hidden">MAINNET · </span>
+      READING THE HEAD BLOCK
+    </span>
+  );
+}
 
 // max-w-full only: the bar keeps the real measurement of the value it stands
 // in for, and stops at the edge of its container on a phone rather than
@@ -54,14 +73,24 @@ export function BoardSkeleton() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex flex-col gap-2 border border-border-panel px-5 py-4">
-            <Bar w={130} h={8} />
-            <Bar w={120} h={30} />
-            <Bar w={210} h={8} />
-          </div>
-        ))}
+      {/* The stat row, at the measurements the loaded row lands at: a 16px
+          "as of block N" line above the grid, then three tiles whose label,
+          figure and basis are 17, 32 and 16 per line. The first two bases run
+          to two lines and the third to one, which is what decides the height
+          of the phone layout where the tiles stack. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-end">
+          <Bar w={132} h={16} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[32, 32, 16].map((caption, i) => (
+            <div key={i} className="flex flex-col gap-1 border border-border-panel px-5 py-4">
+              <Bar w={130} h={17} />
+              <Bar w={120} h={32} />
+              <Bar w={210} h={caption} />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">

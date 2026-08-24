@@ -1,11 +1,19 @@
 // The story band, below the board fold. Nothing here is live, because nothing
-// here changes: it is the explanation, not the instrument. Three parts, in
-// this order: what the machine is, what the chain can and cannot see, and the
-// row-by-row receipts for every claim above.
+// here changes: it is the explanation, not the instrument. Two parts, in this
+// order: what the machine is, and the row-by-row receipts for every claim
+// above.
 //
-// All three arrive shut. A reader who came for the instrument gets the
-// instrument; the explanation is three 44px lines that say what is inside and
+// What the chain sees and what it never sees is not a third row here. That
+// table is the subject of /verify, where it renders open and beside the verdict
+// a reader is already looking at; this band points at it rather than carrying a
+// second copy. FIG. 1 is the same story: the drawing lives on the landing, and
+// the six-step legend below is the audit detail the drawing cannot carry.
+//
+// Both rows arrive shut. A reader who came for the instrument gets the
+// instrument; the explanation is two 44px lines that say what is inside and
 // how much of it, and each opens when it is asked for.
+
+import { Link } from "@tanstack/react-router";
 
 import {
   fmtBlock,
@@ -23,7 +31,6 @@ import type { Charge } from "../../lib/board";
 import type { Schedule } from "../../lib/schedule";
 import { chargesOf, utcStamp } from "./derive";
 import type { TickState } from "./derive";
-import { Mechanism } from "./mechanism-figure";
 import type { MechanismLabels } from "./mechanism-figure";
 import { Disclosure, HashCopy } from "./primitives";
 import { TickBar } from "./tick-bar";
@@ -250,8 +257,7 @@ export function HiddenAndVisible() {
       <p className="text-[12px] leading-[1.5] text-text-caption">
         Read the middle column as the cost and the right as the claim. Charges of one subscription
         share a commitment, so they link to each other; a presentation of that subscription is
-        linkable across gates. Both limitations are stated where they matter, not here for the
-        first time.
+        linkable across gates.
       </p>
     </>
   );
@@ -260,16 +266,17 @@ export function HiddenAndVisible() {
 export function StoryBand({
   charges,
   schedule,
-  perPeriodWei,
   ticks,
 }: {
   charges: Charge[];
   schedule: Schedule | null | undefined;
-  perPeriodWei: bigint | null;
+  /** Still taken, and still passed by the route, because mechanismLabels is
+   *  the landing figure's arithmetic and lives in this file. The band itself
+   *  no longer draws the figure, so it no longer reads this. */
+  perPeriodWei?: bigint | null;
   ticks: TickState[];
 }) {
   const mine = schedule ? chargesOf(charges, schedule.commitment) : charges.slice(0, 3);
-  const labels = mechanismLabels(schedule, perPeriodWei, mine.length);
   const rows = receipts(mine, schedule);
   const charged = ticks.filter((t) => t === "ok" || t === "late").length;
 
@@ -278,7 +285,7 @@ export function StoryBand({
       <Disclosure
         marker="// THE MECHANISM"
         teaser="escrow in once, block-gated period wheel, write-once nullifier, claim out."
-        count="figure and six steps."
+        count="six steps."
       >
         <div className="flex flex-wrap items-baseline justify-between gap-8">
           <p
@@ -293,9 +300,6 @@ export function StoryBand({
             period nullifier. The subscriber's wallet is never named, never asked again, and cannot
             be charged early, twice, or beyond what it escrowed.
           </p>
-        </div>
-        <div className="border border-border-panel bg-surface-sunken px-7 py-6">
-          <Mechanism labels={labels} />
         </div>
         <div className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-2 lg:grid-cols-3">
           {LEGEND.map(([n, title, body]) => (
@@ -312,14 +316,12 @@ export function StoryBand({
             </div>
           ))}
         </div>
-      </Disclosure>
-
-      <Disclosure
-        marker="// HIDDEN AND VISIBLE"
-        teaser="what the chain sees, and what it never sees."
-        count={`${SEE_ROWS.length} rows.`}
-      >
-        <HiddenAndVisible />
+        {/* The two things this band no longer carries, and where each one is. */}
+        <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] leading-[1.5] text-text-caption">
+          <Link to="/">the figure is on the landing</Link>
+          <span aria-hidden="true">·</span>
+          <Link to="/verify">what the chain sees and what it never sees: /verify</Link>
+        </p>
       </Disclosure>
 
       <Disclosure
@@ -356,8 +358,7 @@ export function StoryBand({
         <div className="flex flex-wrap items-center justify-between gap-6 pt-1">
           <p className="text-[12px] leading-[1.5] text-text-caption">
             Every row above is a real address, a real published package, or a real transaction from
-            this subscription's lifecycle. This page renders them with no key, and when the read
-            fails it says so.
+            this subscription's lifecycle. When a read fails, the row says so.
           </p>
           {ticks.length > 0 ? (
             <TickBar states={ticks} caption={`${charged} of ${ticks.length} charged`} />

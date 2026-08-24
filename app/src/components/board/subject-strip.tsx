@@ -68,9 +68,12 @@ export function SubjectStrip({
           )}
         </span>
       </Field>
+      {/* The block time used to sit in the masthead rule this page no longer
+          carries. It belongs here: cadence is the one place on the board where
+          the conversion from blocks to wall-clock time is load bearing. */}
       <Field label="CADENCE">
         <span className="text-text-strong">
-          {schedule.periodBlocks} blocks · about {periodMins} min
+          {schedule.periodBlocks} blocks · about {periodMins} min · ~{SECONDS_PER_BLOCK} s a block
         </span>
       </Field>
       <Field label="PERIODS">

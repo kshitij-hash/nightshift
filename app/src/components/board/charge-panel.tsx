@@ -450,12 +450,10 @@ export function ChargePanel({
 
           {state.tag === "closed" ? (
             <Refusal
-              line="DEMO WINDOW CLOSED. The endpoint runs during demos. charge() stays a public entrypoint and anyone can call it from a terminal."
-              button={
-                <Button variant="ghost" size="md" disabled className="min-h-11 md:min-h-8">
-                  DEMO WINDOW CLOSED
-                </Button>
-              }
+              line="The endpoint runs during demos. charge() stays a public entrypoint, callable from a terminal."
+              // No button: the header badge already says DEMO WINDOW CLOSED, and
+              // a disabled control repeating it was the third render of one string.
+              button={null}
               why={
                 <>
                   {target}

@@ -2,6 +2,10 @@
 // Every tile carries its basis in the caption, including the awkward part of
 // the basis. A tile whose number cannot be explained in one line does not
 // belong on this page.
+//
+// The block is not part of a basis. All three tiles are read at the same head
+// block, so it is stated once beside the row rather than three times under
+// three different rules.
 
 import NumberFlow from "@number-flow/react";
 import { useState } from "react";
@@ -74,60 +78,69 @@ export type StatRowProps = {
 };
 
 export function StatRow(p: StatRowProps) {
-  const asOf = `as of block ${fmtBlock(p.asOfBlock)}`;
   const custody = Number(fmtStrk(p.custodyWei));
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <StatTile
-        label="STRK IN CUSTODY"
-        token={String(p.custodyWei)}
-        value={
-          p.still ? (
-            custody.toFixed(2)
-          ) : (
-            <NumberFlow
-              value={custody}
-              format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
-              transformTiming={NUMBER_TIMING}
-              opacityTiming={NUMBER_OPACITY_TIMING}
-            />
-          )
-        }
-        unit="STRK"
-        caption={`escrow remaining plus unclaimed creator claimable, all vault generations · ${asOf}`}
-      />
-      <StatTile
-        label="CHARGES FIRED"
-        token={String(p.chargeCount)}
-        value={
-          p.still ? (
-            p.chargeCount
-          ) : (
-            <NumberFlow
-              value={p.chargeCount}
-              transformTiming={NUMBER_TIMING}
-              opacityTiming={NUMBER_OPACITY_TIMING}
-            />
-          )
-        }
-        caption={`charge events decoded from mainnet logs, ${p.vaultBreakdown} · ${asOf}`}
-      />
-      <StatTile
-        label="SUBSCRIPTIONS"
-        token={String(p.activeSubscriptions)}
-        value={
-          p.still ? (
-            p.activeSubscriptions
-          ) : (
-            <NumberFlow
-              value={p.activeSubscriptions}
-              transformTiming={NUMBER_TIMING}
-              opacityTiming={NUMBER_OPACITY_TIMING}
-            />
-          )
-        }
-        caption={`commitments the vaults still report active · ${asOf}`}
-      />
+    <div className="flex flex-col gap-2">
+      {/* All three figures come from one read, so the block they were read at
+          is one line above them rather than the same number printed three
+          times under three different rules. */}
+      <div className="flex justify-end">
+        <span className="text-[11px] leading-[1.45] text-text-caption">
+          as of block {fmtBlock(p.asOfBlock)}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatTile
+          label="STRK IN CUSTODY"
+          token={String(p.custodyWei)}
+          value={
+            p.still ? (
+              custody.toFixed(2)
+            ) : (
+              <NumberFlow
+                value={custody}
+                format={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }}
+                transformTiming={NUMBER_TIMING}
+                opacityTiming={NUMBER_OPACITY_TIMING}
+              />
+            )
+          }
+          unit="STRK"
+          caption="escrow remaining plus unclaimed creator claimable, all vault generations"
+        />
+        <StatTile
+          label="CHARGES FIRED"
+          token={String(p.chargeCount)}
+          value={
+            p.still ? (
+              p.chargeCount
+            ) : (
+              <NumberFlow
+                value={p.chargeCount}
+                transformTiming={NUMBER_TIMING}
+                opacityTiming={NUMBER_OPACITY_TIMING}
+              />
+            )
+          }
+          caption={`charge events decoded from mainnet logs, ${p.vaultBreakdown}`}
+        />
+        <StatTile
+          label="SUBSCRIPTIONS"
+          token={String(p.activeSubscriptions)}
+          value={
+            p.still ? (
+              p.activeSubscriptions
+            ) : (
+              <NumberFlow
+                value={p.activeSubscriptions}
+                transformTiming={NUMBER_TIMING}
+                opacityTiming={NUMBER_OPACITY_TIMING}
+              />
+            )
+          }
+          caption="commitments the vaults still report active"
+        />
+      </div>
     </div>
   );
 }
