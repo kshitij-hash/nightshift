@@ -58,6 +58,12 @@ export type BoardState = {
   headTimestamp: number;
   escrowWei: bigint;
   activeSubscriptions: number;
+  /** Subscriptions ever opened at this vault lineage: one per Subscribed
+   *  event, across v2, v3 and v4, never decremented. Cumulative on purpose.
+   *  activeSubscriptions above is the live count and goes to zero the moment
+   *  every schedule is spent or cancelled; this one is the count of
+   *  subscriptions the vault has actually taken. */
+  subscriptionsCreated: number;
   charges: Charge[];
   subscribedEndBlocks: number[];
   /** n_periods of the live v3/v4 subscription: the honest denominator for
@@ -123,6 +129,14 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
 
   const charges: Charge[] = [];
   const subscribedEndBlocks: number[] = [];
+  /** Every commitment any generation emitted a Subscribed for, normalised to
+   *  a decimal string so the same felt written two ways lands on one entry.
+   *  A commitment re-registered on a newer vault is one subscription that
+   *  moved, not two that were opened, and a credibility number is the last
+   *  place to count it twice. */
+  const subscribedCommitments = new Set<string>();
+  const sawSubscribe = (felt: string | undefined) =>
+    subscribedCommitments.add(BigInt(felt ?? "0x0").toString());
   const v3Subs: { commitment: string; nPeriods: number }[] = [];
   const v4Subs: { commitment: string; nPeriods: number }[] = [];
   const tsCache = new Map<number, number>();
@@ -156,8 +170,10 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
     if (BigInt(key) === BigInt(LEGACY_EVENT.Released)) {
       await pushCharge(e, "v2");
     } else if (BigInt(key) === BigInt(EVENT.Subscribed)) {
-      // v2 Subscribed carries the schedule's end block in data[1].
+      // v2 Subscribed carries the commitment in data[0] and the schedule's
+      // end block in data[1].
       subscribedEndBlocks.push(Number(u(e.data[1])));
+      sawSubscribe(e.data[0]);
     }
   }
   for (const e of evV3) {
@@ -168,6 +184,7 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
       // v3 Subscribed carries (commitment, creator_id, n_periods), no end
       // block. Liveness comes from the vault's own is_active view instead.
       v3Subs.push({ commitment: e.data[0] ?? "0x0", nPeriods: Number(u(e.data[2])) });
+      sawSubscribe(e.data[0]);
     }
   }
   // v4 indexes its events: the commitment sits in keys[1], not data[0], and
@@ -187,6 +204,7 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
       });
     } else if (BigInt(key) === BigInt(EVENT.Subscribed)) {
       v4Subs.push({ commitment: e.keys[1] ?? "0x0", nPeriods: Number(u(e.data[1])) });
+      sawSubscribe(e.keys[1]);
     }
   }
   charges.sort((a, b) => b.block - a.block);
@@ -222,6 +240,10 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
     headTimestamp: head.timestamp,
     escrowWei,
     activeSubscriptions,
+    // A cancel or an exhausted schedule takes a subscription out of
+    // activeSubscriptions and leaves this one where it is, because it
+    // happened.
+    subscriptionsCreated: subscribedCommitments.size,
     charges,
     subscribedEndBlocks,
     livePeriods,
@@ -256,6 +278,10 @@ function readFromSnapshot(): BoardState {
     headTimestamp: s.headTimestamp,
     escrowWei: BigInt(s.escrowWei),
     activeSubscriptions: s.activeSubscriptions,
+    // The committed snapshot carries only the v2 Subscribed list, so this is
+    // what it can honestly say. It is a floor, and it is labelled SNAPSHOT
+    // everywhere it is shown.
+    subscriptionsCreated: s.subscribedEndBlocks.length,
     // The committed snapshot predates the per-row amount/vault fields. Show
     // it as a v3 row with no decoded amount rather than a fabricated one.
     charges: s.charges.map((c) => ({ ...c, vault: "v3" as const, amountWei: null })),

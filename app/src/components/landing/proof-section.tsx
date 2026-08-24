@@ -1,53 +1,18 @@
 // The receipts. Everything above this section is a claim; this is the part a
 // reader can check without the page.
 //
-// Three rows, because three is what a landing can hold without becoming the
-// board. Each one is a mainnet transaction with its block and its hash, and the
-// caption says exactly how many charges the count is drawn from, so a reader
-// who sees three rows under a larger number knows the difference is the older
-// history rather than a rounding. Under the table are the addresses and the two
-// published packages, and under those the one link to the full board.
+// The charge table that used to open this section is gone. The live strip
+// above already carries the charge evidence, with the count, the gross and
+// the last one's block and hash, and a second table of the same three rows
+// was the landing turning into the board. What is left is what the strip
+// cannot hold: the addresses, the two published packages, and the one link to
+// the board, where every charge is a row.
 
-import {
-  fmtBlock,
-  fmtStrk,
-  GATE,
-  truncate,
-  VAULT,
-  VOYAGER_CONTRACT,
-  VOYAGER_TX,
-} from "../../config";
-import type { Charge } from "../../lib/board";
+import { GATE, truncate, VAULT, VOYAGER_CONTRACT } from "../../config";
 import { cn } from "../../lib/utils";
 import { Link } from "@tanstack/react-router";
 
-import { utcStamp } from "../board/derive";
-import { HashCopy, SectionHead, StatusDot } from "../board/primitives";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableCellNumeric,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-
-const SHOWN = 3;
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-function tableCaption(total: number, shown: number, snapshot: boolean): string {
-  const scope =
-    total > shown
-      ? `The last ${shown} of ${total} charges at this vault.`
-      : `Every one of the ${total} charge${total === 1 ? "" : "s"} at this vault.`;
-  const source = snapshot
-    ? "These rows are committed snapshot data, not a live read, and each one is still checkable on Voyager without this page."
-    : "Every row is a mainnet transaction, checkable on Voyager without this page.";
-  return `${scope} ${source}`;
-}
+import { HashCopy, SectionHead } from "../board/primitives";
 
 type ReceiptRow = { key: string; value: string; href: string | null; hash: boolean };
 
@@ -78,144 +43,18 @@ function receiptRows(creatorId: string | null): ReceiptRow[] {
   return rows;
 }
 
-function ChargeRows({ charges }: { charges: Charge[] }) {
-  return (
-    <>
-      {charges.map((c) => (
-        <TableRow key={`${c.txHash}:${c.periodIndex}`}>
-          <TableCell className="w-[24px]">
-            <StatusDot state="settled" size={7} />
-          </TableCell>
-          <TableCell className="w-[78px] text-text-strong">{pad2(c.periodIndex)}</TableCell>
-          <TableCell className="w-[196px] text-[13px]">{`${utcStamp(c.timestamp)} UTC`}</TableCell>
-          <TableCellNumeric className="w-[128px] text-left text-ns-accent">
-            {fmtBlock(c.block)}
-          </TableCellNumeric>
-          <TableCellNumeric className="w-[128px] text-text-strong">
-            {c.amountWei === null ? (
-              "·"
-            ) : (
-              <>
-                {fmtStrk(c.amountWei)}
-                <span className="font-normal text-text-label"> STRK</span>
-              </>
-            )}
-          </TableCellNumeric>
-          <TableCell className="text-[13px]">
-            <HashCopy value={c.txHash} display={truncate(c.txHash)} className="text-[13px]" />
-          </TableCell>
-          <TableCell className="w-[34px] text-[13px]">
-            <a
-              href={VOYAGER_TX(c.txHash)}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-6 items-center"
-              title={`${c.txHash} · open this transaction on voyager`}
-            >
-              <span aria-hidden="true">↗</span>
-              <span className="sr-only">open on voyager</span>
-            </a>
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
-  );
-}
-
-function ChargeCards({ charges }: { charges: Charge[] }) {
-  return (
-    <div className="border border-border-hairline">
-      {charges.map((c) => (
-        <div
-          key={`${c.txHash}:${c.periodIndex}`}
-          className="flex flex-col gap-2 border-t border-border-row bg-surface-panel px-3.5 py-3 first:border-t-0"
-        >
-          <div className="flex items-center gap-2">
-            <StatusDot state="settled" size={7} />
-            <span className="text-[12.5px] text-text-strong">{pad2(c.periodIndex)}</span>
-            {c.amountWei !== null ? (
-              <span className="ml-1 text-[12.5px] font-medium text-text-strong">
-                {fmtStrk(c.amountWei)}
-                <span className="font-normal text-text-label"> STRK</span>
-              </span>
-            ) : null}
-            <a
-              href={VOYAGER_TX(c.txHash)}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-auto inline-flex h-11 w-11 items-center justify-center"
-            >
-              <span aria-hidden="true">↗</span>
-              <span className="sr-only">open on voyager</span>
-            </a>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 text-[10.5px] text-text-caption">
-            <span>{`${utcStamp(c.timestamp)} UTC`}</span>
-            <span className="text-ns-accent">{fmtBlock(c.block)}</span>
-            <HashCopy
-              value={c.txHash}
-              display={truncate(c.txHash)}
-              tone="caption"
-              className="text-[10.5px]"
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function ProofSection({
-  charges,
   creatorId,
   snapshot,
-  compact,
 }: {
-  charges: Charge[];
   creatorId: string | null;
   snapshot: boolean;
-  compact: boolean;
 }) {
-  const shown = charges.slice(0, SHOWN);
-  const caption = tableCaption(charges.length, shown.length, snapshot);
-
   return (
     <section className="flex flex-col gap-4">
-      <SectionHead note="read over JSON-RPC, no key, snapshot fallback labelled">
+      <SectionHead note="read over JSON-RPC, snapshot fallback labelled">
         {snapshot ? "// THE RECEIPTS · MAINNET, SNAPSHOT" : "// THE RECEIPTS · MAINNET, LIVE"}
       </SectionHead>
-
-      {shown.length === 0 ? (
-        <p className="border border-border-hairline px-5 py-4 text-[13px] leading-[1.7] text-text-prose">
-          No charge has been decoded at this vault yet. The vault event log on Voyager carries the
-          same events this page reads, and it will show the first one before this page does.
-        </p>
-      ) : compact ? (
-        <>
-          <ChargeCards charges={shown} />
-          <p className="text-[11px] leading-[1.5] text-text-caption">{caption}</p>
-        </>
-      ) : (
-        <div className="border border-border-hairline">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[24px]" />
-                <TableHead className="w-[78px]">PERIOD</TableHead>
-                <TableHead className="w-[196px]">TIME (UTC)</TableHead>
-                <TableHead className="w-[128px]">BLOCK</TableHead>
-                <TableHead className="w-[128px] text-right">AMOUNT</TableHead>
-                <TableHead>TX</TableHead>
-                <TableHead className="w-[34px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <ChargeRows charges={shown} />
-            </TableBody>
-            <TableCaption>{caption}</TableCaption>
-          </Table>
-        </div>
-      )}
 
       {/* Two columns on a wide screen: five label-and-value rows at full width
           would be five near-empty lines on a page that is already long. The
@@ -257,17 +96,12 @@ export function ProofSection({
         ))}
       </dl>
 
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-border-panel bg-surface-sunken px-5 py-4">
-        <div className="flex flex-col gap-1">
-          <Link to="/board" className="text-[15px] font-medium">
-            the full board <span aria-hidden="true">→</span> /board
-          </Link>
-          <span className="text-[11px] leading-[1.45] text-text-caption">
-            every charge, the instrument, the demo replay
-          </span>
-        </div>
-        <span className="max-w-[38ch] text-[11px] leading-[1.45] text-text-caption lg:text-right">
-          the board reads mainnet with no key and says SNAPSHOT when the read fails
+      <div className="flex flex-col gap-1 border border-border-panel bg-surface-sunken px-5 py-4">
+        <Link to="/board" className="text-[15px] font-medium">
+          the full board <span aria-hidden="true">→</span> /board
+        </Link>
+        <span className="text-[11px] leading-[1.45] text-text-caption">
+          every charge, the instrument, the demo replay
         </span>
       </div>
     </section>

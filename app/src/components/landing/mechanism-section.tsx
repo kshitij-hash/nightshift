@@ -56,10 +56,11 @@ export function HiddenProvable({ compact = false }: { compact?: boolean }) {
   );
 }
 
+// The three "never" clauses this used to carry are the board's six-step
+// LEGEND, and FIG. 1 below engraves the same facts. Two lines, then the
+// figure.
 const PROSE =
-  "A vault holds escrow committed through the pool and spends it against a write-once period " +
-  "nullifier. Never early, because the window is block gated. Never twice, because the nullifier " +
-  "is consumed. Never beyond escrow, because the balance is checked before anything moves.";
+  "A vault spends pooled escrow against a write-once period nullifier. FIG. 1 shows how.";
 
 const ANALOGY = "Like a card authorization, except no card, no processor, and no name on file.";
 
@@ -105,7 +106,7 @@ export function MechanismSection({
             </div>
           </div>
           <p className="text-[11px] leading-[1.45] text-text-caption">
-            FIG. 1 is 1100px wide at a legible scale. Scroll the drawing sideways.
+            FIG. 1 is 1100px wide. Scroll it sideways.
           </p>
         </div>
       ) : (

@@ -3,8 +3,8 @@
 // The failure mode this exists to prevent is two real tabs and one thin
 // afterthought tab, so the three bodies are equal by construction: three steps
 // each, one honest one-liner each, one call to action each at the same weight,
-// and one provenance caption each that states a real limit. None of the three
-// is a footnote to another.
+// and one caption each carrying what the vault says about that reader. None of
+// the three is a footnote to another.
 //
 // Two things about the mechanics are load-bearing.
 //
@@ -31,7 +31,7 @@
 // the body.
 
 import { Link } from "@tanstack/react-router";
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
@@ -120,19 +120,20 @@ const PERSONAS: Persona[] = [
 
 export const PERSONA_IDS = PERSONAS.map((p) => p.id);
 
-/** The provenance caption under each call to action. Each one states a limit
- *  the product is not allowed to hide: the subscriber's is what a charge
- *  actually names, the creator's is that a per-creator topline is publicly
- *  derivable, the verifier's is that a presentation reveals the commitment. */
+/** The provenance caption under each call to action. The subscriber's is the
+ *  live schedule, read from the vault. The other two state a limit the product
+ *  is not allowed to hide: the creator's is that a per-creator topline is
+ *  publicly derivable, the verifier's is that a presentation reveals the
+ *  commitment. */
 function caption(p: Persona, facts: PersonaFacts): string {
   if (p.id === "subscribe") {
-    const schedule =
-      facts.periods !== null && facts.charged !== null
-        ? `${facts.periods} periods bought, ${facts.charged} charged` +
+    // The one-liner two rows above already says the wallet is never named, so
+    // this caption is the schedule and nothing else.
+    return facts.periods !== null && facts.charged !== null
+      ? `${facts.periods} periods bought, ${facts.charged} charged` +
           (facts.escrow !== null ? `, escrow ${facts.escrow} STRK` : "") +
-          ". "
-        : "";
-    return `${schedule}Every charge names the commitment, never the wallet.`;
+          "."
+      : "no live schedule decoded at this vault.";
   }
   if (p.id === "creator") {
     const who = facts.creator !== null ? `creator ${facts.creator} · ` : "";
@@ -222,6 +223,69 @@ function useRovingKeys(value: PersonaId, onChange: (v: PersonaId) => void) {
   return { list, onKeyDown };
 }
 
+/** Where the underline sits, in the tab list's own coordinates. */
+type Indicator = { x: number; w: number };
+
+/**
+ * The underline is one element that moves, not a border that appears on
+ * whichever tab is selected. Selecting a tab is a state change, so the marker
+ * travels to report it, on the same clock the body crossfades on, and the eye
+ * has something continuous to follow across a swap where the body is briefly
+ * empty.
+ *
+ * It moves on transform alone: the bar is 1px wide and is placed with
+ * translateX and stretched with scaleX from a left origin. Animating width or
+ * left instead would put a layout pass in every frame of a 160ms move, on an
+ * element that sits directly above the tallest section on the page.
+ *
+ * Measured rather than computed from the labels, because the labels are text
+ * in a font that may still be swapping when this first runs; the fonts.ready
+ * re-measure is what catches that, and the observer catches a resize.
+ *
+ * There is no first-run guard, because CSS does not need one. The marker is
+ * only in the DOM once a measurement exists, and a transition never runs on
+ * the value an element is first painted with, so the first placement lands and
+ * every later one travels, with nothing tracking which is which.
+ */
+function useUnderline(
+  list: React.RefObject<HTMLDivElement | null>,
+  value: PersonaId,
+  enabled: boolean,
+): Indicator | null {
+  const [at, setAt] = useState<Indicator | null>(null);
+
+  useLayoutEffect(() => {
+    const el = list.current;
+    if (!enabled || el === null) return;
+    // Same measurement or no change: keep the old object, so a resize that
+    // did not move this tab does not re-render the section.
+    const place = (tab: HTMLElement) =>
+      setAt((prev) =>
+        prev !== null && prev.x === tab.offsetLeft && prev.w === tab.offsetWidth
+          ? prev
+          : { x: tab.offsetLeft, w: tab.offsetWidth },
+      );
+    const measure = () => {
+      const tab = el.querySelector<HTMLElement>(`#${TAB_ID(value)}`);
+      if (tab) place(tab);
+    };
+    // The observer delivers a first callback when it starts observing, which
+    // is the initial measurement; it is not called separately here.
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    let live = true;
+    void document.fonts.ready.then(() => {
+      if (live) measure();
+    });
+    return () => {
+      live = false;
+      observer.disconnect();
+    };
+  }, [list, value, enabled]);
+
+  return enabled ? at : null;
+}
+
 export function PersonaTabs({
   value,
   onChange,
@@ -235,6 +299,11 @@ export function PersonaTabs({
   facts: PersonaFacts;
 }) {
   const { list, onKeyDown } = useRovingKeys(value, onChange);
+  // The phone control is a segmented one: three equal cells sharing a border,
+  // where the selected cell is already marked by its fill. A marker sliding
+  // between adjacent equal cells there would be motion reporting something the
+  // fill has already said, so it runs on the desktop bar only.
+  const underline = useUnderline(list, value, !segmented);
 
   return (
     <div className="flex flex-col gap-6">
@@ -246,9 +315,19 @@ export function PersonaTabs({
         className={
           segmented
             ? "flex border border-border-panel"
-            : "flex items-center gap-8 border-b border-border-hairline"
+            : "relative flex items-center gap-8 border-b border-border-hairline"
         }
       >
+        {underline ? (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute bottom-[-1px] left-0 h-[2px] w-px origin-left bg-ns-accent"
+            style={{
+              transform: `translateX(${underline.x}px) scaleX(${underline.w})`,
+              transition: "transform var(--dur-swap) var(--ease-in-out)",
+            }}
+          />
+        ) : null}
         {PERSONAS.map((p) => {
           const on = p.id === value;
           return (
@@ -262,8 +341,18 @@ export function PersonaTabs({
               tabIndex={on ? 0 : -1}
               onClick={() => onChange(p.id)}
               className={cn(
-                "cursor-pointer font-mono transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
-                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                // Focus is the document rule in base.css: a solid 2px accent
+                // outline held --focus-offset off the label. What was here was
+                // a 2px box-shadow at 55% alpha drawn flush against the text,
+                // and the two together (a dull maroon, square, hard on the
+                // glyphs) read as an error box around the tab rather than as
+                // focus. rounded-sm gives the outline the system's 2px corner.
+                // outline-offset 4 rather than the document's 2: the sliding
+                // underline sits exactly where a 2px ring would land, and two
+                // accent lines merging read as one thick bar, not as a ring.
+                "cursor-pointer rounded-sm font-mono focus-visible:outline-offset-4",
+                // Instant on, short fade off. See ns-hover in motion.css.
+                "transition-colors ns-hover",
                 segmented
                   ? cn(
                       "min-h-11 flex-1 border-b-2 px-1 py-3 text-[10.5px] font-medium tracking-[0.1em]",
@@ -273,10 +362,11 @@ export function PersonaTabs({
                         : "border-b-transparent text-text-label hover:text-text-default",
                     )
                   : cn(
-                      "-mb-px inline-flex min-h-11 items-center border-b-2 px-1 text-[13px] font-medium md:min-h-9",
-                      on
-                        ? "border-b-ns-accent text-text-strong"
-                        : "border-b-transparent text-text-label hover:text-text-default",
+                      // The 2px of transparent bottom border stays: it is what
+                      // reserves the row the sliding marker occupies, so the
+                      // bar does not change height when selection moves.
+                      "-mb-px inline-flex min-h-11 items-center border-b-2 border-b-transparent px-1 text-[13px] font-medium md:min-h-9",
+                      on ? "text-text-strong" : "text-text-label hover:text-text-default",
                     ),
               )}
             >

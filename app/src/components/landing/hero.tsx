@@ -39,8 +39,8 @@ export function HeroCopy({ compact }: { compact: boolean }) {
           maxWidth: compact ? "100%" : 660,
         }}
       >
-        Escrow is committed once through the privacy pool, then a vault charges it on a block
-        schedule, for anyone who needs a recurring charge to keep running without a wallet on file.
+        Escrow is committed once through the privacy pool. A vault then charges it on a block
+        schedule, with no wallet on file.
       </p>
     </div>
   );

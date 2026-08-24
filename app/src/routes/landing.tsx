@@ -5,21 +5,32 @@
 // because a claim with a number in it is asking to be believed before it has
 // been checked. The live strip under it is the first evidence and the only
 // moving thing above the fold. The persona router is the page's only question:
-// which of three readers is at it. The mechanism section answers what the
-// machine does, the proof section hands over the transactions, and the close is
-// the one place the page asks for anything.
+// which of three readers is at it, and it is the only place the page asks for
+// anything. The mechanism section answers what the machine does, the proof
+// section hands over the addresses and the packages, and the close is one line
+// that offers nothing the router did not already offer.
 //
-// Load is still on purpose. Nothing staggers in, nothing fades up, nothing
-// parallaxes. The page is already the answer, and motion here is the first
-// thing a reader would distrust.
+// Load settles once, across three zones, and then the page is still. The zones
+// are the hero, the strip, and the section under it: 200ms each, 45ms apart,
+// 290ms end to end, which is inside the 400ms at which a person stops feeling
+// the machine keeping up with them. Nothing below the fold animates and nothing
+// animates on scroll, ever. Three is not a round number picked for taste, it is
+// what the budget allows: at 200 and 45, a fourth zone finishes at 335ms and a
+// sixth at 425ms, and past that the page is performing rather than arriving.
+//
+// The hero carries no animation-delay for a second reason. It holds the h1,
+// which is this page's largest contentful paint, and an element held at its
+// from-state by a delay is an element Chrome will not score as a paint
+// candidate for the length of that delay.
 //
 // Every figure comes from the same two reads the board runs on, through the
 // same cached queries, so opening /board from here costs no extra request.
 
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { HeroCopy } from "../components/landing/hero";
-import { ClosingCTAs, LandingFooter } from "../components/landing/closing";
+import { ClosingLine } from "../components/landing/closing";
 import { LiveStrip } from "../components/landing/live-strip";
 import { MechanismSection } from "../components/landing/mechanism-section";
 import { PersonaTabs } from "../components/landing/personas";
@@ -29,6 +40,7 @@ import { liveCommitment, perPeriodAmount } from "../components/board/derive";
 import { SectionHead } from "../components/board/primitives";
 import { useMediaQuery } from "../components/board/use-clock";
 import { Masthead } from "../components/masthead";
+import { SiteFooter } from "../components/site-footer";
 import { fmtStrk, truncate } from "../config";
 import { useBoard } from "../query/useBoard";
 import { useSchedule } from "../query/useSchedule";
@@ -37,10 +49,29 @@ import type { PersonaId } from "../router";
 const PAGE = "mx-auto flex w-full max-w-[1200px] flex-col";
 const GUTTER = "px-5 lg:px-14";
 
+/** Once per page load, not once per visit to this route. A reader who opens
+ *  the board and comes back has already watched the page arrive, and replaying
+ *  it every time is how a settle turns into a performance. Module scope rather
+ *  than storage: the fact being remembered is "this tab has already painted",
+ *  which is exactly the lifetime of this module. */
+let hasSettled = false;
+
+/** The three zone classes, or nothing at all on a later visit. */
+function useSettle(): (zone: 1 | 2 | 3) => string {
+  const [play] = useState(() => !hasSettled);
+  useEffect(() => {
+    hasSettled = true;
+  }, []);
+  if (!play) return () => "";
+  return (zone) =>
+    zone === 1 ? "ns-enter" : zone === 2 ? "ns-enter ns-enter-2" : "ns-enter ns-enter-3";
+}
+
 export function LandingRoute() {
   const search = useSearch({ from: "/" });
   const navigate = useNavigate({ from: "/" });
   const { data } = useBoard();
+  const enter = useSettle();
 
   const commitment = data ? liveCommitment(data.charges) : null;
   const schedule = useSchedule(commitment).data ?? null;
@@ -49,10 +80,16 @@ export function LandingRoute() {
   const compact = !useMediaQuery("(min-width: 768px)");
 
   const persona: PersonaId = search.for ?? "subscribe";
+  // resetScroll: false, and it is not optional. The router resets scroll to
+  // 0,0 on every committed navigation by default, which is right when the
+  // navigation is to another page and wrong when the whole navigation is a
+  // search param recording which tab of an in-page control is open. Without
+  // it, clicking a persona tab throws the reader back to the masthead.
   const setPersona = (next: PersonaId) =>
     void navigate({
       search: next === "subscribe" ? {} : { for: next },
       replace: true,
+      resetScroll: false,
     });
 
   const charges = data?.charges ?? [];
@@ -83,43 +120,35 @@ export function LandingRoute() {
       <Masthead heading={false} />
 
       <main className="flex flex-1 flex-col">
-        <HeroCopy compact={compact} />
+        <div className={enter(1)}>
+          <HeroCopy compact={compact} />
+        </div>
 
-        {/* The strip is real or it is absent. A skeleton with four zeros in it
-            would be a fabricated stat for as long as the read takes. */}
-        {data ? (
+        {/* One component in both states. While the read is in flight the four
+            cells, their labels and their three reserved slot heights are all
+            there and the values are bars; when it lands the bars are replaced
+            in place and the numerals roll. Nothing moves, because there is no
+            second layout that could disagree with this one. */}
+        <div className={enter(2)}>
           <LiveStrip
-            data={{
-              activeSubscriptions: data.activeSubscriptions,
-              charges: data.charges,
-              escrowWei: data.escrowWei,
-              headBlock: data.headBlock,
-              snapshot: data.provenance.source === "snapshot",
-            }}
+            data={
+              data
+                ? {
+                    subscriptionsCreated: data.subscriptionsCreated,
+                    charges: data.charges,
+                    escrowWei: data.escrowWei,
+                    headBlock: data.headBlock,
+                    snapshot: data.provenance.source === "snapshot",
+                  }
+                : null
+            }
           />
-        ) : (
-          <div className="flex min-h-[92px] items-center border-y border-border-hairline bg-surface-sunken px-5 lg:px-14">
-            <span className="text-[11px] tracking-[0.16em] text-text-label">
-              READING STARKNET MAINNET
-            </span>
-          </div>
-        )}
+        </div>
 
-        <section className={`${GUTTER} flex flex-col gap-5 pt-11 lg:pt-14`}>
-          <div className="flex flex-wrap items-baseline justify-between gap-5">
-            <SectionHead
-              className="flex-1 border-b-0 pb-0"
-              note="three ways in, one machine underneath"
-            >
-              // WHO IS AT THIS PAGE
-            </SectionHead>
-            {!compact ? (
-              <span className="max-w-[52ch] text-[11px] leading-[1.5] text-text-caption lg:text-right">
-                each tab is a whole path: three steps, the honest limit, and one way forward. None
-                of the three is a footnote to another.
-              </span>
-            ) : null}
-          </div>
+        <section className={`${GUTTER} ${enter(3)} flex flex-col gap-5 pt-11 lg:pt-14`}>
+          <SectionHead note="three ways in, one machine underneath">
+            // WHO IS AT THIS PAGE
+          </SectionHead>
           <PersonaTabs
             value={persona}
             onChange={setPersona}
@@ -139,19 +168,24 @@ export function LandingRoute() {
 
         <div className={`${GUTTER} pt-10 lg:pt-12`}>
           <ProofSection
-            charges={charges}
             creatorId={schedule ? schedule.creatorId : null}
             snapshot={data?.provenance.source === "snapshot"}
-            compact={compact}
           />
         </div>
 
         <div className={`${GUTTER} pt-10 pb-12 lg:pt-12`}>
-          <ClosingCTAs compact={compact} />
+          <ClosingLine compact={compact} />
         </div>
       </main>
 
-      <LandingFooter snapshot={data?.provenance.source === "snapshot"} />
+      <SiteFooter
+        snapshot={data?.provenance.source === "snapshot"}
+        voyagerLabel="every charge verifiable on voyager"
+        links={[
+          { label: "github", href: "https://github.com/kshitij-hash/nightshift" },
+          { label: "the board", to: "/board" },
+        ]}
+      />
     </div>
   );
 }
