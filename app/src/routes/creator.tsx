@@ -5,8 +5,8 @@
 // first, because a reader has to know where the numbers came from before the
 // numbers mean anything. Then the six figures with their bases. Then the
 // timeline, which is the evidence under the figures. Then the subscriptions,
-// which is the evidence under the timeline. Churn last, because it is the
-// only section about what stopped rather than what is running.
+// which is the evidence under the timeline, and where the lifecycle is stated:
+// what ends a subscription, and that nothing here renews itself.
 //
 // Nothing on this page is a placeholder. Every branch below is a real answer:
 // no id pasted, an id that matched nothing, a scan that stopped short, a read
@@ -17,7 +17,6 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 import { SectionHead } from "../components/board/primitives";
-import { ChurnTiles } from "../components/dashboard/churn-tiles";
 import { CreatorIds } from "../components/dashboard/creator-ids";
 import {
   ledgerIsEmpty,
@@ -26,10 +25,9 @@ import {
   stampUtc,
   subscriptionRows,
 } from "../components/dashboard/derive";
-import { DashboardFooter } from "../components/dashboard/footer";
-import { MetricTiles } from "../components/dashboard/metric-tiles";
+import { checkedAtBlock, MetricTiles } from "../components/dashboard/metric-tiles";
 import { RevenueTimeline } from "../components/dashboard/revenue-timeline";
-import { DashboardSkeleton } from "../components/dashboard/skeletons";
+import { DashboardSkeleton, ProvenanceBannerSkeleton } from "../components/dashboard/skeletons";
 import {
   ChainChip,
   PartialScanBanner,
@@ -41,14 +39,16 @@ import { SubscriptionTable } from "../components/dashboard/subscription-table";
 import { CaveatDisclosure } from "../components/dashboard/tile";
 import { useIsNarrow } from "../components/dashboard/use-media";
 import { Masthead } from "../components/masthead";
+import { SiteFooter } from "../components/site-footer";
 import { Badge } from "../components/ui/badge";
-import { fmtBlock, fmtStrk } from "../config";
 import { useCreatorLedger } from "../query/useCreatorLedger";
 import { splitCreatorIds } from "../router";
 
-const SENTENCE =
-  "A creator ledger, summed in this browser from the vault's public event log. Anyone can derive the same figures.";
-const RIGHT = "read only · no wallet connected · no key required";
+/** The links out, identical in all five states this route can be in. */
+const FOOTER_LINKS = [
+  { label: "npm nightshift-verify", href: "https://www.npmjs.com/package/nightshift-verify" },
+  { label: "the evidence board", to: "/board" as const },
+];
 
 /** The dashboard's rhythm is not uniform: the metrics and the timeline under
  *  them are one thought at 32px, and the two sections that follow are separate
@@ -66,6 +66,11 @@ export function CreatorRoute() {
   const ids = splitCreatorIds(search.creator);
   const { data, isPending, isError, error, isFetching } = useCreatorLedger(ids);
 
+  // resetScroll: false: the id list is this page's subject, edited in a bar
+  // partway down it, and every edit is a navigation. The router resets scroll
+  // on a committed navigation by default, which is right between pages and
+  // wrong here: adding a second creator id would throw the reader to the top
+  // of the page, away from the control they just used.
   const setIds = (next: string[]) => {
     void navigate({
       search: (prev) => ({
@@ -74,6 +79,7 @@ export function CreatorRoute() {
         // A new list supersedes whatever was rejected out of the old one.
         invalidCreator: undefined,
       }),
+      resetScroll: false,
     });
   };
 
@@ -86,12 +92,7 @@ export function CreatorRoute() {
   if (ids.length === 0) {
     return (
       <div className={PAGE}>
-        <Masthead
-          active="dashboard"
-          sentence={SENTENCE}
-          right={RIGHT}
-          chip={<ChainChip headBlock={null} live={false} />}
-        />
+        <Masthead active="dashboard" chip={<ChainChip headBlock={null} live={false} />} />
         <main className={GUTTER}>
           <div className={SECTIONS}>
             {search.invalidCreator ? <RejectedIds raw={search.invalidCreator} /> : null}
@@ -102,13 +103,13 @@ export function CreatorRoute() {
               </SectionHead>
               <p className="max-w-[130ch] text-[14px] leading-[1.7] text-text-prose">
                 Gross revenue and its split, the escrowed run rate, funded and entitled
-                subscriptions, arrears, the timeline, one row per commitment, and churn. Each
-                figure prints the rule it came from, and an empty dashboard is a legitimate state.
+                subscriptions, arrears, the timeline, and one row per commitment. Each figure
+                prints the rule it came from, and an empty dashboard is a legitimate state.
               </p>
             </section>
           </div>
         </main>
-        <DashboardFooter ids={ids} />
+        <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
       </div>
     );
   }
@@ -117,20 +118,20 @@ export function CreatorRoute() {
   if (isPending) {
     return (
       <div className={PAGE}>
-        <Masthead
-          active="dashboard"
-          sentence={SENTENCE}
-          right={RIGHT}
-          chip={<ChainChip headBlock={null} live={true} />}
-        />
+        <Masthead active="dashboard" chip={<ChainChip headBlock={null} live={true} />} />
         <main className={GUTTER}>
           <div className={SECTIONS}>
+            {/* Same order as the loaded page: banner, then the id bar, then
+                the ledger. The banner used to arrive with the ledger, below
+                the bar, which meant the dashboard dropped 116px the moment
+                the read landed. */}
             {search.invalidCreator ? <RejectedIds raw={search.invalidCreator} /> : null}
+            <ProvenanceBannerSkeleton />
             <CreatorIds ids={ids} summaries={undefined} onChange={setIds} variant="bar" />
             <DashboardSkeleton />
           </div>
         </main>
-        <DashboardFooter ids={ids} />
+        <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
       </div>
     );
   }
@@ -141,7 +142,7 @@ export function CreatorRoute() {
   if (isError || data === undefined || ledger === undefined) {
     return (
       <div className={PAGE}>
-        <Masthead active="dashboard" sentence={SENTENCE} right={RIGHT} />
+        <Masthead active="dashboard" />
         <main className={GUTTER}>
           <div className={SECTIONS}>
             {search.invalidCreator ? <RejectedIds raw={search.invalidCreator} /> : null}
@@ -153,7 +154,7 @@ export function CreatorRoute() {
             </p>
           </div>
         </main>
-        <DashboardFooter ids={ids} />
+        <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
       </div>
     );
   }
@@ -164,21 +165,12 @@ export function CreatorRoute() {
   const capped = ledger.provenance.truncated;
   const first = points[0];
   const last = points[points.length - 1];
-  const tiers = new Set(rows.filter((r) => r.tier !== null).map((r) => r.tier)).size;
   const presentations = data.metrics.presentationsToDate;
-
-  const description = empty
-    ? SENTENCE
-    : `Creator ledger for ${ids.length} id${ids.length === 1 ? "" : "s"} at this vault · ` +
-      `${rows.length} commitment${rows.length === 1 ? "" : "s"} · ` +
-      `${tiers} tier${tiers === 1 ? "" : "s"} · read from public events.`;
 
   return (
     <div className={PAGE}>
       <Masthead
         active="dashboard"
-        sentence={description}
-        right={RIGHT}
         chip={<ChainChip headBlock={ledger.headBlock} live={live} />}
         badge={
           capped ? (
@@ -201,12 +193,14 @@ export function CreatorRoute() {
           ) : (
             <>
               <section className="flex flex-col gap-5">
+                {/* The six tiles no longer print the head block each, because
+                    all six are read at the same one. It lives here, once. */}
                 <SectionHead
-                  note={
+                  note={`${
                     isFetching
                       ? "re-reading the event log"
                       : "each figure carries the rule it came from"
-                  }
+                  } · ${checkedAtBlock(ledger)}`}
                 >
                   // METRICS · WITH THEIR BASIS
                 </SectionHead>
@@ -269,7 +263,10 @@ export function CreatorRoute() {
                 <SubscriptionTable rows={rows} />
                 <div className="flex flex-col gap-4">
                   <p className="max-w-[100ch] text-[12px] leading-[1.6] text-text-caption">
-                    Every state tag and money column carries its definition. Hover or focus it.
+                    Every state tag and money column carries its definition. Hover or focus it. A
+                    subscription does not renew itself and the vault cannot ask: a renewal is a
+                    fresh subscribe transaction through the pool, and it arrives as a new commitment
+                    rather than as an extension of an old one.
                   </p>
                   <div className="flex flex-wrap items-start gap-4">
                     <p className="max-w-[70ch] text-[12px] leading-[1.6] text-text-caption">
@@ -285,27 +282,12 @@ export function CreatorRoute() {
                   </div>
                 </div>
               </section>
-
-              <section className={`flex flex-col gap-5 ${BREAK}`}>
-                <SectionHead note="measured over subscriptions that have ended, not modelled">
-                  // CHURN
-                </SectionHead>
-                <ChurnTiles metrics={data.metrics} ledger={ledger} />
-                <p className="max-w-[100ch] text-[12px] leading-[1.6] text-text-caption">
-                  A subscription ends when its escrow is spent or when the subscriber cancels. It
-                  does not renew itself and the vault cannot ask: a renewal is a fresh subscribe
-                  transaction through the pool, and it arrives as a new commitment rather than as an
-                  extension of an old one. Claimable right now:{" "}
-                  {fmtStrk(data.metrics.settledVsUnsettled.value.unsettledWei)} STRK, as of block{" "}
-                  {fmtBlock(ledger.headBlock)}.
-                </p>
-              </section>
             </>
           )}
         </div>
       </main>
 
-      <DashboardFooter ids={ids} />
+      <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
     </div>
   );
 }

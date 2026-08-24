@@ -184,40 +184,6 @@ export function revenueSeries(ledger: CreatorLedger): RevenuePoint[] {
   });
 }
 
-// --- churn -----------------------------------------------------------------
-
-export type ChurnFigures = {
-  ended: number;
-  endedOnEscrow: number;
-  endedOnCancel: number;
-  /** Median charges collected across commitments that can never charge again. */
-  medianPeriodsCharged: number | null;
-};
-
-/** Churn measured off terminated commitments only. A subscription one period
- *  into a three-period schedule has not churned; counting it as a zero would
- *  invent churn that has not happened. */
-export function churnFigures(ledger: CreatorLedger): ChurnFigures {
-  const rows = subscriptionRows(ledger);
-  const ended = rows.filter(
-    (r) => r.states.includes("CANCELLED") || r.states.includes("EXHAUSTED"),
-  );
-  const endedOnCancel = ended.filter((r) => r.states.includes("CANCELLED")).length;
-  const counts = ended.map((r) => r.chargedPeriods).sort((a, b) => a - b);
-  let median: number | null = null;
-  if (counts.length > 0) {
-    const mid = Math.floor(counts.length / 2);
-    median =
-      counts.length % 2 === 1 ? counts[mid]! : (counts[mid - 1]! + counts[mid]!) / 2;
-  }
-  return {
-    ended: ended.length,
-    endedOnEscrow: ended.length - endedOnCancel,
-    endedOnCancel,
-    medianPeriodsCharged: median,
-  };
-}
-
 /**
  * How many further charges the escrow already in the vault can pay for, across
  * the subscriptions the vault would still charge. This is the bound on the run

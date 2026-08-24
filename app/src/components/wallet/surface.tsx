@@ -96,11 +96,6 @@ function AfterConnectNote() {
         AFTER CONNECT
       </span>
       <p className="text-[13px] leading-[1.6] text-text-prose">{AFTER_CONNECT}</p>
-      <p className="text-[13px] leading-[1.6] text-text-prose">
-        The board, the creator dashboard and verify are built from public events and read-only
-        calls. None of them asks for a wallet, and none of them stops working when this page cannot
-        connect. That asymmetry is the product: reading is keyless, signing is yours alone.
-      </p>
       <p className="text-[11px] leading-[1.5] text-text-caption">
         vault{" "}
         <a href={VOYAGER_CONTRACT(VAULT)} target="_blank" rel="noreferrer">

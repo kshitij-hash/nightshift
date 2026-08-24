@@ -238,15 +238,16 @@ export function CreatorIds({
           // PASTE A CREATOR ID
         </h2>
         <p className="max-w-[70ch] text-[14px] leading-[1.7] text-text-prose">
-          This dashboard reads one creator's ledger out of the vault's public event log. Nothing is
-          stored, nothing is sent anywhere, and no wallet is connected. Paste an id to start.
+          Paste a creator id to start. Nothing is stored and nothing is sent anywhere.
         </p>
       </div>
 
       <IdField onAdd={add} onBackspaceEmpty={removeLast} compact={false} />
 
+      {/* Behind the same affordance the bar variant uses. A reader pasting a
+          first id is not yet asking about summing several. */}
       <div className="flex flex-wrap items-start gap-3">
-        <p className="max-w-[70ch] text-[11px] leading-[1.5] text-text-caption">{SUM_NOTE}</p>
+        <CaveatDisclosure caveat={SUM_NOTE} />
       </div>
     </div>
   );

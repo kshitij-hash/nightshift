@@ -10,7 +10,7 @@
 // that reveals nothing else, because it is not one.
 
 import { truncate } from "../../config";
-import { HashCopy } from "../board/primitives";
+import { CaveatDisclosure, HashCopy } from "../board/primitives";
 import { Badge } from "../ui/badge";
 
 export function LinkabilityNote({
@@ -45,13 +45,18 @@ export function LinkabilityNote({
         subscription carries the same one, so a single gate recognizes a returning subscriber and
         two gates comparing notes can tell they saw the same subscription.
       </p>
-      <p className="text-[13px] leading-[1.65] text-text-prose">
-        What the verifier does not see is a wallet. The check runs against the STARK owner key the
-        vault recorded at subscribe time, a bare public key and never an account address. The
-        escrow remaining and the period history stay out of the presentation too. A subscriber who
-        wants presentations to different creators kept apart derives one owner key and one
-        commitment per creator, which is what the ops console does.
-      </p>
+      <CaveatDisclosure
+        label="what the verifier does not see"
+        openLabel="what the verifier does not see, shown"
+      >
+        <span className="block max-w-[70ch] leading-[1.55]">
+          Not a wallet. The check runs against the STARK owner key the vault recorded at subscribe
+          time, a bare public key and never an account address. The escrow remaining and the period
+          history stay out of the presentation too. A subscriber who wants presentations to
+          different creators kept apart derives one owner key and one commitment per creator, which
+          is what the ops console does.
+        </span>
+      </CaveatDisclosure>
     </div>
   );
 }

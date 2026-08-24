@@ -52,9 +52,8 @@ export function FailureVocabulary() {
         ))}
       </TableBody>
       <TableCaption>
-        The checks run in this order and stop at the first failure, so the string names the first
-        thing that was wrong, not every thing. A gate shows the same string the check returned, so
-        an operator reading a log and a person reading a screen read the same sentence.
+        The checks stop at the first failure, so the string names the first thing wrong, not every
+        thing. A gate shows the same string.
       </TableCaption>
     </Table>
   );

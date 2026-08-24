@@ -46,7 +46,7 @@ export function ProvenanceBanner({
       <div className="flex items-center gap-3">
         <StatusDot state={live ? "live" : "pending"} size={8} beat={live} />
         <p className="text-[13px] leading-[1.6] text-text-prose">
-          Computed from public mainnet events. Anyone can derive this, and no key was used.
+          Computed from public mainnet events. Anyone can derive this.
         </p>
       </div>
       <p className="text-[11px] leading-[1.5] text-text-caption">

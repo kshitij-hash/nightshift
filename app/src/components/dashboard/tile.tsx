@@ -116,9 +116,6 @@ export function MetricTile({
   value,
   unit,
   basis,
-  /** "checked at block N", kept out of the basis string so the split cannot
-   *  push it behind the toggle with the reasoning. */
-  asOf,
   caveat,
   /** Prefixed to the figure when a scan was capped and the number is a floor. */
   floor = false,
@@ -131,18 +128,18 @@ export function MetricTile({
   value: React.ReactNode;
   unit?: string;
   basis: string;
-  asOf?: string;
   caveat?: string;
   floor?: boolean;
   token: string;
   footer?: React.ReactNode;
   className?: string;
 }) {
-  // The formula and the block it was checked at stay under the figure. The
-  // reasoning behind the rule joins the caveat, so one affordance holds
-  // everything a reader can ask for and the tile stays three lines tall.
+  // The formula stays under the figure. The reasoning behind the rule joins
+  // the caveat, so one affordance holds everything a reader can ask for and
+  // the tile stays three lines tall. The head block is not here: every tile in
+  // the grid is read at the same one, and the section head above says it once.
   const split = splitBasis(basis);
-  const formula = asOf ? `${split.formula} · ${asOf}` : split.formula;
+  const formula = split.formula;
   const behind = [split.reasoning, caveat].filter((s) => s).join(" ") || undefined;
   return (
     <div

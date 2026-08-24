@@ -9,6 +9,10 @@
 // Ordering is load-bearing in one place: gross revenue and the settlement
 // split sit next to each other so the invariant (settled + unsettled = gross)
 // can be checked by eye, on one screen, at every width.
+//
+// Every tile is read at the same head block, so the block is not printed six
+// times under six formulas. checkedAtBlock() below is that string, for the
+// section head to carry once above the grid.
 
 import { Check } from "lucide-react";
 
@@ -20,6 +24,13 @@ import { fundedPeriodsCovered, isFloor, strk } from "./derive";
 import { LiveNumber, MetricTile } from "./tile";
 
 type Metrics = ReturnType<typeof allMetrics>;
+
+/** The head block every figure in this grid was read at, as one string. The
+ *  six tiles used to end their basis with it, which put the same number on
+ *  screen six times; the section head above the grid says it once instead. */
+export function checkedAtBlock(ledger: CreatorLedger): string {
+  return `checked at block ${fmtBlock(ledger.headBlock)}`;
+}
 
 function InvariantTag({
   holds,
@@ -60,7 +71,6 @@ export function MetricTiles({
   ledger: CreatorLedger;
 }) {
   const floor = isFloor(ledger);
-  const asOf = `checked at block ${fmtBlock(ledger.headBlock)}`;
   const split = metrics.settledVsUnsettled.value;
   const covered = fundedPeriodsCovered(ledger);
   const inconclusive =
@@ -76,7 +86,6 @@ export function MetricTiles({
         unit="STRK"
         floor={floor}
         basis={metrics.grossRevenue.basis}
-        asOf={asOf}
         caveat={metrics.grossRevenue.caveat}
       />
 
@@ -93,7 +102,6 @@ export function MetricTiles({
         unit="STRK"
         floor={floor}
         basis={metrics.settledVsUnsettled.basis}
-        asOf={asOf}
         caveat={metrics.settledVsUnsettled.caveat}
         footer={
           <InvariantTag
@@ -111,12 +119,11 @@ export function MetricTiles({
         unit="STRK"
         floor={floor}
         basis={metrics.escrowedRunRate30d.basis}
-        asOf={asOf}
         caveat={metrics.escrowedRunRate30d.caveat}
         footer={
           <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
-            Escrow on hand covers {covered} further period{covered === 1 ? "" : "s"}. A run rate is
-            a claim about the future, and this one is bounded by escrow already committed.
+            Escrow on hand covers {covered} further period{covered === 1 ? "" : "s"}, so this rate
+            is bounded by escrow already committed.
           </p>
         }
       />
@@ -127,7 +134,6 @@ export function MetricTiles({
         value={<LiveNumber value={metrics.activeSubscriptions.value} />}
         floor={floor}
         basis={metrics.activeSubscriptions.basis}
-        asOf={asOf}
         caveat={metrics.activeSubscriptions.caveat}
       />
 
@@ -137,7 +143,6 @@ export function MetricTiles({
         value={<LiveNumber value={metrics.currentlyEntitled.value} />}
         floor={floor}
         basis={metrics.currentlyEntitled.basis}
-        asOf={asOf}
         caveat={metrics.currentlyEntitled.caveat}
       />
 
@@ -148,14 +153,15 @@ export function MetricTiles({
         unit={metrics.arrears.value.count === 1 ? "subscription" : "subscriptions"}
         floor={floor}
         basis={metrics.arrears.basis}
-        asOf={asOf}
         caveat={metrics.arrears.caveat}
+        // Zero needs no sentence: the figure above already reads 0, and the
+        // basis under it says what was counted. Only a backlog gets a footer.
         footer={
-          <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
-            {metrics.arrears.value.count === 0
-              ? "No window has passed unpaid while escrow was available."
-              : `Worst backlog: ${metrics.arrears.value.maxPeriodsDue} period(s) past their due height.`}
-          </p>
+          metrics.arrears.value.count === 0 ? null : (
+            <p className="max-w-[46ch] text-[11px] leading-[1.5] text-text-caption">
+              Worst backlog: {metrics.arrears.value.maxPeriodsDue} period(s) past their due height.
+            </p>
+          )
         }
       />
     </div>

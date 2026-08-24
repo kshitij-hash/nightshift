@@ -13,9 +13,6 @@ import { lazy, Suspense } from "react";
 
 import { Masthead } from "../components/masthead";
 
-const SENTENCE =
-  "Check a tier presentation against vault state. Two read-only calls: it moves nothing and it signs nothing.";
-
 const VerifySurface = lazy(() =>
   import("../components/verify/surface").then((m) => ({ default: m.VerifySurface })),
 );
@@ -25,7 +22,7 @@ const VerifySurface = lazy(() =>
 function VerifyFallback() {
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-      <Masthead active="verify" sentence={SENTENCE} />
+      <Masthead active="verify" />
       <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="flex flex-col">

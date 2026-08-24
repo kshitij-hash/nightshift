@@ -24,9 +24,6 @@ import { ChallengeStep, ChallengeSummary, SignStep, VerdictStep } from "./steps"
 import { useVerify } from "./use-verify";
 import { FailureVerdict, SuccessVerdict } from "./verdict";
 
-const SENTENCE =
-  "Check a tier presentation against vault state. Two read-only calls: it moves nothing and it signs nothing.";
-
 function Chip({ block }: { block: number | null }) {
   return (
     // The "MAINNET ·" qualifier hides below md so the chip fits the phone
@@ -70,17 +67,15 @@ export function VerifySurface() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-      <Masthead
-        active="verify"
-        sentence={SENTENCE}
-        right="the same check the published nightshift-verify package runs"
-        chip={<Chip block={state.checkedAtBlock} />}
-      />
+      <Masthead active="verify" chip={<Chip block={state.checkedAtBlock} />} />
 
       <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-4">
-            <SectionHead note="three steps, one column, no tabs">
+            {/* The note carries what the masthead rule used to: this is not a
+                demonstration of a check, it is the check the published package
+                runs. Step 03's hint says what it costs to run. */}
+            <SectionHead note="the same check the published nightshift-verify package runs">
               // VERIFY A TIER PRESENTATION
             </SectionHead>
             <div className="flex flex-col">

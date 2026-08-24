@@ -61,10 +61,9 @@ export function SubscribeDisclosure({
       <div className="flex flex-col gap-3">
         <Rows title="STAYS HIDDEN" rows={hiddenRows} />
         <p className="text-[11px] leading-[1.55] text-text-caption">
-          Two limits stated where they apply, not in a footnote. Charges of one subscription are
-          linkable to each other, because the commitment sits in every charge's public calldata.
-          Presentations of one subscription are linkable to each other across gates, for the same
-          reason.
+          Charges of one subscription are linkable to each other, because the commitment sits in
+          every charge's public calldata. Presentations of one subscription are linkable to each
+          other across gates, for the same reason.
         </p>
       </div>
     </div>
