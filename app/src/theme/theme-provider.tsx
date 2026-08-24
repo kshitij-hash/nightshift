@@ -1,11 +1,14 @@
 // Hand-rolled theme provider. No next-themes: this repo is a Vite SPA, not
 // Next, and the whole thing is small enough that a dependency buys nothing.
 //
-// Default follows prefers-color-scheme. A manual toggle overrides it and
-// persists to localStorage; the override sticks across reloads until the
-// user clears it or toggles back to "system". Both data-theme and
-// color-scheme are set on <html> so native form controls and scrollbars
-// theme correctly too, not just the CSS custom properties.
+// Light is the default: a visitor with no stored choice gets light, whatever
+// their operating system prefers. A manual toggle overrides it and persists to
+// localStorage. "system" remains available as an explicit preference for a
+// reader who asks for it, and only then does prefers-color-scheme decide.
+// index.html applies the same rule inline before first paint, so there is no
+// flash of the wrong theme; keep the two in step. Both data-theme and
+// color-scheme are set on <html> so native form controls and scrollbars theme
+// correctly too, not just the CSS custom properties.
 
 import {
   createContext,
@@ -21,6 +24,8 @@ export type ThemeChoice = "light" | "dark";
 export type ThemePreference = ThemeChoice | "system";
 
 const STORAGE_KEY = "nightshift-theme";
+/** No stored choice means light, not the operating system's preference. */
+const DEFAULT_PREFERENCE: ThemePreference = "light";
 
 type ThemeContextValue = {
   /** The theme actually applied right now. */
@@ -42,9 +47,15 @@ function systemPrefersLight(): boolean {
 }
 
 function readStoredPreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return DEFAULT_PREFERENCE;
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "light" || stored === "dark" ? stored : "system";
+  if (stored === "light" || stored === "dark" || stored === "system") return stored;
+  return DEFAULT_PREFERENCE;
+}
+
+function resolve(pref: ThemePreference): ThemeChoice {
+  if (pref === "system") return systemPrefersLight() ? "light" : "dark";
+  return pref;
 }
 
 function applyTheme(theme: ThemeChoice) {
@@ -56,10 +67,7 @@ function applyTheme(theme: ThemeChoice) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>(readStoredPreference);
-  const [theme, setTheme] = useState<ThemeChoice>(() => {
-    const pref = readStoredPreference();
-    return pref === "system" ? (systemPrefersLight() ? "light" : "dark") : pref;
-  });
+  const [theme, setTheme] = useState<ThemeChoice>(() => resolve(readStoredPreference()));
 
   useEffect(() => {
     applyTheme(theme);
@@ -75,13 +83,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setPreference = useCallback((pref: ThemePreference) => {
     setPreferenceState(pref);
-    if (pref === "system") {
-      window.localStorage.removeItem(STORAGE_KEY);
-      setTheme(systemPrefersLight() ? "light" : "dark");
-    } else {
-      window.localStorage.setItem(STORAGE_KEY, pref);
-      setTheme(pref);
-    }
+    window.localStorage.setItem(STORAGE_KEY, pref);
+    setTheme(resolve(pref));
   }, []);
 
   const toggle = useCallback(() => {

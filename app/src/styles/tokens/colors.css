@@ -37,7 +37,11 @@
   --accent: #e4572e;
   --accent-hover: #ff7a50;
   --accent-wash: rgba(228, 87, 46, 0.15);
-  --accent-ring: rgba(228, 87, 46, 0.55);
+  /* The focus ring is the accent at full strength, not a tint of it. At 55%
+     alpha this composited to about #823a1e over --bg-1: a dull maroon reading
+     2.32:1, under the 3:1 that 1.4.11 asks of a focus indicator, and it looked
+     like an error box rather than a focus affordance. Solid is 5.37:1. */
+  --accent-ring: #e4572e;
 
   /* --- destructive: irreversible actions and verify failure, nowhere else --- */
   --destructive: oklch(0.55 0.19 25);

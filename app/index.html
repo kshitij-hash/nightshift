@@ -15,6 +15,29 @@
       name="description"
       content="Recurring private authorization on the STRK20 privacy pool, Starknet mainnet."
     />
+    <script>
+      // Theme before first paint, so nothing flashes. Light is the default:
+      // only an explicitly stored choice, or a stored "system", consults the
+      // operating system. Keep this rule in step with src/theme/theme-provider.
+      (function () {
+        try {
+          var stored = window.localStorage.getItem("nightshift-theme");
+          var theme =
+            stored === "dark" || stored === "light"
+              ? stored
+              : stored === "system"
+                ? window.matchMedia("(prefers-color-scheme: light)").matches
+                  ? "light"
+                  : "dark"
+                : "light";
+          if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "light");
+          document.documentElement.style.colorScheme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

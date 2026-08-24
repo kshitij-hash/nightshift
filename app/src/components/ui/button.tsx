@@ -1,3 +1,10 @@
+// Focus is the one document rule in base.css rather than a per-component
+// ring. The ring here used to be a box-shadow drawn flush against the button
+// edge, which on the filled primary put an accent tint on an accent fill and
+// on the outline variants read as a second border. The document outline sits
+// --focus-offset outside the button, on the page ground, where it is legible
+// against every variant this button has.
+//
 // shadcn Button, source copy, de-defaulted per the design spec: 4px radius
 // family, and the variant set trimmed to what the spec actually allows on a
 // screen - "default" is the one filled primary a screen may use at a time;
@@ -12,7 +19,7 @@ import type { VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-[13px] font-medium leading-none font-mono transition-[background-color,color,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] disabled:pointer-events-none disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 active:scale-[0.98] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-3.5",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-[13px] font-medium leading-none font-mono transition-[background-color,color,border-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-out)] disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] active:duration-[var(--dur-instant)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-3.5",
   {
     variants: {
       variant: {

@@ -12,7 +12,16 @@
 @layer base {
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  html { color-scheme: dark; }
+  /* The root element carries the page ground too, not just the body. That is
+   * what makes the strip of canvas a browser can expose above the document -
+   * macOS rubber-band overscroll, the ground behind a page mid-bounce - the
+   * page's own colour rather than whatever the user agent picks for the
+   * declared color-scheme. color-scheme is set in colors.css and
+   * theme-light.css, which are the files that know which theme is on; it was
+   * also hard-coded to dark here, and an unconditional dark scheme on <html>
+   * is one of the two ways this page could paint a band along its top edge
+   * that nothing in the markup asked for. */
+  html { background: var(--surface-page); }
   body {
     background: var(--surface-page);
     color: var(--text-default);
@@ -25,9 +34,45 @@
   }
   a { color: var(--text-link); text-decoration: none; }
   a:hover { color: var(--accent-hover); }
-  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
-    outline: 2px solid var(--accent-ring);
-    outline-offset: 2px;
+  /* Focus, on everything the keyboard can reach, from one rule.
+   *
+   * The AA floor here is 2.4.7 (the indicator has to be visible) and 1.4.11
+   * (3:1 against what it sits next to). 2.4.13's 2px-perimeter arithmetic is
+   * AAA; a solid 2px perimeter meets it anyway, so that is what this is.
+   *
+   * The ring used to be --accent-ring, which was the accent at 55% alpha, and
+   * that is what made it read as an alarm instead of an affordance: 55% of
+   * #e4572e over #0a0a0c composites to roughly #823a1e, a dull maroon that
+   * measures 2.3:1 and misses the 1.4.11 floor outright. Light was worse at
+   * 2.0:1. Solid accent measures 5.4:1 on the dark ground and 5.2:1 on the
+   * light one, and it reads as the one thing the accent means everywhere else
+   * here: attention, now, on this.
+   *
+   * Nothing about focus animates, and the colour rule below is what makes that
+   * true. Focus is keyboard-driven and repeats dozens of times a minute, so a
+   * ring easing in would be the most-seen and least-wanted motion in the
+   * product. The framework's transition-colors shorthand includes
+   * outline-color, and every interactive element in this app carries it, so an
+   * element that only learns its ring colour at the moment focus lands
+   * animates that colour in from currentColor: the ring arrived white and
+   * became accent over 120ms. Setting the colour on everything, always, means
+   * focus changes only outline-style and outline-width, neither of which is in
+   * any transition-property list here, so the ring appears at once.
+   *
+   * That is also why the three longhands are written out rather than the
+   * `outline` shorthand: the shorthand resets outline-color to currentColor,
+   * which would put the animation straight back.
+   *
+   * outline rather than box-shadow: outline-offset costs no layout, is not
+   * clipped by an ancestor's overflow, and follows the element's own radius. */
+  * { outline-color: var(--accent); }
+  :focus-visible {
+    outline-width: var(--focus-width);
+    outline-style: solid;
+    outline-offset: var(--focus-offset);
   }
+  /* A pointer press must never leave a ring behind. outline-style rather than
+   * the shorthand, for the same reason as above. */
+  :focus:not(:focus-visible) { outline-style: none; }
   td, th, .tabular { font-variant-numeric: tabular-nums; }
 }

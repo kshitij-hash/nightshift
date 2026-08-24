@@ -1,6 +1,12 @@
-// The masthead every surface shares: the wordmark, the bracketed nav, the
-// theme toggle, and one plain sentence about what this is. The chip on the
-// right belongs to whichever page can say something true about the chain.
+// The masthead every surface shares: the wordmark, the bracketed nav, and the
+// theme toggle. The chip on the right belongs to whichever page can say
+// something true about the chain.
+//
+// There is no sentence rule here any more. Two orientation elements per page
+// is the budget, and the two that earn it are the chip, which says which chain
+// and which block, and the page's own provenance line, which says where the
+// figures came from. A third rule at the top restating the page's subject was
+// the one a reader had already skipped by the time they reached the evidence.
 //
 // Five targets, four routes. The wordmark is the fifth and it goes to the
 // landing; the routes are board, dashboard, verify, manage. Route labels stay
@@ -44,7 +50,11 @@ function Bracketed({ active, children, to }: { active: boolean; children: string
         to={to}
         className={cn(
           color,
-          "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)]",
+          // ns-hover: the highlight arrives with the pointer and leaves on a
+          // short fade. Waiting 120ms to acknowledge a cursor reads as lag,
+          // and dropping it instantly reads as a flicker when the pointer
+          // crosses the row on its way somewhere else.
+          "transition-colors ns-hover",
           "inline-flex min-h-11 items-center px-1 md:min-h-6 md:px-0.5",
           // The underline appears with the page. It never slides between
           // routes, because these are pages and not tabs.
@@ -84,7 +94,7 @@ export function Wordmark({ className }: { className?: string }) {
       to="/"
       className={cn(
         "text-[20px] leading-[1.2] font-semibold text-text-strong",
-        "transition-colors duration-[var(--dur-fast)] ease-[var(--ease-out)] hover:text-text-strong",
+        "transition-colors ns-hover hover:text-text-strong",
         className,
       )}
       style={{ letterSpacing: "var(--track-wordmark)" }}
@@ -94,54 +104,18 @@ export function Wordmark({ className }: { className?: string }) {
   );
 }
 
-/** The sentence rule under the masthead. A surface that would rather spend the
- *  top of a phone screen on its instrument renders this itself, lower down. */
-export function MastheadSentence({
-  sentence,
-  right,
-  className,
-}: {
-  sentence: string;
-  right?: string;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-wrap items-center justify-between gap-4 border-b border-border-hairline px-5 py-3 lg:px-14",
-        className,
-      )}
-    >
-      <p className="text-[13px] leading-[1.7] text-text-default">{sentence}</p>
-      {right ? (
-        <span className="text-[11px] leading-[1.45] text-text-caption">{right}</span>
-      ) : null}
-    </div>
-  );
-}
-
 export function Masthead({
   active,
-  sentence,
-  right,
   chip,
   badge,
   /** The landing puts its h1 on the tagline, so its wordmark is a plain link.
    *  Every other page has no other candidate and keeps the h1 here. */
   heading = true,
-  /** The phone layout drops the sentence rule here and the surface renders it
-   *  further down, so the instrument is on screen without scrolling. */
-  deferSentence = false,
 }: {
   active?: NavKey;
-  /** Omitted on the landing: the hero is the sentence there. */
-  sentence?: string;
-  /** The caption on the right of the sentence rule. */
-  right?: string;
   chip?: React.ReactNode;
   badge?: React.ReactNode;
   heading?: boolean;
-  deferSentence?: boolean;
 }) {
   const wordmark = heading ? (
     <h1 className="flex items-center">
@@ -183,13 +157,6 @@ export function Masthead({
           {badge}
         </div>
       )}
-      {sentence ? (
-        <MastheadSentence
-          sentence={sentence}
-          right={right}
-          className={deferSentence ? "hidden md:flex" : undefined}
-        />
-      ) : null}
     </header>
   );
 }

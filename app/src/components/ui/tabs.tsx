@@ -40,7 +40,16 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
         "hover:text-text-default",
         "data-[state=active]:text-text-strong data-[state=active]:border-primary",
         "disabled:pointer-events-none disabled:opacity-50",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        // Focus is the document rule in base.css: a solid 2px accent outline,
+        // held off the glyphs by --focus-offset. The ring it replaces was a
+        // box-shadow at 55% alpha drawn hard against the text, and between the
+        // dull maroon that composited to and the square corners flush on the
+        // label, it read as an error box around the tab. rounded-sm gives the
+        // outline the system's 2px corner instead of a hard 90 degrees.
+        // outline-offset 4 rather than the document's 2: a tab's selected-state
+        // underline sits exactly where a 2px ring would land, and the two
+        // accent lines merging read as one thick bar rather than as a ring.
+        "rounded-sm focus-visible:outline-offset-4",
         className,
       )}
       {...props}
@@ -53,9 +62,9 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Content
       data-slot="tabs-content"
       className={cn(
-        // The panel is focusable, so it keeps a visible indicator of its own
-        // rather than relying on the document default it opts out of.
-        "flex-1 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        // The panel is focusable, so it keeps the document's focus outline
+        // rather than opting out of it.
+        "flex-1 rounded-sm",
         "data-[state=inactive]:opacity-0 data-[state=active]:opacity-100 transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-in-out)]",
         className,
       )}

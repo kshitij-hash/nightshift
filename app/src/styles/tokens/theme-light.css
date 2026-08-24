@@ -31,7 +31,10 @@
   --accent: #b8401b;        /*  5.17:1 */
   --accent-hover: #96300f;
   --accent-wash: rgba(184, 64, 27, 0.10);
-  --accent-ring: rgba(184, 64, 27, 0.45);
+  /* Solid, for the reason spelled out in colors.css. At 45% alpha this
+     composited to about #daa494 on --bg-1 and measured 2.01:1, the worst focus
+     contrast in either theme. Solid is 5.17:1. */
+  --accent-ring: #b8401b;
 
   --destructive: oklch(0.48 0.19 25);
   --destructive-fg: #ffffff;
