@@ -146,7 +146,7 @@ export function LandingRoute() {
         </div>
 
         <section className={`${GUTTER} ${enter(3)} flex flex-col gap-5 pt-11 lg:pt-14`}>
-          <SectionHead note="three ways in, one machine underneath">
+          <SectionHead note="subscriber, creator, verifier: one vault underneath">
             // WHO IS AT THIS PAGE
           </SectionHead>
           <PersonaTabs

@@ -1,4 +1,7 @@
-// The hero: a tagline and one sentence, and nothing else.
+// The hero: a tagline and one short paragraph, and nothing else. The paragraph
+// names the product in plain words and ends on the card-authorization analogy,
+// which used to sit at the bottom of the mechanism section where a reader who
+// needed it most never reached it.
 //
 // No numbers and no buttons, deliberately. The numbers are one section down in
 // the live strip, where a reader meets them at the size of a readout with the
@@ -27,9 +30,9 @@ export function HeroCopy({ compact }: { compact: boolean }) {
           letterSpacing: "-0.025em",
         }}
       >
-        Charged on schedule.
+        Private subscriptions,
         <br />
-        Named never.
+        charged on schedule.
       </h1>
       <p
         className="text-text-prose"
@@ -39,8 +42,9 @@ export function HeroCopy({ compact }: { compact: boolean }) {
           maxWidth: compact ? "100%" : 660,
         }}
       >
-        Escrow is committed once through the privacy pool. A vault then charges it on a block
-        schedule, with no wallet on file.
+        Fund a subscription once through Starknet's STRK20 privacy pool. A vault contract then
+        charges it each period and pays the creator, with no wallet on file. Like a card
+        authorization, except there is no card, no processor, and no name.
       </p>
     </div>
   );

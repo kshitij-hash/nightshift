@@ -80,11 +80,11 @@ const PERSONAS: Persona[] = [
     short: "SUBSCRIBE",
     label: "SUBSCRIBER",
     steps: [
-      ["deposit", "Commit escrow once, through the privacy pool."],
-      ["wheel", "The vault charges it on its block window, against a write-once nullifier."],
-      ["gate", "Cancel with a signature, from any sender, at any time."],
+      ["deposit", "Fund the subscription once, through the privacy pool."],
+      ["wheel", "The vault takes one payment per period; a spent period can never be charged again."],
+      ["gate", "Cancel any time with a signature and take back whatever is left."],
     ],
-    line: "your wallet is never named, and is never asked again",
+    line: "the vault never learns your wallet, and never asks again",
     cta: "start a private subscription",
     to: "/manage",
   },
@@ -94,11 +94,11 @@ const PERSONAS: Persona[] = [
     short: "GET PAID",
     label: "CREATOR",
     steps: [
-      ["tray", "Deploy a vault and publish one tier: an amount and a cadence."],
-      ["outlets", "Charges land as public events, one per period, on schedule."],
-      ["claim", "Claim the balance when it suits, in one transaction you sign."],
+      ["tray", "Register on the vault and publish one tier: a price and a billing period."],
+      ["outlets", "Each period's charge lands on-chain as a public event, on schedule."],
+      ["claim", "Claim your balance whenever you like, in one transaction you sign."],
     ],
-    line: "your subscriber list is nobody's business; your ledger is public math",
+    line: "nobody can read your subscriber list; anybody can audit your revenue",
     cta: "set up as a creator",
     to: "/creator",
   },
@@ -108,9 +108,9 @@ const PERSONAS: Persona[] = [
     short: "VERIFY",
     label: "VERIFIER",
     steps: [
-      ["doc", "Issue a challenge naming gate, creator, tier and expiry block."],
-      ["sign", "Take back the presentation the subscriber's wallet signed."],
-      ["check", "Check it against vault state: one RPC read, no key, no account."],
+      ["doc", "Send the subscriber a challenge: which creator, which tier, valid until which block."],
+      ["sign", "Their wallet signs it and hands you back a presentation."],
+      ["check", "Check the presentation against the vault. One RPC read; no key, no account."],
     ],
     line: "you learn the tier, not the person",
     cta: "verify a subscription",
@@ -141,8 +141,8 @@ function caption(p: Persona, facts: PersonaFacts): string {
     return `${who}${facts.charges} charges · ${sum}summed from public Charged events.`;
   }
   return (
-    "npm nightshift-verify · a presentation reveals the commitment, and presentations " +
-    "of one subscription are linkable across gates."
+    "npm nightshift-verify · a presentation reveals the subscription's commitment, and " +
+    "presentations of one subscription are linkable across verifiers."
   );
 }
 

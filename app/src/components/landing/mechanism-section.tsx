@@ -3,9 +3,10 @@
 // The claim comes first as two lines and nothing else, because it is the one
 // sentence a reader has to leave with. FIG. 1 follows, drawn from the same
 // vault and schedule reads the board's instrument runs on, so the drawing
-// cannot say something the chain does not. The analogy under it is the last
-// word rather than the first: a card authorization is a useful handle only
-// once the reader has seen that there is no card, no processor and no name.
+// cannot say something the chain does not. The card-authorization analogy now
+// lives in the hero, where a first-time reader actually needs it; the side
+// note here carries the custody fact instead, because it is the question a
+// reader of FIG. 1 is left with: who can move the money.
 
 import type { Schedule } from "../../lib/schedule";
 import { cn } from "../../lib/utils";
@@ -60,9 +61,12 @@ export function HiddenProvable({ compact = false }: { compact?: boolean }) {
 // LEGEND, and FIG. 1 below engraves the same facts. Two lines, then the
 // figure.
 const PROSE =
-  "A vault spends pooled escrow against a write-once period nullifier. FIG. 1 shows how.";
+  "Your deposit sits inside the pool under the vault's rules. Once per period the vault pays " +
+  "the creator and marks the period spent, so nothing can charge it twice. FIG. 1 traces one " +
+  "charge end to end.";
 
-const ANALOGY = "Like a card authorization, except no card, no processor, and no name on file.";
+const CUSTODY_NOTE =
+  "Anyone can fire a charge that is due; funds leave only with the creator's signature.";
 
 export function MechanismSection({
   schedule,
@@ -78,7 +82,7 @@ export function MechanismSection({
   const labels = mechanismLabels(schedule, perPeriodWei, charged);
   return (
     <section className="flex flex-col gap-5">
-      <SectionHead note="the claim, then the machine that makes it true">
+      <SectionHead note="the claim, then the contract that enforces it">
         // WHAT IS HIDDEN, WHAT IS PROVABLE
       </SectionHead>
 
@@ -88,7 +92,7 @@ export function MechanismSection({
         <p className="max-w-[76ch] text-[13.5px] leading-[1.7] text-text-prose">{PROSE}</p>
         {!compact ? (
           <p className="max-w-[42ch] text-[12px] leading-[1.5] text-text-caption lg:text-right">
-            {ANALOGY}
+            {CUSTODY_NOTE}
           </p>
         ) : null}
       </div>
@@ -117,7 +121,7 @@ export function MechanismSection({
 
       {compact ? (
         <p className="border-t border-border-row pt-3 text-[12px] leading-[1.5] text-text-caption">
-          {ANALOGY}
+          {CUSTODY_NOTE}
         </p>
       ) : null}
     </section>

@@ -215,7 +215,7 @@ export function ChargePanel({
 
   return (
     <section aria-labelledby="charge-panel-head" className="flex flex-col gap-3">
-      <SectionHead note="one panel, nine honest answers">
+      <SectionHead note="anyone may fire a due charge; this panel does it from the page">
         <span id="charge-panel-head">// TIER-2 CHARGE</span>
       </SectionHead>
 

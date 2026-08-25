@@ -288,7 +288,7 @@ export function ManageSurface({
           </>
         ) : (
           <section className="flex flex-col gap-4">
-            <SectionHead note="connect is a state machine, not a button">
+            <SectionHead note="nothing is requested until you press connect">
               // WALLET · WHAT EACH STATE PROMISES
             </SectionHead>
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">

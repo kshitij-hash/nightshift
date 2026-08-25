@@ -13,8 +13,8 @@ export function ClosingLine({ compact }: { compact: boolean }) {
   return (
     <div className={compact ? "flex flex-col gap-3" : "flex flex-wrap items-baseline gap-5"}>
       <p className="max-w-[76ch] text-[13.5px] leading-[1.7] text-text-prose">
-        The three paths above are the way in, and everything under them is a mainnet read you can
-        repeat without this page.
+        Every figure on this page is read from Starknet mainnet, and you can run the same reads
+        without us.
       </p>
       <Link
         to="/verify"

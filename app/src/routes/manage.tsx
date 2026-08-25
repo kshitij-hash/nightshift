@@ -47,7 +47,7 @@ function ManageFallback() {
       </div>
       <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-14">
         <section className="flex flex-col gap-4" aria-busy="true">
-          <SectionHead note="connect is a state machine, not a button">
+          <SectionHead note="nothing is requested until you press connect">
             // WALLET · WHAT EACH STATE PROMISES
           </SectionHead>
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">

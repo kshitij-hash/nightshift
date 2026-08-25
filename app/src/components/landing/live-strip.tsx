@@ -253,7 +253,7 @@ export function LiveStrip({ data }: { data: StripData | null }) {
       <Cell
         label="IN CUSTODY"
         caption={
-          <span className={slot}>escrow still held, summed across vault generations</span>
+          <span className={slot}>escrow still held, summed across every vault version</span>
         }
       >
         <span className={slot}>

@@ -137,7 +137,7 @@ export function VerifySurface() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <SectionHead note="both verdicts are designed; neither is an afterthought">
+            <SectionHead note="the creator id and tier, or the first check that refused">
               // THE VERDICT
             </SectionHead>
             {verdict === null ? (
@@ -163,7 +163,7 @@ export function VerifySurface() {
                 with this table. It is the same table, in the place a reader is
                 already asking it. */}
             <div className="flex flex-col gap-3">
-              <SectionHead note="the two columns are the product">
+              <SectionHead note="what the chain records, next to what it never learns">
                 // HIDDEN AND VISIBLE
               </SectionHead>
               <HiddenAndVisible />

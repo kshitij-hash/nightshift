@@ -29,13 +29,13 @@ function receiptRows(creatorId: string | null): ReceiptRow[] {
   rows.push(
     {
       key: "npm nightshift-verify",
-      value: "verifies a presentation against vault state",
+      value: "checks a signed presentation against vault state",
       href: "https://www.npmjs.com/package/nightshift-verify",
       hash: false,
     },
     {
       key: "npm strk20-preflight",
-      value: "preflights a pool action before signing",
+      value: "checks a pool action before you sign it",
       href: "https://www.npmjs.com/package/strk20-preflight",
       hash: false,
     },
@@ -101,7 +101,7 @@ export function ProofSection({
           the full board <span aria-hidden="true">→</span> /board
         </Link>
         <span className="text-[11px] leading-[1.45] text-text-caption">
-          every charge, the instrument, the demo replay
+          every charge in one table, read live from mainnet
         </span>
       </div>
     </section>
