@@ -54,7 +54,7 @@ What an abuser can do:
   submitted never leaves the process either, because of the per-period lock and
   the settle-window memo.
 
-Two limits on that "not much else", stated plainly:
+Two limits on that "not much else":
 
 - The per-period memo is in memory. A restart inside the settle window forgets
   that a transaction is already in flight for the current period, so the next

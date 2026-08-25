@@ -16,7 +16,7 @@ be present, every time.
 
 NIGHTSHIFT needs a way to authorize a recurring charge once, at subscribe
 time, and have that authorization stand for many future charges fired by
-someone other than the subscriber, without asking the pool for a primitive
+someone other than the subscriber, without asking the pool for anything
 it does not have and without a key anyone can steal or phish.
 
 ## Decision
@@ -74,7 +74,7 @@ transaction from the subscriber at all, only a signature. The subscriber's
 wallet is never named at subscribe (the pool's withdrawal edge severs that
 link), at charge, or at cancel/reclaim when relayed.
 
-**What this costs, stated plainly:**
+**What this costs:**
 
 - Charges of one subscription are publicly linkable to each other. The
   commitment sits in `charge`'s calldata and in the `Charged` event on every
@@ -96,7 +96,7 @@ link), at charge, or at cancel/reclaim when relayed.
 
 ## Alternatives considered
 
-- **Session keys.** Rejected because the pool exposes no such primitive:
+- **Session keys.** Rejected because the pool has no such feature:
   there is nothing to delegate a session key against. Building one here
   would mean simulating a capability the underlying pool does not offer,
   with no way to bind it to the pool's own accounting.

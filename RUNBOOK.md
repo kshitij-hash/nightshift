@@ -78,8 +78,8 @@ cron line, produces no log file unless that invocation redirects one too.
 
 Each run reads `is_active` and `periods_due` over public RPC first; if
 nothing is due it logs and exits at no cost. When periods are due it fires
-`charge`, estimates the fee first (see Build and test - it fails the run
-cleanly rather than submitting a payload the vault would reject), waits for
+`charge`, estimates the fee first (failing the run cleanly rather than
+submitting a payload the vault would reject), waits for
 acceptance, and repeats up to `MAX_CHARGES_PER_RUN` (3) so a backlog drains
 gradually across runs instead of in one burst.
 
@@ -87,7 +87,7 @@ gradually across runs instead of in one burst.
 `NS_ESCROW_EXHAUSTED`, `NS_UNKNOWN_SUB`, `NS_CANCELLED`, `NS_PERIOD_SPENT`),
 as fatal: it logs the transaction hash and exits 1, stopping the rest of
 that run. This is not an incident that needs an operator to restart
-anything - cron refires the script on its own schedule 30 minutes later.
+anything: cron refires the script on its own schedule 30 minutes later.
 `NS_NOT_DUE` in particular is rare in the first place, since the keeper
 already checks `periods_due` before firing `charge` and only calls it when
 that read says a period is due; a revert on top of that read means the read
@@ -195,11 +195,11 @@ unattended: it writes to mainnet and exposes a port to the internet.
 
 RPC endpoint failover exists in exactly one place: the demo board
 (`site/src/rpc.ts`, trying `RPC_URLS` in order before falling back to a
-committed snapshot it labels honestly). Nothing else in this repo fails
+committed snapshot, labelled as such on the page). Nothing else in this repo fails
 over. `nightshift-verify` takes a single `provider` or a single `rpcUrl` and
 talks to only that one; so do the keeper and the relay, reading one
 `STARKNET_RPC` from `.env`. If that one endpoint rate-limits or times out,
-an operator has to swap `STARKNET_RPC` (or the caller's `rpcUrl`) by hand -
+an operator has to swap `STARKNET_RPC` (or the caller's `rpcUrl`) by hand;
 only the site board rides through it unattended.
 
 **If the pool blocks the vault as a depositor** (a pool-side block, a token

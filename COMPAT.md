@@ -103,7 +103,7 @@ rejection (`DEPLOYMENTS.md`).
 
 ## What breaks if the pool upgrades
 
-The honest unknown: the pool contract is not ours. The vault's constructor
+The open risk: the pool contract is not ours. The vault's constructor
 pins the pool's *address*, not a class hash, so if STRK20 replaces the pool's
 class at that same address, three things this repo depends on could silently
 drift out from under it: the `privacy_invoke` calldata shape the pool sends,
