@@ -16,6 +16,7 @@ import { parsePresentation, REASONS } from "../../lib/verify";
 import { SectionHead, StatusDot } from "../board/primitives";
 import { HiddenAndVisible } from "../board/story-band";
 import { Masthead } from "../masthead";
+import { SiteFooter } from "../site-footer";
 import { Badge } from "../ui/badge";
 import { FailureVocabulary } from "./failure-vocabulary";
 import { LinkabilityNote } from "./linkability";
@@ -66,8 +67,23 @@ export function VerifySurface() {
       : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col">
+    <div className="flex min-h-screen flex-col">
       <Masthead active="verify" chip={<Chip block={state.checkedAtBlock} />} />
+
+      <div className="flex flex-1 flex-col">
+        <div className="flex flex-wrap items-center gap-3.5 border-b-2 border-divider px-5 py-4 lg:px-10">
+          <span className="text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+            ▸ Gate · nightshift-verify
+          </span>
+          {challenge ? (
+            <span className="font-mono text-[12px] text-text-caption">
+              verifier_id {challenge.verifierId}
+            </span>
+          ) : null}
+          <span className="ml-auto text-[11px] tracking-[0.14em] uppercase text-text-caption">
+            Off-chain · no transaction, no gas, no trace
+          </span>
+        </div>
 
       <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
@@ -76,7 +92,7 @@ export function VerifySurface() {
                 demonstration of a check, it is the check the published package
                 runs. Step 03's hint says what it costs to run. */}
             <SectionHead note="the same check the published nightshift-verify package runs">
-              // VERIFY A TIER PRESENTATION
+              // PROVE A PAID TIER, GET IN
             </SectionHead>
             <div className="flex flex-col">
               <StepShell
@@ -105,7 +121,7 @@ export function VerifySurface() {
                 active={state.step === 2}
                 done={state.step === 3}
                 onOpen={() => goToStep(2)}
-                summary="Signed here with a derived owner key when this browser holds one, or in the ops console, panel 7. Either way this page never sees the private key."
+                summary="Signed in your browser with the subscription's own key, derived for this one signature and discarded. This page never sees a private key."
               >
                 {challenge ? (
                   <SignStep
@@ -171,13 +187,82 @@ export function VerifySurface() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <SectionHead note="every string the check can return">
-            // FAILURE VOCABULARY · RENDERED VERBATIM
-          </SectionHead>
-          <FailureVocabulary />
+        <div className="grid border-2 border-divider lg:grid-cols-[7fr_5fr]">
+          <div className="p-6 lg:p-7">
+            <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+              ▸ Drop it into a bot
+            </div>
+            <h3 className="mb-3 text-[22px] tracking-[-0.02em]">
+              This is what a Telegram gate runs.
+            </h3>
+            <p className="mb-4 max-w-[62ch] text-[13.5px] leading-[1.6] text-text-prose">
+              The repository ships a working Telegram door on the same check:
+              the bot issues a challenge in chat, the subscriber signs it, and
+              a match on creator and tier mints a one-use invite link, proven
+              live against the mainnet gate. A Discord role bot or a licence
+              server drops in the same way, with four read-only calls and no
+              key held anywhere.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="https://t.me/nightshift_gate_bot"
+                target="_blank"
+                rel="noreferrer"
+                className="m-btn m-btn-primary"
+              >
+                Try it in Telegram ↗
+              </a>
+              <a
+                href="https://www.npmjs.com/package/nightshift-verify"
+                target="_blank"
+                rel="noreferrer"
+                className="m-btn m-btn-secondary"
+              >
+                npm nightshift-verify ↗
+              </a>
+            </div>
+          </div>
+          <div className="border-t-2 border-divider bg-panel p-6 font-mono text-[12px] leading-[1.9] lg:border-t-0 lg:border-l-2 lg:p-7">
+            <div className="mb-2 text-[11px] tracking-[0.1em] uppercase text-text-caption">
+              The whole integration
+            </div>
+            npm install nightshift-verify
+            <br />
+            <br />
+            const {"{ ok, tier }"} = await
+            <br />
+            &nbsp;&nbsp;verifyPresentation({"{"}
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;presentation, expectedVerifierId,
+            <br />
+            &nbsp;&nbsp;&nbsp;&nbsp;expectedNonce, rpcUrl, vaultAddress,
+            <br />
+            &nbsp;&nbsp;{"}"});
+            <br />
+            <br />
+            ok → admit tier
+          </div>
         </div>
+
+        <details className="flex flex-col gap-3">
+          <summary className="cursor-pointer text-[12.5px] text-text-label">
+            The failure vocabulary: every string a refusal can return, rendered
+            verbatim
+          </summary>
+          <div className="pt-3">
+            <FailureVocabulary />
+          </div>
+        </details>
       </main>
+
+      <SiteFooter
+        links={[
+          { label: "npm nightshift-verify", href: "https://www.npmjs.com/package/nightshift-verify" },
+          { label: "the board", to: "/board" },
+          { label: "source on github", href: "https://github.com/kshitij-hash/nightshift" },
+        ]}
+      />
+      </div>
     </div>
   );
 }

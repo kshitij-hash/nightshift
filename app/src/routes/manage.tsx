@@ -11,7 +11,7 @@
 import { lazy, Suspense } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-import { SectionHead, StatusDot } from "../components/board/primitives";
+import { StatusDot } from "../components/board/primitives";
 import { PendingChip } from "../components/board/skeletons";
 import { Masthead } from "../components/masthead";
 import type { ManageTab } from "../components/wallet/surface";
@@ -28,12 +28,12 @@ const ManageSurface = lazy(() =>
  *  down by the height of the provenance line when the chunk landed. */
 function ManageFallback() {
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col">
+    <div className="flex min-h-screen w-full flex-col">
       <Masthead
         active="manage"
         chip={<PendingChip />}
       />
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-hairline px-5 py-3 lg:px-14">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-hairline px-5 py-3 lg:px-10">
         <div className="flex items-center gap-3">
           <StatusDot state="pending" size={7} />
           <p className="text-[13px] leading-[1.7] text-text-default">
@@ -45,11 +45,16 @@ function ManageFallback() {
           no server saw this page · nothing about these objects was sent anywhere
         </span>
       </div>
-      <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-14">
-        <section className="flex flex-col gap-4" aria-busy="true">
-          <SectionHead note="nothing is requested until you press connect">
-            // WALLET · WHAT EACH STATE PROMISES
-          </SectionHead>
+      <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
+        <section className="flex flex-col gap-6" aria-busy="true">
+          <div className="border-b-2 border-divider pb-5">
+            <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+              ▸ Nothing is requested until you press connect
+            </div>
+            <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">
+              My subscriptions
+            </h2>
+          </div>
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
             <div className="h-52 border border-border-panel" />
             <div className="h-52 border border-border-panel" />

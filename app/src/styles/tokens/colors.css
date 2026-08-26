@@ -1,66 +1,90 @@
-/* Dark theme palette (default). Two-color semantics: gray = settled, orange =
-   live. Green is not in this system. */
+/* Modernist palette - light ground, ink text, one red accent. Single theme:
+   there is no dark mode in this system; the Gate screen's dark panel is a
+   surface within the design, not a theme.
+
+   Two layers live here:
+   1. The design system's own tokens (--m-*): ground, surface, ink, accent,
+      divider, and the 100-900 tonal ramps generated in OKLCH on a shared
+      lightness scale.
+   2. The app's older semantic names (--surface-*, --ink-*, --text-*,
+      --border-*), remapped onto the Modernist values so any component not yet
+      rebuilt stays legible. New components use the Modernist utilities from
+      globals.css; the old names go away as the last old component does. */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* --- surfaces: two-step background, the border does elevation --- */
-  --bg-1: #0a0a0c;          /* page ground */
-  --bg-2: #0c0c0f;          /* sunken: table headers, sticky footers */
-  --bg-3: #0d0d10;          /* panel / card / charged row */
-  --bg-4: #1c1e23;          /* fill: unlit ticks, meter track */
-  --bg-5: #151922;          /* field interior (ops console) */
+  /* --- Modernist core --- */
+  --m-bg: #f3f2f2;
+  --m-surface: #eae9e9;
+  --m-text: #201e1d;
+  --m-accent: #ec3013;
+  --m-divider: color-mix(in srgb, #201e1d 40%, transparent);
 
-  /* --- borders: hairlines carry all elevation --- */
-  --line-rule: #17181c;     /* page rules, feed outline */
-  --line-soft: #141519;     /* row dividers inside a feed */
-  --line-panel: #222429;    /* panel + card border. 1.26:1 on --bg-1. Decorative
-                               grouping only, so exempt from WCAG 1.4.11, which
-                               governs borders that IDENTIFY a control. Never use
-                               it on something clickable. */
-  --line-field: #5a606d;    /* input, ghost button, any interactive edge.
-                               3.13:1 on --bg-1, clearing the 1.4.11 non-text
-                               floor. Was #2a2d34 at 1.45:1. */
-  --line-ghost: #3a3f49;    /* unlit tick outlines, disabled marks. NON-TEXT. */
+  --m-neutral-100: #f8f4f4;
+  --m-neutral-200: #eae7e7;
+  --m-neutral-300: #d7d3d3;
+  --m-neutral-400: #bab6b6;
+  --m-neutral-500: #9b9797;
+  --m-neutral-600: #7d7979;
+  --m-neutral-700: #605d5d;
+  --m-neutral-800: #444141;
+  --m-neutral-900: #2d2b2b;
 
-  /* --- text: five legible steps on --bg-1, coldest at the bottom.
-         Every step clears WCAG AA 4.5:1 against the page ground. --- */
-  --ink-1: #f2f2f4;         /* 17.7:1  strong: numerals, headings, key cells */
-  --ink-2: #d8dae0;         /* 14.2:1  default body text */
-  --ink-3: #a8adb8;         /*  8.79:1 prose paragraphs */
-  --ink-4: #8b94a4;         /*  6.46:1 labels, section markers, units */
-  --ink-5: #757d8d;         /*  4.78:1 captions, provenance, inactive rows */
-  --ink-6: #3a3f49;         /*  1.89:1 DEPRECATED as text. Use --line-ghost for
-                               non-text marks; --text-ghost now resolves to
-                               --ink-5 so no string renders below AA. */
+  --m-accent-100: #fff2ef;
+  --m-accent-200: #ffe0d9;
+  --m-accent-300: #ffc4b8;
+  --m-accent-400: #ff9783;
+  --m-accent-500: #ff563c;
+  --m-accent-600: #dd2b0f;
+  --m-accent-700: #ae1800;
+  --m-accent-800: #7c1405;
+  --m-accent-900: #4d170e;
 
-  /* --- the one accent --- */
-  --accent: #e4572e;
-  --accent-hover: #ff7a50;
-  --accent-wash: rgba(228, 87, 46, 0.15);
-  /* The focus ring is the accent at full strength, not a tint of it. At 55%
-     alpha this composited to about #823a1e over --bg-1: a dull maroon reading
-     2.32:1, under the 3:1 that 1.4.11 asks of a focus indicator, and it looked
-     like an error box rather than a focus affordance. Solid is 5.37:1. */
-  --accent-ring: #e4572e;
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
 
-  /* --- destructive: irreversible actions and verify failure, nowhere else --- */
-  --destructive: oklch(0.55 0.19 25);
+  /* --- older semantic names, remapped ---
+     Every text step still clears WCAG AA against the ground. */
+  --bg-1: var(--m-bg);
+  --bg-2: var(--m-surface);
+  --bg-3: var(--m-surface);
+  --bg-4: var(--m-neutral-300);
+  --bg-5: var(--m-surface);
+
+  --line-rule: color-mix(in srgb, var(--m-text) 18%, transparent);
+  --line-soft: color-mix(in srgb, var(--m-text) 14%, transparent);
+  --line-panel: var(--m-divider);
+  --line-field: var(--m-divider);
+  --line-ghost: color-mix(in srgb, var(--m-text) 28%, transparent);
+
+  --ink-1: var(--m-text);
+  --ink-2: var(--m-text);
+  --ink-3: color-mix(in srgb, var(--m-text) 78%, transparent);
+  --ink-4: color-mix(in srgb, var(--m-text) 64%, transparent);
+  --ink-5: color-mix(in srgb, var(--m-text) 56%, transparent);
+  --ink-6: var(--line-ghost);
+
+  --accent: var(--m-accent);
+  --accent-hover: var(--m-accent-600);
+  --accent-wash: color-mix(in srgb, var(--m-accent) 12%, transparent);
+  --accent-ring: var(--m-accent);
+
+  --destructive: var(--m-accent-700);
   --destructive-fg: #ffffff;
 
-  /* --- charts: orange leads, everything else is gray --- */
-  --chart-1: #e4572e;
-  --chart-2: oklch(0.72 0.045 70);
-  --chart-3: oklch(0.55 0.015 250);
-  --chart-4: oklch(0.72 0.01 250);
-  --chart-5: oklch(0.35 0.01 250);
+  --chart-1: var(--m-accent);
+  --chart-2: var(--m-neutral-800);
+  --chart-3: var(--m-neutral-600);
+  --chart-4: var(--m-neutral-400);
+  --chart-5: var(--m-neutral-300);
 
-  /* --- semantic aliases --- */
   --surface-page: var(--bg-1);
   --surface-sunken: var(--bg-2);
   --surface-panel: var(--bg-3);
   --surface-fill: var(--bg-4);
   --surface-field: var(--bg-5);
-  --surface-overlay: rgba(0, 0, 0, 0.75);
+  --surface-overlay: color-mix(in srgb, var(--m-neutral-900) 55%, transparent);
 
   --border-hairline: var(--line-rule);
   --border-row: var(--line-soft);
@@ -73,11 +97,11 @@
   --text-prose: var(--ink-3);
   --text-label: var(--ink-4);
   --text-caption: var(--ink-5);
-  --text-ghost: var(--ink-5);         /* was --ink-6, which failed AA at 1.89:1 */
+  --text-ghost: var(--ink-5);
   --text-link: var(--accent);
 
-  --signal-live: var(--accent);      /* live, just-changed, needs attention */
-  --signal-settled: var(--ink-4);    /* charged, historical, resolved */
-  --signal-pending: var(--ink-5);    /* window not open yet */
+  --signal-live: var(--accent);
+  --signal-settled: var(--ink-4);
+  --signal-pending: var(--ink-5);
   --signal-fail: var(--destructive);
 }

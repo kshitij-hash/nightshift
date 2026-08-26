@@ -21,7 +21,7 @@ const VerifySurface = lazy(() =>
  *  flashing a spinner, so the page does not jump when the chunk lands. */
 function VerifyFallback() {
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col">
+    <div className="flex min-h-screen w-full flex-col">
       <Masthead active="verify" />
       <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

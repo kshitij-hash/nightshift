@@ -17,7 +17,9 @@ import { cancelCall, feltError, reclaimCall, relayCommand, truncate, type Signat
 import {
   ownerKeyOptions,
   signCancel,
+  signCancelFor,
   signReclaim,
+  signReclaimFor,
   type OwnerKeyChoice,
   type PublicIdentity,
 } from "../../lib/wallet/keys";
@@ -190,12 +192,20 @@ function ConfirmDialog({
 export function CancelPanel({
   connection,
   identity,
+  target,
 }: {
   connection: Connection;
   identity: PublicIdentity;
+  /** The subscription this panel acts on: its creator id and commitment,
+   *  passed by the card that opened it. Without it (the standalone tools
+   *  tab) the panel falls back to the wallet's own-creator identity, which
+   *  is only right for a subscription made to yourself or with the legacy
+   *  key. The card path is the bound one. */
+  target?: { creatorId: string; commitment: string };
 }) {
   const keys = ownerKeyOptions(connection.address, STRK);
   const [keyChoice, setKeyChoice] = useState<OwnerKeyChoice>("derived");
+  const activeCommitment = target?.commitment ?? identity.commitment;
 
   const [cancelSig, setCancelSig] = useState<Signature | null>(null);
   const [cancelPick, setCancelPick] = useState<Submitter>("relay");
@@ -221,7 +231,9 @@ export function CancelPanel({
     setCancelFailure(null);
     setCancelTx(null);
     try {
-      const signed = signCancel(connection.address, STRK, keyChoice);
+      const signed = target
+        ? signCancelFor(target.creatorId)
+        : signCancel(connection.address, STRK, keyChoice);
       setCancelSig(signed.sig);
       setCancelLines([
         { text: `signed with the ${keys.find((k) => k.id === keyChoice)?.label ?? keyChoice}`, tone: "ok" },
@@ -242,7 +254,7 @@ export function CancelPanel({
       { text: "self-submitting: this wallet is recorded as the sender", tone: "dim" },
     ]);
     try {
-      const hash = await connection.execute(cancelCall(VAULT, identity.commitment, cancelSig));
+      const hash = await connection.execute(cancelCall(VAULT, activeCommitment, cancelSig));
       setCancelTx(hash);
       setCancelLines((l) => [...l, { text: `cancel submitted: ${hash}`, tone: "ok" }]);
     } catch (e) {
@@ -259,7 +271,9 @@ export function CancelPanel({
     setReclaimTx(null);
     if (destinationProblem) return;
     try {
-      const signed = signReclaim(connection.address, STRK, destination, keyChoice);
+      const signed = target
+        ? signReclaimFor(target.creatorId, destination)
+        : signReclaim(connection.address, STRK, destination, keyChoice);
       setReclaimSig(signed.sig);
       setReclaimLines([
         { text: `signed for ${truncate(destination)}`, tone: "ok" },
@@ -277,7 +291,7 @@ export function CancelPanel({
     setReclaimFailure(null);
     try {
       const hash = await connection.execute(
-        reclaimCall(VAULT, identity.commitment, destination, reclaimSig),
+        reclaimCall(VAULT, activeCommitment, destination, reclaimSig),
       );
       setReclaimTx(hash);
       setReclaimLines((l) => [...l, { text: `reclaim submitted: ${hash}`, tone: "ok" }]);
@@ -301,7 +315,7 @@ export function CancelPanel({
           <Step n="01" name="SIGN THE CANCEL" active={cancelSig === null} note="no network call">
             <KeyValue
               rows={[
-                ["commitment", truncate(identity.commitment)],
+                ["commitment", truncate(activeCommitment)],
                 ["vault", truncate(VAULT)],
                 ["effect", "no further period may be charged"],
               ]}
@@ -312,7 +326,7 @@ export function CancelPanel({
               commitment.
             </p>
 
-            {keys.length > 1 ? (
+            {!target && keys.length > 1 ? (
               <Field
                 label="OWNER KEY"
                 hint="the vault stores one owner key per commitment and does not publish which. Pick by era: derived for a subscription made here, legacy for one made before keys were derived per commitment."
@@ -365,7 +379,7 @@ export function CancelPanel({
               onPick={setCancelPick}
               relayLine={
                 cancelSig
-                  ? relayCommand("cancel", { commitment: identity.commitment, sig: cancelSig })
+                  ? relayCommand("cancel", { commitment: activeCommitment, sig: cancelSig })
                   : null
               }
             />
@@ -425,7 +439,7 @@ export function CancelPanel({
             </Field>
             <KeyValue
               rows={[
-                ["commitment", truncate(identity.commitment)],
+                ["commitment", truncate(activeCommitment)],
                 ["destination", truncate(destination)],
                 ["requires", "a cancelled subscription with escrow left"],
               ]}
@@ -465,7 +479,7 @@ export function CancelPanel({
               relayLine={
                 reclaimSig
                   ? relayCommand("reclaim", {
-                      commitment: identity.commitment,
+                      commitment: activeCommitment,
                       to: destination,
                       sig: reclaimSig,
                     })

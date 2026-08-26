@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link
       rel="preload"
+      href="/src/assets/fonts/archivo-latin-variable.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
       href="/src/assets/fonts/geist-mono-latin-400-600.woff2"
       as="font"
       type="font/woff2"
@@ -22,29 +29,11 @@
     />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
-    <script>
-      // Theme before first paint, so nothing flashes. Light is the default:
-      // only an explicitly stored choice, or a stored "system", consults the
-      // operating system. Keep this rule in step with src/theme/theme-provider.
-      (function () {
-        try {
-          var stored = window.localStorage.getItem("nightshift-theme");
-          var theme =
-            stored === "dark" || stored === "light"
-              ? stored
-              : stored === "system"
-                ? window.matchMedia("(prefers-color-scheme: light)").matches
-                  ? "light"
-                  : "dark"
-                : "light";
-          if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
-          document.documentElement.style.colorScheme = theme;
-        } catch (e) {
-          document.documentElement.setAttribute("data-theme", "light");
-          document.documentElement.style.colorScheme = "light";
-        }
-      })();
-    </script>
+    <style>
+      /* One light theme; painted before the bundle arrives so the first
+         frame is already the page's own ground. */
+      html { background: #f3f2f2; color-scheme: light; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

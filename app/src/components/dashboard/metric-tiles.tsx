@@ -113,7 +113,7 @@ export function MetricTiles({
       />
 
       <MetricTile
-        label="ESCROWED RUN-RATE, 30 D"
+        label="MRR, ESCROW-BACKED"
         token={String(metrics.escrowedRunRate30d.value)}
         value={<LiveNumber value={strk(metrics.escrowedRunRate30d.value)} decimals={2} />}
         unit="STRK"

@@ -1,239 +1,257 @@
-// The evidence board.
-//
-// Reading order is the argument: the instrument says the vault is running, the
-// tiles say what it holds, the feed proves every charge, the strip under it
-// names the subscription those periods belong to, the charge panel lets a
-// reader add one row, and the band below explains the machine, three shut
-// lines until it is asked for. Everything above the fold comes from one vault
-// read plus one schedule read; nothing on this page is a placeholder and
-// nothing is rounded into a claim the chain does not make. The charge panel is
-// the one element here that writes, and it writes only when pressed.
+// The live board, Modernist frame. Four figures with their basis, the charge
+// feed decoded from mainnet events, and the one element on the page that
+// writes: the permissionless charge panel. The committed snapshot appears
+// only as the automatic fallback when every RPC endpoint fails, labelled as
+// such - there is no manual switch into a degraded state. ?demo=1 keeps the
+// recorded-demo replay: real rows, re-landed on a timer, labelled as a
+// replay.
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
 
-import { buildFeedRows, ChargeFeed } from "../components/board/charge-feed";
-import { ChargePanel } from "../components/board/charge-panel";
-import {
-  chargeLagBlocks,
-  deriveTicks,
-  deriveWindow,
-  liveCommitment,
-  perPeriodAmount,
-  vaultBreakdown,
-} from "../components/board/derive";
-import { InstrumentPanel } from "../components/board/instrument";
-import { FLASH_NUMBER } from "../components/board/motion";
-import {
-  ChainChip,
-  DemoBanner,
-  PartialBanner,
-  SnapshotBanner,
-} from "../components/board/provenance";
-import type { BoardMode } from "../components/board/provenance";
-import { BoardSkeleton, EmptyFeed, PendingChip } from "../components/board/skeletons";
-import { StatRow } from "../components/board/stat-tiles";
-import { StoryBand } from "../components/board/story-band";
-import { SubjectStrip } from "../components/board/subject-strip";
-import { TickBar } from "../components/board/tick-bar";
-import { useChainClock, useMediaQuery } from "../components/board/use-clock";
-import { useArrivalPulse } from "../components/board/use-fresh-rows";
+import { ChargePanelM } from "../components/board/charge-panel-m";
+import { LiveNumber } from "../components/dashboard/tile";
+import { deriveWindow, hms, liveCommitment, utcTime } from "../components/board/derive";
 import { REPLAY_INTERVAL_SECS, useReplay } from "../components/board/use-replay";
 import { Masthead } from "../components/masthead";
 import { SiteFooter } from "../components/site-footer";
-import { Badge } from "../components/ui/badge";
-import { fmtBlock } from "../config";
+import { fmtBlock, fmtStrk, truncate, VOYAGER_TX } from "../config";
 import { useBoard } from "../query/useBoard";
 import { useSchedule } from "../query/useSchedule";
 
+const GUTTER = "px-5 lg:px-10";
+
+function Stat({
+  label,
+  value,
+  note,
+  first = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  note: React.ReactNode;
+  first?: boolean;
+}) {
+  return (
+    <div className={`py-6 pr-6 ${first ? "" : "border-l border-divider pl-6"} max-lg:border-l-0 max-lg:pl-0 max-lg:not-first:border-t max-lg:not-first:border-divider`}>
+      <div className="mb-2.5 text-[11px] tracking-[0.1em] uppercase text-text-caption">
+        {label}
+      </div>
+      <div
+        className="text-[30px] leading-none font-[800] tracking-[-0.03em] tabular lg:text-[34px]"
+        style={{ fontFamily: "var(--font-heading)" }}
+      >
+        {value}
+      </div>
+      <div className="mt-2 text-[12px] text-text-label">{note}</div>
+    </div>
+  );
+}
+
 export function BoardRoute() {
   const search = useSearch({ from: "/board" });
-  const { data, isPending, isError, error } = useBoard();
+  const query = useBoard();
 
-  const commitment = data ? liveCommitment(data.charges) : null;
-  const scheduleQuery = useSchedule(commitment);
-  const schedule = scheduleQuery.data ?? null;
+  const live = query.data ?? null;
+  const rpcDown = live !== null && live.provenance.source === "snapshot";
+  const showingSnapshot = rpcDown;
+  const data = live;
 
-  const isSnapshot = data?.provenance.source === "snapshot";
-  const demo = search.demo === true && data !== undefined && !isSnapshot;
-  const replay = useReplay(data?.charges ?? [], demo);
-  const mode: BoardMode = isSnapshot ? "snapshot" : demo ? "demo" : "live";
+  const commitment = live ? liveCommitment(live.charges) : null;
+  const schedule = useSchedule(commitment).data ?? null;
 
-  const charges = replay ? replay.charges : (data?.charges ?? []);
-  const newest = charges[0];
-  const newestKey = newest ? `${newest.txHash}:${newest.periodIndex}` : null;
-  const flare = useArrivalPulse(newestKey, FLASH_NUMBER);
-  const now = useChainClock(data ? data.headTimestamp : null, !isSnapshot);
-  const wide = useMediaQuery("(min-width: 768px)");
+  const demo = search.demo === true && !showingSnapshot && live !== null;
+  const replay = useReplay(live?.charges ?? [], demo);
+  const charges = demo && replay ? replay.charges : (data?.charges ?? []);
 
-  // The charge panel writes; this page reads. The hand-off between them is one
-  // invalidation: a charge that was accepted makes both reads stale, so they
-  // are re-run, and the arrival choreography this page already owns (the
-  // instrument's flare, the feed row's entrance) runs when the new event shows
-  // up in them. The panel does not animate that landing a second time.
   const queryClient = useQueryClient();
   const onCharged = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["board"] });
     void queryClient.invalidateQueries({ queryKey: ["schedule"] });
   }, [queryClient]);
 
-  if (isPending) {
-    return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-        {/* The chip matches the loaded masthead, so this page opens at the
-            height it lands at. It is never simply absent on this surface:
-            while the head block is still being read it says so, rather than
-            leaving a gap that reads as "this page is not on a chain". */}
-        <Masthead active="board" chip={<PendingChip />} />
-        <main className="flex-1 px-5 lg:px-10">
-          <div className="flex flex-col gap-8 py-8">
-            <BoardSkeleton />
-          </div>
-        </main>
-      </div>
-    );
-  }
+  const window_ = data
+    ? deriveWindow(showingSnapshot ? null : schedule, data.headBlock, data.headTimestamp)
+    : null;
 
-  if (isError) {
-    // readBoard() never throws: it falls back to the committed snapshot. So
-    // reaching this branch means the query itself broke, not the chain read.
-    return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-        <Masthead active="board" />
-        <main className="flex-1 px-5 py-8 lg:px-10">
-          <p className="text-[14px] text-destructive">
-            The board query failed to run: {error instanceof Error ? error.message : String(error)}.
-            Reload the page; if it keeps failing, read the vault directly on Voyager.
-          </p>
-        </main>
-      </div>
-    );
-  }
+  const nextDue =
+    window_ === null || showingSnapshot
+      ? { value: "—", note: "countdown not running on a snapshot" }
+      : window_.cancelled
+        ? { value: "—", note: "the live subscription is cancelled; no further charge can fire" }
+        : window_.complete
+          ? { value: "—", note: "all periods of the live schedule are charged" }
+          : window_.block === null
+            ? { value: "—", note: "no schedule read yet" }
+            : window_.overdue
+              ? {
+                  value: fmtBlock(window_.block),
+                  note: "window open: anyone may fire this charge, right now",
+                }
+              : {
+                  value: fmtBlock(window_.block),
+                  note: `≈ ${hms(Math.max(0, (window_.ts ?? 0) - (data?.headTimestamp ?? 0)))} at 1.7 s per block; the charge is block-gated, not clock-gated`,
+                };
 
-  const nextWindow = deriveWindow(schedule, data.headBlock, data.headTimestamp);
-  const ticks = deriveTicks(schedule, charges, data.headBlock);
-  const perPeriodWei = perPeriodAmount(charges, commitment);
-  const lagBlocks = chargeLagBlocks(schedule, newest ?? null);
-  const rows = buildFeedRows(charges, schedule, nextWindow);
-  const chargedCount = ticks.filter((t) => t === "ok" || t === "late").length;
-  const coveredPeriods =
-    schedule && perPeriodWei !== null && perPeriodWei > 0n
-      ? Number(schedule.escrowWei / perPeriodWei)
-      : null;
-
-  const feedNote =
-    mode === "snapshot"
-      ? `committed snapshot @ block ${fmtBlock(data.headBlock)}`
-      : mode === "demo"
-        ? `real rows, replayed on a ${REPLAY_INTERVAL_SECS} second timer`
-        : "live via JSON-RPC · falls back to a committed snapshot";
+  const chargeCountNote = (() => {
+    const withAmount = charges.filter((c) => c.amountWei !== null);
+    const gross = withAmount.reduce((s, c) => s + (c.amountWei ?? 0n), 0n);
+    return withAmount.length > 0 ? `${fmtStrk(gross)} STRK gross, from Charged events` : "decoded from mainnet logs";
+  })();
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col">
-      <Masthead
-        active="board"
-        chip={<ChainChip mode={mode} headBlock={data.headBlock} />}
-        badge={
-          // Demo mode says so in the chain chip and in the banner. A third
-          // pill in the masthead would be the same sentence a third time.
-          mode === "snapshot" ? (
-            <Badge variant="outline" className="border-ns-accent text-ns-accent">
-              SNAPSHOT @ BLOCK {fmtBlock(data.headBlock)}
-            </Badge>
-          ) : null
-        }
-      />
+    <div className="flex min-h-screen flex-col">
+      <Masthead active="board" />
 
-      <main className="flex-1 px-5 lg:px-10">
-        <div className="flex flex-col gap-8 py-8">
-          {mode === "snapshot" ? <SnapshotBanner snapshotBlock={data.headBlock} /> : null}
-          {mode === "demo" && replay ? (
-            <DemoBanner
-              landed={replay.landed}
-              total={replay.held}
-              intervalSecs={REPLAY_INTERVAL_SECS}
-            />
-          ) : null}
-          {mode !== "snapshot" && data.provenance.partial.length > 0 ? (
-            <PartialBanner notes={data.provenance.partial} />
-          ) : null}
-
-          <InstrumentPanel
-            mode={mode}
-            now={now}
-            headBlock={data.headBlock}
-            lastCharge={newest ?? null}
-            window={nextWindow}
-            lagBlocks={lagBlocks}
-            replaySecs={replay ? replay.secsToNext : null}
-            replayProgress={replay ? replay.progress : 0}
-            flare={flare}
-            size={wide ? 320 : 208}
-          />
-
-          <StatRow
-            custodyWei={data.escrowWei}
-            chargeCount={charges.length}
-            activeSubscriptions={data.activeSubscriptions}
-            vaultBreakdown={vaultBreakdown(data)}
-            asOfBlock={data.headBlock}
-            still={mode === "snapshot"}
-          />
-
-          <div className="flex flex-col gap-3">
-            {charges.length === 0 ? (
-              <EmptyFeed />
-            ) : (
-              <ChargeFeed
-                rows={rows}
-                note={feedNote}
-                caption="Decoded from mainnet charge events. This shows what the vault did, not who subscribed. The nullifier is h(commitment ‖ period): write-once, so a period can be charged exactly once."
-              />
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              {ticks.length > 0 ? (
-                <TickBar
-                  states={ticks}
-                  caption={
-                    schedule
-                      ? `${chargedCount} of ${ticks.length} periods charged`
-                      : `${chargedCount} charge${chargedCount === 1 ? "" : "s"} decoded · no schedule was read, so the denominator is unknown`
-                  }
-                />
-              ) : (
-                <span />
-              )}
-              {coveredPeriods !== null ? (
-                <span className="text-[11px] leading-[1.45] text-text-caption">
-                  escrow covers {coveredPeriods} further periods
-                </span>
-              ) : null}
+      <main className={`${GUTTER} flex-1 py-9`}>
+        <div className="flex flex-wrap items-end gap-6 border-b-2 border-divider pb-5">
+          <div>
+            <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+              ▸ Keyless · reads mainnet over JSON-RPC
             </div>
-            {schedule ? <SubjectStrip schedule={schedule} perPeriodWei={perPeriodWei} /> : null}
+            <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">Live board</h2>
           </div>
-
-          <ChargePanel
-            commitment={commitment}
-            nextPeriod={schedule ? schedule.nextPeriod : null}
-            perPeriodWei={perPeriodWei}
-            windowBlock={nextWindow.block}
-            onSubmitted={onCharged}
-          />
+          {showingSnapshot && data ? (
+            <span className="m-tag m-tag-outline ml-auto">
+              Snapshot @ block {fmtBlock(data.headBlock)}
+            </span>
+          ) : null}
         </div>
 
-        <div className="border-t border-border-hairline">
-          <StoryBand
-            charges={data.charges}
-            schedule={schedule}
-            perPeriodWei={perPeriodWei}
-            ticks={ticks}
-          />
-        </div>
+        {showingSnapshot && data ? (
+          <div className="mt-5 flex items-start gap-3.5 border-2 border-ns-accent p-4">
+            <span
+              className="font-[800] text-ns-accent"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              !
+            </span>
+            <div className="text-[13.5px] leading-[1.55]">
+              The RPC endpoints are not answering right now, so this is the
+              committed snapshot at block {fmtBlock(data.headBlock)}. Figures
+              are frozen at that block; the page returns to live reads on its
+              own as soon as an endpoint answers.
+            </div>
+          </div>
+        ) : null}
+
+        {demo && replay ? (
+          <div className="mt-5 flex items-start gap-3.5 border-2 border-divider p-4">
+            <span className="m-tag m-tag-accent">Demo replay</span>
+            <div className="text-[13.5px] leading-[1.55]">
+              Real mainnet rows, re-landed one every {REPLAY_INTERVAL_SECS} seconds:{" "}
+              {replay.landed} of {replay.held} landed. Remove ?demo=1 for the live feed.
+            </div>
+          </div>
+        ) : null}
+
+        {!showingSnapshot && data && data.provenance.partial.length > 0 ? (
+          <div className="mt-5 border border-divider p-3.5 text-[12.5px] text-text-label">
+            Partial read: {data.provenance.partial.join(" · ")}
+          </div>
+        ) : null}
+
+        {data === null ? (
+          <div className="mt-8 text-[14px] text-text-label">Reading Starknet mainnet…</div>
+        ) : (
+          <>
+            <div className="grid border-b-2 border-divider lg:grid-cols-4">
+              <Stat
+                first
+                label="Head block"
+                value={<LiveNumber value={data.headBlock} />}
+                note={
+                  showingSnapshot
+                    ? "snapshot · not the head"
+                    : "lava.build, then blastapi: first endpoint that answers"
+                }
+              />
+              <Stat
+                label="Escrow held"
+                value={<LiveNumber value={Number(fmtStrk(data.escrowWei))} decimals={2} />}
+                note="STRK, accounted custody: balance minus donations"
+              />
+              <Stat
+                label="Active subscriptions"
+                value={<LiveNumber value={data.activeSubscriptions} />}
+                note="not cancelled · periods left · escrow covers a tier price"
+              />
+              <Stat
+                label="Next charge due"
+                value={
+                  nextDue.value === "—" ? "—" : <LiveNumber value={Number(nextDue.value.replace(/,/g, ""))} />
+                }
+                note={nextDue.note}
+              />
+            </div>
+
+            <div className="grid lg:grid-cols-[8fr_4fr]">
+              <div className="py-7 lg:pr-8">
+                <div className="mb-4 flex flex-wrap items-baseline gap-3.5">
+                  <div className="text-[11px] tracking-[0.1em] uppercase text-text-caption">
+                    Charge feed · decoded from Charged events
+                  </div>
+                  <div className="ml-auto text-[12px] text-text-caption">{chargeCountNote}</div>
+                </div>
+                {charges.length === 0 ? (
+                  <div className="border border-divider p-5 text-[13.5px] text-text-label">
+                    No charge has been decoded yet
+                    {demo ? "; the replay lands its first row shortly." : "."}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="m-table min-w-[640px]">
+                      <thead>
+                        <tr>
+                          <th>Block</th>
+                          <th>UTC</th>
+                          <th>Period</th>
+                          <th>Commitment</th>
+                          <th>Amount</th>
+                          <th>Vault</th>
+                          <th style={{ textAlign: "right" }}>Receipt</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {charges.map((c) => (
+                          <tr key={`${c.txHash}:${c.periodIndex}`}>
+                            <td className="font-mono text-[12.5px]">{fmtBlock(c.block)}</td>
+                            <td className="font-mono text-[12.5px]">{utcTime(c.timestamp)}</td>
+                            <td>{String(c.periodIndex).padStart(2, "0")}</td>
+                            <td className="font-mono text-[12.5px]">{truncate(c.commitment)}</td>
+                            <td>{c.amountWei !== null ? `${fmtStrk(c.amountWei)} STRK` : "—"}</td>
+                            <td>{c.vault}</td>
+                            <td className="text-right font-mono text-[12.5px]">
+                              <a href={VOYAGER_TX(c.txHash)} target="_blank" rel="noreferrer">
+                                {truncate(c.txHash)} ↗
+                              </a>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="mt-5 max-w-[82ch] text-[12.5px] leading-[1.6] text-text-label">
+                  A charge names the vault, an amount, a period index and a
+                  nullifier. It does not name the subscriber. All periods of one
+                  subscription share a commitment: that is public, and never
+                  linked to a wallet.
+                </div>
+              </div>
+
+              <div className="border-t-2 border-divider py-7 lg:border-t-0 lg:border-l-2 lg:pl-8">
+                <ChargePanelM commitment={commitment} onSubmitted={onCharged} />
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       <SiteFooter
-        snapshot={mode === "snapshot"}
+        className="mt-0"
+        snapshot={showingSnapshot}
         links={[
           { label: "npm nightshift-verify", href: "https://www.npmjs.com/package/nightshift-verify" },
           { label: "npm strk20-preflight", href: "https://www.npmjs.com/package/strk20-preflight" },

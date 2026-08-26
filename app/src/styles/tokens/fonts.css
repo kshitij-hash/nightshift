@@ -1,7 +1,14 @@
-/* Geist Mono, the only family in this system. font-display: optional so a
-   slow load never reflows text; the fallback stack below is metric-close
-   enough that the swap, if it happens, is not disruptive.
-   Self-hosted: latin subset, variable weight 400-600, one woff2 file. */
+/* Two families. Archivo carries headings and body per the Modernist system;
+   Geist Mono carries hashes, calldata and every figure that reads as data.
+   Both self-hosted, latin subset, one variable woff2 each.
+   font-display: optional so a slow load never reflows text. */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: optional;
+  src: url("../../assets/fonts/archivo-latin-variable.woff2") format("woff2");
+}
 @font-face {
   font-family: "Geist Mono";
   font-style: normal;

@@ -55,7 +55,7 @@ const FOOTER_LINKS = [
  *  ones at 64px. */
 const SECTIONS = "flex flex-col gap-8 py-10";
 const BREAK = "mt-8";
-const PAGE = "mx-auto flex w-full max-w-[1200px] flex-col";
+const PAGE = "flex min-h-screen w-full flex-col";
 const GUTTER = "flex-1 px-5 lg:px-10";
 
 export function CreatorRoute() {
@@ -95,6 +95,12 @@ export function CreatorRoute() {
         <Masthead active="dashboard" chip={<ChainChip headBlock={null} live={false} />} />
         <main className={GUTTER}>
           <div className={SECTIONS}>
+            <div className="border-b-2 border-divider pb-5">
+              <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+                ▸ Paste a creator id · nothing is stored, nothing is sent anywhere
+              </div>
+              <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">Creator ledger</h2>
+            </div>
             {search.invalidCreator ? <RejectedIds raw={search.invalidCreator} /> : null}
             <CreatorIds ids={ids} summaries={undefined} onChange={setIds} variant="entry" />
             <section className="flex flex-col gap-4">
@@ -102,14 +108,14 @@ export function CreatorRoute() {
                 // WHAT THIS PAGE DERIVES
               </SectionHead>
               <p className="max-w-[130ch] text-[14px] leading-[1.7] text-text-prose">
-                Gross revenue and its split, the escrowed run rate, funded and entitled
+                Gross revenue and its split, escrow-backed MRR, funded and entitled
                 subscriptions, arrears, the timeline, and one row per commitment. Each figure
-                prints the rule it came from, and an empty dashboard is a legitimate state.
+                prints the rule it came from.
               </p>
             </section>
           </div>
         </main>
-        <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
+        <SiteFooter ids={ids} links={FOOTER_LINKS} />
       </div>
     );
   }
@@ -131,7 +137,7 @@ export function CreatorRoute() {
             <DashboardSkeleton />
           </div>
         </main>
-        <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
+        <SiteFooter ids={ids} links={FOOTER_LINKS} />
       </div>
     );
   }
@@ -154,7 +160,7 @@ export function CreatorRoute() {
             </p>
           </div>
         </main>
-        <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
+        <SiteFooter ids={ids} links={FOOTER_LINKS} />
       </div>
     );
   }
@@ -183,6 +189,13 @@ export function CreatorRoute() {
 
       <main className={GUTTER}>
         <div className={SECTIONS}>
+          <div className="border-b-2 border-divider pb-5">
+            <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+              ▸ creator_id derived from the public record
+            </div>
+            <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">Creator ledger</h2>
+          </div>
+
           {search.invalidCreator ? <RejectedIds raw={search.invalidCreator} /> : null}
           <ProvenanceBanner ledger={ledger} live={live} />
           <PartialScanBanner ledger={ledger} />
@@ -205,6 +218,12 @@ export function CreatorRoute() {
                   // METRICS · WITH THEIR BASIS
                 </SectionHead>
                 <MetricTiles metrics={data.metrics} ledger={ledger} />
+                <p className="max-w-[100ch] text-[12px] leading-[1.6] text-text-caption">
+                  Derived from public Charged, Claimed and Cancelled events:
+                  anyone reading the chain can compute these figures, which is
+                  what makes them auditable. What stays hidden is the
+                  subscriber behind each commitment.
+                </p>
               </section>
 
               <section className="flex flex-col gap-5">
@@ -287,7 +306,7 @@ export function CreatorRoute() {
         </div>
       </main>
 
-      <SiteFooter className="mt-12" ids={ids} links={FOOTER_LINKS} />
+      <SiteFooter ids={ids} links={FOOTER_LINKS} />
     </div>
   );
 }

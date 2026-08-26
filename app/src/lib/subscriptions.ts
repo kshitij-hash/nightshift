@@ -69,6 +69,48 @@ export type SubscriptionRead = {
 
 const u = (f: string | undefined): bigint => BigInt(f ?? "0x0");
 
+// --- incremental scan caches -------------------------------------------------
+//
+// Both scans below read append-only history (a creator registered stays
+// registered; a Subscribed event stays emitted), so each caches what it saw
+// with a high-water block and re-scans only the blocks since. Same pattern
+// and same rules as lib/board.ts: a truncated scan never advances the mark,
+// views are never cached, and a cache that fails to parse is discarded.
+// Guarded for non-browser callers (the node test bundles), and gated to the
+// default vault so a caller reading some other address never mixes caches.
+
+const CREATORS_CACHE_KEY = "nightshift.creators.scan.v1";
+const SUBS_CACHE_KEY = "nightshift.subs.scan.v1";
+
+function loadCache<T>(key: string): T | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(key);
+    return raw === null ? null : (JSON.parse(raw) as T);
+  } catch {
+    return null;
+  }
+}
+
+function saveCache(key: string, value: unknown): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // storage refused; the next load pays the full scan again
+  }
+}
+
+type CreatorsCache = { upTo: number; creatorIds: string[] };
+type SubsCache = {
+  upTo: number;
+  /** The candidate set this cache was scanned under. A different set means a
+   *  different key filter, so the cache is only trusted when it matches. */
+  candidateKey: string;
+  /** decimal commitment -> block its Subscribed event landed at. */
+  found: Record<string, number>;
+};
+
 /** Every creator id the vault has registered, deduplicated by value rather
  *  than by string, because RPC nodes are not consistent about padding. */
 export async function readVaultCreators(
@@ -76,27 +118,35 @@ export async function readVaultCreators(
   vault: string = VAULT,
 ): Promise<{ creatorIds: string[]; truncated: boolean; partial: string[] }> {
   const partial: string[] = [];
+  const cached = vault === VAULT ? loadCache<CreatorsCache>(CREATORS_CACHE_KEY) : null;
   try {
+    const headBlock = await client.call<number>("starknet_blockNumber", []);
+    const from = cached !== null ? Math.min(cached.upTo + 1, headBlock) : VAULT_DEPLOY_BLOCK;
     const scan = await scanEvents(client, {
       address: vault,
-      from: { block_number: VAULT_DEPLOY_BLOCK },
+      from: { block_number: from },
+      to: { block_number: headBlock },
       keys: [[EVENT.CreatorRegistered]],
     });
     if (scan.truncated) {
       partial.push(`CreatorRegistered: page cap hit after ${scan.pages} pages`);
     }
-    const seen = new Set<string>();
-    const creatorIds: string[] = [];
+    const seen = new Set<string>(cached?.creatorIds ?? []);
+    const creatorIds: string[] = [...(cached?.creatorIds ?? [])];
     for (const e of scan.events) {
       const id = feltPad(e.keys[1] ?? "0x0");
       if (u(id) === 0n || seen.has(id)) continue;
       seen.add(id);
       creatorIds.push(id);
     }
+    if (vault === VAULT && !scan.truncated) {
+      saveCache(CREATORS_CACHE_KEY, { upTo: headBlock, creatorIds } satisfies CreatorsCache);
+    }
     return { creatorIds, truncated: scan.truncated, partial };
   } catch (e) {
     partial.push(`CreatorRegistered: ${e instanceof Error ? e.message : String(e)}`);
-    return { creatorIds: [], truncated: false, partial };
+    // A failed incremental read still knows what the last clean read knew.
+    return { creatorIds: cached?.creatorIds ?? [], truncated: false, partial };
   }
 }
 
@@ -120,11 +170,23 @@ export async function readSubscriptions(
   const keys = candidates.map((c) => feltPad(c.commitment));
   const fits = keys.length <= MAX_KEY_FILTER_VALUES;
 
-  const found: Array<{ candidate: Candidate; block: number }> = [];
+  // The cache is trusted only under the exact candidate set it was scanned
+  // with: a new candidate means a new key filter, and events for it may sit
+  // anywhere in history, so the scan starts over from the deploy block.
+  const candidateKey = [...keys].sort().join(",");
+  const cachedRaw = vault === VAULT ? loadCache<SubsCache>(SUBS_CACHE_KEY) : null;
+  const cached = cachedRaw !== null && cachedRaw.candidateKey === candidateKey ? cachedRaw : null;
+
+  const foundBlocks = new Map<string, number>(
+    Object.entries(cached?.found ?? {}).map(([k, v]) => [k, v]),
+  );
   try {
+    const headBlock = await client.call<number>("starknet_blockNumber", []);
+    const from = cached !== null ? Math.min(cached.upTo + 1, headBlock) : VAULT_DEPLOY_BLOCK;
     const scan = await scanEvents(client, {
       address: vault,
-      from: { block_number: VAULT_DEPLOY_BLOCK },
+      from: { block_number: from },
+      to: { block_number: headBlock },
       keys: fits ? [[EVENT.Subscribed], keys] : [[EVENT.Subscribed]],
     });
     if (scan.truncated) {
@@ -132,14 +194,26 @@ export async function readSubscriptions(
       partial.push(`Subscribed: page cap hit after ${scan.pages} pages`);
     }
     for (const e of scan.events) {
-      const mine = byCommitment.get(u(e.keys[1]).toString());
-      if (!mine) continue;
-      found.push({ candidate: mine, block: e.block_number });
+      const key = u(e.keys[1]).toString();
+      if (!byCommitment.has(key)) continue;
+      foundBlocks.set(key, e.block_number);
+    }
+    if (vault === VAULT && !scan.truncated) {
+      saveCache(SUBS_CACHE_KEY, {
+        upTo: headBlock,
+        candidateKey,
+        found: Object.fromEntries(foundBlocks),
+      } satisfies SubsCache);
     }
   } catch (e) {
     partial.push(`Subscribed: ${e instanceof Error ? e.message : String(e)}`);
-    return { subscriptions: [], truncated, partial };
+    if (cached === null) return { subscriptions: [], truncated, partial };
+    // A failed incremental read still knows what the last clean read found;
+    // the schedules below are read fresh either way.
   }
+  const found: Array<{ candidate: Candidate; block: number }> = [...foundBlocks.entries()]
+    .map(([key, block]) => ({ candidate: byCommitment.get(key), block }))
+    .filter((f): f is { candidate: Candidate; block: number } => f.candidate !== undefined);
 
   // readSchedule returns null for a commitment the vault does not know, which
   // is the second gate: an event without a schedule behind it gets no card.

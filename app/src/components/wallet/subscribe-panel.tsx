@@ -11,9 +11,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { STRK, VAULT, VOYAGER_TX } from "../../config";
+import { DEMO_CREATOR_ID, STRK, VAULT, VOYAGER_CONTRACT, VOYAGER_TX } from "../../config";
 import { getRpcClient } from "../../lib/rpc-instance";
 import { tierOf } from "../../lib/rpc/views";
+import { readSchedule } from "../../lib/schedule";
 import type { Connection } from "../../lib/wallet/bridge";
 import {
   CADENCES,
@@ -24,6 +25,7 @@ import {
   truncate,
   type CadenceBlocks,
 } from "../../lib/wallet/core";
+import { subscribeIdentityFor } from "../../lib/wallet/keys";
 import type { PublicIdentity } from "../../lib/wallet/keys";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -127,16 +129,24 @@ export function SubscribePanel({
     };
   }, [priceKey, creatorProblem, tierProblem]);
 
+  // Derived for the creator id in the form, not for the wallet's own id.
+  // identity.commitment is bound to the wallet's own creator id; subscribing
+  // to anybody else with it would publish a commitment /manage can never
+  // re-derive, orphaning the subscription from this browser's own list.
+  const subIdentity = creatorProblem
+    ? { commitment: identity.commitment, ownerPub: identity.ownerPub }
+    : subscribeIdentityFor(creatorInput.trim());
+
   const actions = () =>
     subscribeActions({
       vault: VAULT,
       token: STRK,
-      commitment: identity.commitment,
+      commitment: subIdentity.commitment,
       creatorId: creatorInput.trim(),
       tier,
       periodBlocks: cadence,
       nPeriods: periods,
-      ownerPub: identity.ownerPub,
+      ownerPub: subIdentity.ownerPub,
       escrowWei,
     });
 
@@ -171,17 +181,49 @@ export function SubscribePanel({
   const submit = async () => {
     setFailure(null);
     setPhase("submitting");
-    setLines((l) => [...l, { text: "submitting · the wallet is generating the proof", tone: "dim" }]);
+    setLines((l) => [
+      ...l,
+      { text: "submitting · the wallet is generating the proof", tone: "dim" },
+      { text: "proving happens in the wallet and can take a minute or two", tone: "dim" },
+    ]);
+
+    // The wallet's promise is not the only truth: it proves, submits, and can
+    // resolve well after the transaction has landed. While it runs, watch the
+    // vault directly - the moment schedule_of answers for this commitment,
+    // the subscribe is on chain and the page says so, whatever the wallet's
+    // promise is still doing.
+    const commitment = subIdentity.commitment;
+    let settled = false;
+    const poll = window.setInterval(() => {
+      void readSchedule(commitment).then((s) => {
+        if (s === null || settled) return;
+        settled = true;
+        window.clearInterval(poll);
+        setLines((l) => [
+          ...l,
+          { text: "confirmed by reading the vault: the schedule exists on chain", tone: "ok" },
+        ]);
+        setPhase((p) => (p === "submitting" ? "submitted" : p));
+      });
+    }, 8000);
+
     try {
       const hash = await connection.invokeTransaction(actions());
       setTxHash(hash);
       setLines((l) => [...l, { text: `submitted: ${hash}`, tone: "ok" }]);
       setPhase("submitted");
     } catch (e) {
-      const f = toFailure(e);
-      setFailure(f);
-      setLines((l) => [...l, { text: `not submitted: ${f.message}`, tone: "bad" }]);
-      setPhase("previewed");
+      // The chain outranks a late wallet error: a schedule that exists is a
+      // subscribe that happened, whatever the promise says.
+      if (!settled) {
+        const f = toFailure(e);
+        setFailure(f);
+        setLines((l) => [...l, { text: `not submitted: ${f.message}`, tone: "bad" }]);
+        setPhase("previewed");
+      }
+    } finally {
+      settled = true;
+      window.clearInterval(poll);
     }
   };
 
@@ -210,6 +252,21 @@ export function SubscribePanel({
                 invalidate();
               }}
             />
+            <div className="flex flex-wrap items-center gap-2.5 pt-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCreatorInput(DEMO_CREATOR_ID);
+                  invalidate();
+                }}
+              >
+                use the demo creator
+              </Button>
+              <span className="text-[11px] text-text-caption">
+                registered on the live vault, 1 STRK per period
+              </span>
+            </div>
           </Field>
 
           <Field
@@ -350,8 +407,8 @@ export function SubscribePanel({
               ["pool fee", "6.00 STRK · public"],
               ["periods bought", `${periods}`],
               ["cadence", `${cadenceMeta.label} · ${cadenceMeta.blocks} blocks`],
-              ["commitment", truncate(identity.commitment)],
-              ["owner pubkey", truncate(identity.ownerPub)],
+              ["commitment", truncate(subIdentity.commitment)],
+              ["owner pubkey", truncate(subIdentity.ownerPub)],
             ]}
           />
 
@@ -386,7 +443,7 @@ export function SubscribePanel({
         </Step>
 
         <Step n="03" name="SUBMITTED" note="the receipt" active={phase === "submitted"}>
-          {phase === "submitted" && txHash ? (
+          {phase === "submitted" ? (
             <>
               <div className="flex flex-wrap items-center gap-3">
                 <Badge variant="verified">SUBSCRIBED</Badge>
@@ -394,13 +451,23 @@ export function SubscribePanel({
               </div>
               <KeyValue
                 rows={[
-                  ["transaction", truncate(txHash)],
-                  ["commitment", truncate(identity.commitment)],
+                  [
+                    "transaction",
+                    txHash !== null
+                      ? truncate(txHash)
+                      : "landed · the wallet is still returning the hash",
+                  ],
+                  ["commitment", truncate(subIdentity.commitment)],
                   ["escrow", `${fmtStrk(escrowWei)} STRK, held by the vault`],
                   ["periods", `${periods} · ${cadenceMeta.label}`],
                 ]}
               />
-              <a href={VOYAGER_TX(txHash)} target="_blank" rel="noreferrer" className="text-[12px]">
+              <a
+                href={txHash !== null ? VOYAGER_TX(txHash) : `${VOYAGER_CONTRACT(VAULT)}#events`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[12px]"
+              >
                 verify on voyager ↗
               </a>
               <p className="text-[13px] leading-[1.6] text-text-prose">
@@ -420,7 +487,7 @@ export function SubscribePanel({
               <KeyValue
                 rows={[
                   ["transaction", "not submitted"],
-                  ["commitment", truncate(identity.commitment)],
+                  ["commitment", truncate(subIdentity.commitment)],
                   ["escrow", `${fmtStrk(escrowWei)} STRK, still yours`],
                 ]}
               />
@@ -438,7 +505,7 @@ export function SubscribePanel({
           periods={periods}
           cadenceLabel={`${cadenceMeta.label}, ${cadenceMeta.blocks} blocks`}
           vault={VAULT}
-          commitment={identity.commitment}
+          commitment={subIdentity.commitment}
           tierLabel={
             price.state === "known"
               ? `tier ${tier} · ${fmtStrk(price.amountWei)} STRK per period`

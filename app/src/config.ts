@@ -21,8 +21,19 @@ export const GATE =
 export const STRK =
   "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 
-/** Public RPC endpoints, tried in order. */
+/** A dedicated endpoint for this deployment, when one is configured:
+ *  VITE_RPC_URL in Vercel's env (or .env.local in dev) carries a keyed
+ *  provider URL whose key is origin-allowlisted to this site. Read with
+ *  optional chaining so the node test bundles, where import.meta.env does
+ *  not exist, fall through to the public endpoints. */
+const CONFIGURED_RPC = (
+  (import.meta as { env?: Record<string, string | undefined> }).env?.VITE_RPC_URL ?? ""
+).trim();
+
+/** RPC endpoints, tried in order: the configured one first when present,
+ *  then the public keyless pair as failover. */
 export const RPC_URLS = [
+  ...(CONFIGURED_RPC !== "" ? [CONFIGURED_RPC] : []),
   "https://rpc.starknet.lava.build",
   "https://starknet-mainnet.public.blastapi.io/rpc/v0_8",
 ];
@@ -35,6 +46,23 @@ export const VAULT_V2_DEPLOY_BLOCK = 13_554_000;
 /** ~seconds per Starknet mainnet block (~1.7s at current cadence), for the
  *  NEXT CHARGE countdown estimate only. The charge itself is block-gated. */
 export const SECONDS_PER_BLOCK = 1.7;
+
+/** The demo creator registered on the live vault: one tier at 1 STRK per
+ *  period. The subscribe wizard offers it as a one-click start so a visitor
+ *  without a creator id can walk the whole flow against real mainnet state. */
+export const DEMO_CREATOR_ID =
+  "0x396c007ff97561b1eadf59540c71944f6ad2ccfbfc7116254f1a34d869205df";
+
+/** The v4 lifecycle receipts, one per verb - the same six the README lists.
+ *  Every landing claim links one of these. */
+export const RECEIPTS: Array<{ verb: string; hash: string }> = [
+  { verb: "subscribe", hash: "0x79ab57d364b8d8118256103c017232a031f493312f8fca4176b4e9d5090ac86" },
+  { verb: "charge", hash: "0x24a723437c0f91cc9bc7d917c458908d3f1c90039ac0a5f9f1b3c7e4a06778b" },
+  { verb: "present", hash: "0x30191636301463f89c9686a7426fa2489429024a562bd4c0da7693837d502de" },
+  { verb: "claim", hash: "0x51099d3247f6681f049038ab1044e5c644956b333696e263a740a04880943b1" },
+  { verb: "cancel", hash: "0x5474c1ec9d302a884fe9341c071861b579728767973bee147b358416580df5f" },
+  { verb: "reclaim", hash: "0x401b3a4fb23f53ce988247af54072d1bbed4c140be4c09a05a3f0fce7f832b1" },
+];
 
 export const VOYAGER_TX = (hash: string) => `https://voyager.online/tx/${hash}`;
 export const VOYAGER_CONTRACT = (addr: string) =>

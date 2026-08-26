@@ -53,11 +53,17 @@ export function SiteFooter({
   return (
     <footer
       className={cn(
-        "mt-8 flex flex-wrap items-center justify-between gap-5 border-t border-border-hairline bg-surface-sunken px-5 py-5 lg:px-14",
+        "mt-0 flex flex-wrap items-center justify-between gap-5 border-t-2 border-divider px-5 py-6 lg:px-10",
         className,
       )}
     >
       <p className="flex flex-wrap items-center gap-x-1.5 text-[12px] leading-[1.5] text-text-caption">
+        <span
+          className="mr-3 text-[14px] font-[800] text-ink"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
+          NIGHTSHIFT
+        </span>
         {ids && ids.length > 0 ? (
           <>
             <span>{ids.length === 1 ? "creator" : `creators (${ids.length})`}</span>
@@ -84,11 +90,16 @@ export function SiteFooter({
         {links.map((l) =>
           "href" in l ? (
             <a key={l.label} href={l.href} target="_blank" rel="noreferrer" className={EXTERNAL}>
-              {l.label} ↗
+              <span className="m-swap" data-text={l.label}>
+                <span>{l.label}</span>
+              </span>
+              &nbsp;↗
             </a>
           ) : (
             <Link key={l.label} to={l.to} className={LINK}>
-              {l.label}
+              <span className="m-swap" data-text={l.label}>
+                <span>{l.label}</span>
+              </span>
             </Link>
           ),
         )}

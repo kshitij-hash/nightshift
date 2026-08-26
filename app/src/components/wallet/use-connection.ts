@@ -6,11 +6,15 @@
 // user action here and nowhere else. There is no silent reconnect on mount,
 // no eager permission probe, and no wallet call before a click.
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { STRK } from "../../config";
 import { WalletError, connect, type Connection } from "../../lib/wallet/bridge";
 import { identityFor, storedKeyState, type PublicIdentity } from "../../lib/wallet/keys";
+
+/** Set after a successful click-connect, cleared by disconnect: the standing
+ *  record that this reader wants their session resumed on the next load. */
+const RECONNECT_KEY = "nightshift.wallet.reconnect";
 
 export type ConnectStatus = "idle" | "connecting" | "connected" | "error" | "unsupported";
 
@@ -62,6 +66,13 @@ export function useConnection() {
       // never on page load.
       const before = storedKeyState();
       const identity = identityFor(connection.address, STRK);
+      // The click's consent stands across refreshes: the flag is what lets the
+      // next page load reconnect without asking again. Cleared by disconnect.
+      try {
+        localStorage.setItem(RECONNECT_KEY, "1");
+      } catch {
+        // storage refused; the session still works, it just will not resume
+      }
       setState({
         status: "connected",
         connection,
@@ -79,7 +90,37 @@ export function useConnection() {
     }
   }, []);
 
-  const disconnect = useCallback(() => setState(IDLE), []);
+  const disconnect = useCallback(() => {
+    try {
+      localStorage.removeItem(RECONNECT_KEY);
+    } catch {
+      // nothing to clear
+    }
+    setState(IDLE);
+  }, []);
+
+  // Resume a session the reader already granted. This is not a connect on
+  // load in the sense the bridge forbids: the flag exists only after a
+  // deliberate click, the wallet has this origin pre-authorized so no prompt
+  // appears, and an explicit disconnect clears it. One attempt per mount.
+  const resumed = useRef(false);
+  useEffect(() => {
+    // Deferred a tick so the resume never sets state inside the effect's own
+    // render pass, and marked done inside the callback so a strict-mode
+    // double mount (schedule, cancel, schedule) still resumes exactly once.
+    const id = window.setTimeout(() => {
+      if (resumed.current) return;
+      resumed.current = true;
+      let wants = false;
+      try {
+        wants = localStorage.getItem(RECONNECT_KEY) === "1";
+      } catch {
+        wants = false;
+      }
+      if (wants) void start();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [start]);
 
   return useMemo(() => ({ state, start, disconnect }), [state, start, disconnect]);
 }

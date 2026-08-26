@@ -107,6 +107,22 @@ export const identityFor = (accountAddress: string, token: string): PublicIdenti
  *  what a subscription publishes. */
 export type DerivedCommitment = { creatorId: string; commitment: string };
 
+/** The public identity of a subscription to ONE creator id: the commitment and
+ *  owner pubkey this browser's secret derives for that id. This is what a
+ *  subscribe must publish for /manage to find the subscription again -
+ *  identityFor's commitment is bound to the wallet's own creator id and is the
+ *  wrong one for a subscription to anybody else. Creates the master secret on
+ *  first use, so call it only from a flow the reader deliberately started. */
+export const subscribeIdentityFor = (
+  creatorId: string,
+): { commitment: string; ownerPub: string } => {
+  const secret = stored(SECRET_KEY);
+  return {
+    commitment: commitmentOf(secret, creatorId),
+    ownerPub: starkPubOf(ownerPrivFor(secret, creatorId)),
+  };
+};
+
 /**
  * The commitments this machine's stored master secret produces for a list of
  * creator ids, for /manage to ask the vault which of them exist.
@@ -158,6 +174,39 @@ const ownerPrivFrom = (accountAddress: string, token: string, choice: OwnerKeyCh
 
 export type SignedCancel = { commitment: string; sig: Signature };
 
+/** The stored secret, or a named refusal. Private: every caller below turns
+ *  this into a signature and drops it. */
+const requireSecret = (): string => {
+  const secret = localStorage.getItem(SECRET_KEY);
+  if (secret === null) {
+    throw new Error("this browser holds no subscriber secret, so it cannot sign for any subscription");
+  }
+  return secret;
+};
+
+/** Cancel, signed for a subscription to ONE creator id: the commitment and
+ *  owner key are derived for that id, which is the only key the vault will
+ *  accept for it. This is the right signer for anything /manage lists. */
+export const signCancelFor = (creatorId: string): SignedCancel => {
+  const secret = requireSecret();
+  const commitment = commitmentOf(secret, creatorId);
+  return {
+    commitment,
+    sig: signWith(cancelMessage(commitment), ownerPrivFor(secret, creatorId)),
+  };
+};
+
+/** Reclaim, signed for a subscription to ONE creator id, destination bound
+ *  inside the message. */
+export const signReclaimFor = (creatorId: string, to: string): SignedCancel => {
+  const secret = requireSecret();
+  const commitment = commitmentOf(secret, creatorId);
+  return {
+    commitment,
+    sig: signWith(reclaimMessage(commitment, to), ownerPrivFor(secret, creatorId)),
+  };
+};
+
 export const signCancel = (
   accountAddress: string,
   token: string,
@@ -198,6 +247,31 @@ export const signClaim = (
   const payoutPub = starkPubOf(payoutPriv);
   const creatorId = creatorIdOf(accountAddress, token, payoutPub);
   return signWith(claimMessage(creatorId, noteId, amountWei), payoutPriv);
+};
+
+/** A tier presentation for a subscription to ONE creator id, signed off
+ *  chain with the owner key this browser's secret derives for that id. This
+ *  is the right signer for any subscription /manage lists: the commitment on
+ *  the card is commitmentOf(secret, creatorId), and only the key derived for
+ *  the same id can answer for it. */
+export const signPresentationFor = (
+  creatorId: string,
+  challenge: { verifierId: string; expiryBlock: string; nonce: string },
+): { commitment: string; sig: Signature } => {
+  const secret = localStorage.getItem(SECRET_KEY);
+  if (secret === null) {
+    throw new Error(
+      "this browser holds no subscriber secret, so it cannot sign for any subscription",
+    );
+  }
+  const commitment = commitmentOf(secret, creatorId);
+  return {
+    commitment,
+    sig: signWith(
+      presentMessage(commitment, challenge.verifierId, challenge.expiryBlock, challenge.nonce),
+      ownerPrivFor(secret, creatorId),
+    ),
+  };
 };
 
 /** A tier presentation, signed off chain. Included because the owner key lives

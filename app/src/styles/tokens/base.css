@@ -25,12 +25,18 @@
   body {
     background: var(--surface-page);
     color: var(--text-default);
-    font-family: var(--font-mono);
+    font-family: var(--font-body);
     font-size: var(--type-body-size);
     line-height: var(--type-body-lh);
-    font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     text-wrap: pretty;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    font-weight: var(--weight-heading);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0;
   }
   a { color: var(--text-link); text-decoration: none; }
   a:hover { color: var(--accent-hover); }

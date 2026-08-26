@@ -5,58 +5,36 @@
 // subscriber master secret already lives in this browser (SelfSign, calling
 // lib/wallet/keys.ts), or in the ops console otherwise (ConsoleFallback). No
 // path here has a field for a private key or a master secret; the self-sign
-// path asks only for the public account address that secret is combined
-// with. 03 runs the check.
+// path asks only for the public creator id the subscription pays, which is
+// what the commitment and owner key are derived from. 03 runs the check.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { fmtBlock, STRK } from "../../config";
+import { DEMO_CREATOR_ID, fmtBlock, truncate } from "../../config";
 import { hex, toFelt } from "../../lib/verify";
 import type { ParsedChallenge, Verdict } from "../../lib/verify";
-import { signPresentation, storedKeyState } from "../../lib/wallet/keys";
+import { commitmentsFor, signPresentationFor, storedKeyState } from "../../lib/wallet/keys";
+import { useSubscriptions, useVaultCreators } from "../../query/useSubscriptions";
 import { CaveatDisclosure } from "../board/primitives";
+import { ScrambleIn } from "../motion/scramble-in";
 import { Button } from "../ui/button";
 import { CHALLENGE_WINDOW } from "./chain";
 import { Field, KeyValue, TextArea, TextInput } from "./step";
 import { VerifyStatus } from "./verdict";
 
-const CONSOLE_URL = "https://github.com/kshitij-hash/nightshift/tree/main/web";
-
-/** Every key a gate bot's extra JSON might carry that names an account,
- *  checked in this order. Standard challenges (verify/README.md) carry none
- *  of these; this is only ever a convenience prefill, never a requirement. */
-const ACCOUNT_HINT_KEYS = [
-  "account_address",
-  "accountAddress",
-  "subscriber_address",
-  "wallet_address",
-  "address",
-  "account",
-];
-
-/** Read an account address out of a pasted challenge's extra fields, when the
- *  gate bothered to include one. */
-function accountHintFrom(raw: Record<string, unknown>): string {
-  for (const key of ACCOUNT_HINT_KEYS) {
-    const v = raw[key];
-    if (typeof v === "string" && v.trim() !== "") return v.trim();
-  }
-  return "";
-}
-
-/** A felt-shaped account address, or the reason it is not one. Mirrors
+/** A felt-shaped creator id, or the reason it is not one. Mirrors
  *  lib/wallet/core.ts's feltError without importing that module: this
  *  surface is fenced to lib/wallet/keys.ts and lib/verify.ts. */
-function accountAddressError(raw: string): string | null {
+function creatorIdError(raw: string): string | null {
   const t = raw.trim();
-  if (t === "") return "account address is empty";
+  if (t === "") return "creator id is empty";
   let felt: bigint;
   try {
-    felt = toFelt(t, "account address");
+    felt = toFelt(t, "creator id");
   } catch {
-    return "account address must be 0x-hex or decimal, under the STARK field prime.";
+    return "creator id must be 0x-hex or decimal, under the STARK field prime.";
   }
-  if (felt === 0n) return "account address must not be zero";
+  if (felt === 0n) return "creator id must not be zero";
   return null;
 }
 
@@ -105,7 +83,9 @@ function CopyLine({ text, label }: { text: string; label: string }) {
         </Button>
       </div>
       <pre className="overflow-x-auto rounded-sm border border-border-field bg-surface-field px-3 py-2.5 text-[12px] leading-[1.6] text-text-default">
-        {text}
+        {/* Keyed by the text so a freshly issued challenge types itself in;
+            the same challenge re-rendering does not replay. */}
+        <ScrambleIn key={text} text={text} speed={6} />
       </pre>
     </div>
   );
@@ -212,10 +192,6 @@ function ConsoleFallback({
           {source === "generated"
             ? "this challenge was issued by this page, so its expiry is already anchored to the current head"
             : "the challenge came from the gate, so sign it exactly as issued"}
-          {" · "}
-          <a href={CONSOLE_URL} target="_blank" rel="noreferrer">
-            panel 7 in the repo ↗
-          </a>
         </span>
       </div>
     </>
@@ -232,17 +208,48 @@ function ConsoleFallback({
  *  nothing here stores one in state, prints one, or puts one in the DOM. */
 function SelfSign({
   challenge,
+  source,
   onUsePresentation,
 }: {
   challenge: ParsedChallenge;
+  source: "pasted" | "generated" | null;
   onUsePresentation: (text: string) => void;
 }) {
-  const [accountAddress, setAccountAddress] = useState(() => accountHintFrom(challenge.raw));
+  const [creatorId, setCreatorId] = useState("");
   const [signed, setSigned] = useState<{ commitment: string; text: string } | null>(null);
   const [signError, setSignError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    },
+    [],
+  );
 
-  const addressProblem = accountAddress.trim() === "" ? null : accountAddressError(accountAddress);
-  const canSign = accountAddressError(accountAddress) === null;
+  // The subscriptions this browser can prove it owns, found the same way
+  // /manage finds them and from the same incremental caches. Reaching step 02
+  // of a signing flow is the deliberate act that justifies reading the stored
+  // secret; commitmentsFor returns public values only and never creates one.
+  const creators = useVaultCreators(true);
+  const candidates = useMemo(
+    () => (creators.data ? commitmentsFor(creators.data.creatorIds) : null),
+    [creators.data],
+  );
+  const mine = useSubscriptions(candidates).data?.subscriptions ?? [];
+
+  // When the browser knows exactly which subscriptions exist, the field fills
+  // itself: the first live one wins, once, and stays editable. Derived during
+  // render so the fill and the paint it governs are the same paint.
+  const [autoFilled, setAutoFilled] = useState(false);
+  if (!autoFilled && mine.length > 0 && creatorId.trim() === "") {
+    setAutoFilled(true);
+    const preferred = mine.find((m) => !m.schedule.cancelled) ?? mine[0]!;
+    setCreatorId(preferred.creatorId);
+  }
+
+  const creatorProblem = creatorId.trim() === "" ? null : creatorIdError(creatorId);
+  const canSign = creatorIdError(creatorId) === null;
 
   const clearResult = () => {
     setSigned(null);
@@ -255,7 +262,7 @@ function SelfSign({
       const verifierId = hex(challenge.verifierId);
       const nonce = hex(challenge.nonce);
       const expiryBlock = Number(challenge.expiryBlock);
-      const { commitment, sig } = signPresentation(accountAddress.trim(), STRK, {
+      const { commitment, sig } = signPresentationFor(creatorId.trim(), {
         verifierId,
         expiryBlock: String(expiryBlock),
         nonce,
@@ -277,26 +284,61 @@ function SelfSign({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-[1.7] text-text-prose">
-        This browser holds a subscriber master secret, the one nightshift.subscriber.secret names,
-        the same one the ops console and /manage read. The signature below is computed in this
-        page: the owner key is derived from that secret for this one commitment and discarded the
-        moment it signs. The secret never leaves the browser, and signing sends nothing anywhere.
+        This browser holds your subscription key, the same one your cards on /manage are derived
+        from. The signature is computed right here: a signing key is derived for this one
+        subscription and discarded the moment it signs. Nothing leaves the browser, and nothing
+        is sent anywhere.
       </p>
       <Field
-        hint="the wallet address you connected with when you subscribed. Together with this browser's payout key it is what your creator id, commitment and owner key are derived from, so the same address reproduces the same three /manage showed you."
-        error={addressProblem}
+        hint="the creator this subscription pays. It is on your card at /manage, and it is what the commitment and owner key are derived from: the same creator id reproduces exactly the subscription that card showed you."
+        error={creatorProblem}
       >
         <TextInput
-          value={accountAddress}
-          placeholder="0x04a3f81c9d2e7b6a5f4e3d2c1b0a998877665544332211009988776655444b19"
-          invalid={addressProblem !== null}
-          aria-label="account address"
+          value={creatorId}
+          placeholder="0x…"
+          invalid={creatorProblem !== null}
+          aria-label="creator id"
           onChange={(e) => {
-            setAccountAddress(e.target.value);
+            setCreatorId(e.target.value);
             clearResult();
           }}
         />
       </Field>
+      {mine.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] text-text-caption">found in this browser:</span>
+          {mine.map((m) => (
+            <Button
+              key={m.commitment}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setCreatorId(m.creatorId);
+                clearResult();
+              }}
+            >
+              creator {truncate(m.creatorId)} · tier {m.schedule.tier}
+              {m.schedule.cancelled ? " · cancelled" : ""}
+            </Button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setCreatorId(DEMO_CREATOR_ID);
+              clearResult();
+            }}
+          >
+            use the demo creator
+          </Button>
+          <span className="text-[11px] text-text-caption">
+            the creator registered on the live vault
+          </span>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button size="md" className="min-h-11 md:min-h-8" disabled={!canSign} onClick={signHere}>
           SIGN HERE
@@ -315,18 +357,35 @@ function SelfSign({
         <>
           <CopyLine text={signed.text} label="THE PRESENTATION" />
           <div className="flex flex-wrap items-center gap-3">
+            {/* The copy is the primary act when the challenge came from a
+                gate: the presentation's whole destination is the chat that
+                issued it. A big button, not a corner affordance. */}
+            <Button
+              size="md"
+              className="min-h-11 md:min-h-8"
+              onClick={() => {
+                void navigator.clipboard?.writeText(signed.text);
+                setCopied(true);
+                if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+                copyTimer.current = window.setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? "COPIED" : "COPY THE PRESENTATION"}
+            </Button>
             <Button
               variant="outline"
               size="md"
               className="min-h-11 md:min-h-8"
               onClick={() => onUsePresentation(signed.text)}
             >
-              USE THIS PRESENTATION
+              CHECK IT HERE INSTEAD
             </Button>
-            <span className="text-[12px] text-text-caption">
-              sends it to step 03 directly, no copy or paste
-            </span>
           </div>
+          <span className="text-[12px] text-text-caption">
+            {source === "pasted"
+              ? "paste it back where the challenge came from - the bot or gate that issued it - and it answers with the verdict"
+              : "copy it for a verifier, or run the check in step 03 right here"}
+          </span>
         </>
       ) : null}
       <p className="text-[12px] leading-[1.6] text-text-caption">
@@ -353,15 +412,15 @@ export function SignStep({
   if (hasMasterSecret) {
     return (
       <div className="flex flex-col gap-4">
-        <SelfSign challenge={challenge} onUsePresentation={onUsePresentation} />
+        <SelfSign challenge={challenge} source={source} onUsePresentation={onUsePresentation} />
         <div className="flex flex-col gap-3 border-t border-border-row pt-4">
           <div className="text-[11px] font-medium tracking-[0.14em] text-text-label">
             OR SIGN ELSEWHERE
           </div>
           <p className="text-[13px] leading-[1.6] text-text-prose">
-            The ops console, panel 7, signs with a stored owner key instead of a derived one. That
-            is the path for a subscription made before per-commitment keys, or for an account this
-            browser never connected with.
+            A subscription whose key lives somewhere else - made from another browser, or from
+            the operator console - signs there instead, and the presentation pastes into step 03
+            the same way.
           </p>
           <ConsoleFallback challenge={challenge} source={source} onSigned={onSigned} />
         </div>
@@ -372,9 +431,9 @@ export function SignStep({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-[1.7] text-text-prose">
-        Signing happens in the ops console, panel 7, present tier proof. The console signs this
-        challenge with the subscription's owner key, the key the vault recorded at subscribe time,
-        and hands back the presentation as one line of JSON.
+        This browser holds no subscription key, so signing happens where the key lives: the
+        browser you subscribed from. Open this page there and it signs directly. The signature
+        comes back as one line of JSON, the presentation, and pastes into step 03 here.
       </p>
       <p className="text-[13px] leading-[1.7] text-text-default">
         This page never asks for that key and has no field that would accept one. A verifier issues
@@ -387,8 +446,7 @@ export function SignStep({
         the panel to the right.
       </p>
       <p className="text-[11px] text-text-caption">
-        a browser that has subscribed on /manage can sign here directly, with no console in the
-        loop.
+        a browser that has subscribed here can sign directly, with nothing else in the loop.
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="md" className="min-h-11 md:min-h-8" onClick={onSigned}>
@@ -398,10 +456,6 @@ export function SignStep({
           {source === "generated"
             ? "this challenge was issued by this page, so its expiry is already anchored to the current head"
             : "the challenge came from the gate, so sign it exactly as issued"}
-          {" · "}
-          <a href={CONSOLE_URL} target="_blank" rel="noreferrer">
-            panel 7 in the repo ↗
-          </a>
         </span>
       </div>
     </div>

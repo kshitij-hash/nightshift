@@ -28,9 +28,11 @@ import { commitmentsFor } from "../../lib/wallet/keys";
 import { useBoard } from "../../query/useBoard";
 import { useSubscriptions, useVaultCreators } from "../../query/useSubscriptions";
 import { useChainClock } from "../board/use-clock";
+import { LiveNumber } from "../dashboard/tile";
 import { ChainChip } from "../board/provenance";
 import type { BoardMode } from "../board/provenance";
 import { Masthead } from "../masthead";
+import { SiteFooter } from "../site-footer";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { CancelPanel } from "./cancel-panel";
@@ -56,7 +58,7 @@ const NOTHING_YET =
  *  the objects below came from. */
 function ProvenanceLine({ address }: { address: string | null }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-hairline px-5 py-3 lg:px-14">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-hairline px-5 py-3 lg:px-10">
       <div className="flex items-center gap-3">
         <StatusDot state={address ? "live" : "pending"} beat={address !== null} size={7} />
         <p className="text-[13px] leading-[1.7] text-text-default">
@@ -151,7 +153,7 @@ export function ManageSurface({
   const toolsOpen = allTools || tab !== undefined;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col">
+    <div className="flex min-h-screen w-full flex-col">
       {/* The chip is never simply absent on an app page: while the head block
           is still being read it says so, rather than leaving a gap that reads
           as "this page is not on a chain". */}
@@ -172,22 +174,99 @@ export function ManageSurface({
       />
       <ProvenanceLine address={connection ? connection.address : null} />
 
-      <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-14">
+      <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
         {connection && identity ? (
           <>
-            <section className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-5">
-                <SectionHead note="derived in this browser, from the key that created them">
-                  // YOUR SUBSCRIPTIONS
-                </SectionHead>
+            <div className="flex flex-wrap items-end gap-6 border-b-2 border-divider pb-5">
+              <div>
+                <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+                  ▸ Your subscriptions, derived privately in this browser
+                </div>
+                <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">
+                  My subscriptions
+                </h2>
               </div>
+              {subscriptions.length > 0 ? (
+                <div className="ml-auto text-right">
+                  <div
+                    className="text-[26px] font-[800] tracking-[-0.02em] tabular"
+                    style={{ fontFamily: "var(--font-heading)" }}
+                  >
+                    <LiveNumber
+                      value={Number(fmtStrk(subscriptions.reduce((s, x) => s + x.schedule.escrowWei, 0n)))}
+                      decimals={2}
+                    />{" "}
+                    STRK
+                  </div>
+                  <div className="text-[11px] tracking-[0.08em] uppercase text-text-caption">
+                    escrowed ·{" "}
+                    {subscriptions.filter((s) => !s.schedule.cancelled).length} active
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {creators.data ? (
+              <details className="border-b border-divider pb-4">
+                <summary className="cursor-pointer text-[12.5px] text-text-label">
+                  How this list is built: no server, no account, nothing
+                  uploaded
+                </summary>
+                <div className="grid text-[12.5px] max-lg:gap-y-0 lg:grid-cols-4">
+                  {[
+                    `One scan of CreatorRegistered → ${creators.data.creatorIds.length} creator id${creators.data.creatorIds.length === 1 ? "" : "s"} at this vault`,
+                    `poseidon(secret, id) for each → ${candidates?.length ?? 0} candidate commitment${(candidates?.length ?? 0) === 1 ? "" : "s"}, in this browser`,
+                    "One key-filtered scan of Subscribed → which candidates exist",
+                    "schedule_of + tier_of on the survivors → what each one is",
+                  ].map((line, i) => (
+                    <div
+                      key={line}
+                      className={`py-4 pr-5 ${i > 0 ? "lg:border-l lg:border-divider lg:pl-5" : ""} max-lg:border-t max-lg:first:border-t-0 max-lg:border-divider`}
+                    >
+                      <span className="font-mono text-ns-accent">0{i + 1}</span> {line}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+
+            <section className="flex flex-col gap-4">
               <VaultContext />
 
               {reading ? (
-                <p className="border border-border-panel px-5 py-4 text-[13px] leading-[1.7] text-text-prose">
-                  Reading the vault's creator list, then asking it which of the commitments this
-                  browser derives it has heard of. Two event scans, and no card until both answer.
-                </p>
+                <div className="flex flex-col gap-3" aria-busy="true">
+                  {/* The card at its real geometry, values as pulsing fills:
+                      the page holds the height a subscription lands at. */}
+                  <div className="border border-border-panel">
+                    <div className="flex items-center gap-3 border-b border-border-row px-5 py-4">
+                      <span className="h-[7px] w-[7px] animate-pulse bg-surface-fill motion-reduce:animate-none" />
+                      <span className="h-3.5 w-64 max-w-full animate-pulse bg-surface-fill motion-reduce:animate-none" />
+                      <span className="ml-auto h-3.5 w-16 animate-pulse bg-surface-fill motion-reduce:animate-none" />
+                    </div>
+                    <div className="grid sm:grid-cols-3">
+                      {["escrow remaining", "next charge", "periods"].map((label, i) => (
+                        <div
+                          key={label}
+                          className={`px-5 py-5 ${i > 0 ? "sm:border-l sm:border-border-row" : ""} max-sm:not-first:border-t max-sm:not-first:border-border-row`}
+                        >
+                          <div className="mb-2.5 text-[11px] tracking-[0.1em] uppercase text-text-caption">
+                            {label}
+                          </div>
+                          <span className="block h-6 w-24 animate-pulse bg-surface-fill motion-reduce:animate-none" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-border-row px-5 py-3.5">
+                      <span className="block h-3 w-80 max-w-full animate-pulse bg-surface-fill motion-reduce:animate-none" />
+                    </div>
+                  </div>
+                  <p className="text-[12px] leading-[1.6] text-text-caption">
+                    Reading the vault's creator list, then asking which of the
+                    commitments this browser derives it has heard of. After the
+                    first visit both scans are incremental, so this settles in
+                    a moment.
+                  </p>
+                </div>
               ) : subscriptions.length === 0 ? (
                 // No frame around this: the subscribe flow inside it draws its
                 // own three panels, and a border around a border is the nested
@@ -219,9 +298,14 @@ export function ManageSurface({
                         setActing((open) => (open === s.commitment ? null : s.commitment))
                       }
                     >
-                      {/* The existing cancel and reclaim flow, unchanged, opened
-                          at the object it acts on. */}
-                      <CancelPanel connection={connection} identity={identity} />
+                      {/* The cancel and reclaim flow, bound to the subscription
+                          it acts on: the card's creator id decides which
+                          commitment is signed for, never the wallet's own. */}
+                      <CancelPanel
+                        connection={connection}
+                        identity={identity}
+                        target={{ creatorId: s.creatorId, commitment: s.commitment }}
+                      />
                     </SubscriptionCard>
                   ))}
                 </div>
@@ -287,10 +371,15 @@ export function ManageSurface({
             </div>
           </>
         ) : (
-          <section className="flex flex-col gap-4">
-            <SectionHead note="nothing is requested until you press connect">
-              // WALLET · WHAT EACH STATE PROMISES
-            </SectionHead>
+          <section className="flex flex-col gap-6">
+            <div className="border-b-2 border-divider pb-5">
+              <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+                ▸ Nothing is requested until you press connect
+              </div>
+              <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">
+                My subscriptions
+              </h2>
+            </div>
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
               <ConnectPanel state={state} onConnect={() => void start()} onDisconnect={disconnect} />
               <AfterConnectNote />
@@ -298,6 +387,13 @@ export function ManageSurface({
           </section>
         )}
       </main>
+      <SiteFooter
+        links={[
+          { label: "the board", to: "/board" },
+          { label: "verify a tier presentation", to: "/verify" },
+          { label: "source on github", href: "https://github.com/kshitij-hash/nightshift" },
+        ]}
+      />
     </div>
   );
 }

@@ -53,8 +53,8 @@ export function LinkabilityNote({
           Not a wallet. The check runs against the STARK owner key the vault recorded at subscribe
           time, a bare public key and never an account address. The escrow remaining and the period
           history stay out of the presentation too. A subscriber who wants presentations to
-          different creators kept apart derives one owner key and one commitment per creator, which
-          is what the ops console does.
+          different creators kept apart derives one owner key and one commitment per creator,
+          which is exactly what this product does for every subscription.
         </span>
       </CaveatDisclosure>
     </div>

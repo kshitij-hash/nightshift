@@ -1,26 +1,28 @@
-/* Geist Mono only. No sans anywhere in this system.
-   Three weights, hard limit: 400 data · 500 labels/interactive · 600 headings/numerals. */
+/* Archivo for headings and body (the Modernist pairing), Geist Mono for data.
+   Headings run heavy (800) with tight tracking; mono keeps its 400/500/600. */
 :root {
+  --font-heading: "Archivo", system-ui, sans-serif;
+  --font-body: "Archivo", system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --weight-data: 400;
   --weight-label: 500;
-  --weight-heading: 600;
+  --weight-heading: 800;
 
-  /* six named roles - always use a role, never a one-off size */
+  /* named roles - always use a role, never a one-off size */
   --type-display-size: 44px;
-  --type-display-lh: 1.05;
-  --type-display-weight: 600;
+  --type-display-lh: 1.02;
+  --type-display-weight: 800;
 
   --type-heading-size: 20px;
   --type-heading-lh: 1.2;
-  --type-heading-weight: 600;
+  --type-heading-weight: 800;
 
   --type-label-size: 13px;
   --type-label-lh: 1.4;
   --type-label-weight: 500;
 
-  --type-body-size: 14px;
+  --type-body-size: 15px;
   --type-body-lh: 1.55;
   --type-body-weight: 400;
 
@@ -33,10 +35,10 @@
   --type-micro-weight: 400;
 
   /* tracking */
-  --track-display: -0.02em;   /* hero numerals */
+  --track-display: -0.03em;
   --track-normal: 0;
-  --track-marker: 0.2em;      /* // SECTION MARKER */
-  --track-tag: 0.14em;        /* state tags, chips */
-  --track-wordmark: 0.06em;   /* NIGHTSHIFT */
+  --track-marker: 0.14em;     /* section kickers, uppercase labels */
+  --track-tag: 0.1em;         /* state tags, chips */
+  --track-wordmark: 0.02em;   /* NIGHTSHIFT */
   --track-column: 0.08em;     /* table column headers */
 }

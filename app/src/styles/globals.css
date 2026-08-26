@@ -1,10 +1,8 @@
 @import "tailwindcss";
 
-/* Design tokens: dark is the :root default, light applies under
-   html[data-theme="light"] via theme-light.css. */
+/* Design tokens: the Modernist system, one light theme, no dark mode. */
 @import "./tokens/base.css";
 @import "./tokens/colors.css";
-@import "./tokens/theme-light.css";
 @import "./tokens/fonts.css";
 @import "./tokens/motion.css";
 @import "./tokens/spacing.css";
@@ -149,3 +147,209 @@
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Modernist utility tokens ──────────────────────────────────────────────
+   The design system's own vocabulary as Tailwind utilities: bg-ground,
+   bg-panel, text-ink, border-divider, the neutral and accent ramps, and the
+   two families. New components speak this; the shadcn bridge above keeps the
+   not-yet-rebuilt ones standing. */
+@theme inline {
+  --font-heading: var(--font-heading);
+  --color-ground: var(--m-bg);
+  --color-panel: var(--m-surface);
+  --color-ink: var(--m-text);
+  --color-divider: var(--m-divider);
+  --color-neutral-100: var(--m-neutral-100);
+  --color-neutral-200: var(--m-neutral-200);
+  --color-neutral-300: var(--m-neutral-300);
+  --color-neutral-400: var(--m-neutral-400);
+  --color-neutral-500: var(--m-neutral-500);
+  --color-neutral-600: var(--m-neutral-600);
+  --color-neutral-700: var(--m-neutral-700);
+  --color-neutral-800: var(--m-neutral-800);
+  --color-neutral-900: var(--m-neutral-900);
+  --color-accent-100: var(--m-accent-100);
+  --color-accent-200: var(--m-accent-200);
+  --color-accent-300: var(--m-accent-300);
+  --color-accent-400: var(--m-accent-400);
+  --color-accent-500: var(--m-accent-500);
+  --color-accent-600: var(--m-accent-600);
+  --color-accent-700: var(--m-accent-700);
+  --color-accent-800: var(--m-accent-800);
+  --color-accent-900: var(--m-accent-900);
+}
+
+/* ── Modernist component classes ───────────────────────────────────────────
+   Ported from the design system's styles.css: buttons, tags, fields, the
+   segmented control, tables. Zero radius, 2px rules, flush-left labels. */
+@layer components {
+  .m-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    cursor: pointer; text-decoration: none;
+    font-family: var(--font-heading); font-weight: 800;
+    font-size: 14px; line-height: 1.2; color: var(--m-text);
+    background: transparent; border: 1px solid transparent;
+    border-radius: 0; padding: 8px 14px;
+  }
+  .m-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .m-btn-primary { background: var(--m-accent); color: var(--m-bg); }
+  .m-btn-primary:hover:not(:disabled) { background: var(--m-accent-600); color: var(--m-bg); }
+  .m-btn-primary:active:not(:disabled) { background: var(--m-accent-700); }
+  .m-btn-secondary { border-color: var(--m-divider); }
+  .m-btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--m-text) 7%, transparent); color: var(--m-text); }
+  .m-btn-secondary:active:not(:disabled) { background: color-mix(in srgb, var(--m-text) 14%, transparent); }
+  .m-btn-ghost { color: var(--m-accent); padding-inline: 4px; }
+  .m-btn-ghost:hover:not(:disabled) { background: color-mix(in srgb, var(--m-accent) 10%, transparent); color: var(--m-accent); }
+  .m-btn-ghost:active:not(:disabled) { background: color-mix(in srgb, var(--m-accent) 18%, transparent); }
+  .m-btn-block { width: 100%; justify-content: flex-start; text-align: left; }
+
+  /* dark-panel variants, for the Gate screen and mono panels */
+  .m-btn-secondary.on-dark { border-color: color-mix(in srgb, #f3f2f2 30%, transparent); color: var(--m-neutral-200); }
+  .m-btn-secondary.on-dark:hover:not(:disabled) { background: color-mix(in srgb, #f3f2f2 10%, transparent); color: var(--m-bg); }
+
+  .m-tag {
+    display: inline-flex; align-items: center; font-size: 11px;
+    letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 10px;
+    border-radius: 0;
+  }
+  .m-tag-accent { background: var(--m-accent-100); color: var(--m-accent-800); }
+  .m-tag-neutral { background: var(--m-neutral-300); color: var(--m-neutral-800); }
+  .m-tag-outline { border: 1px solid var(--m-accent); color: var(--m-accent); }
+  .m-tag-ink { background: var(--m-neutral-900); color: var(--m-bg); }
+
+  .m-field > label {
+    display: block; font-size: 12px; margin-bottom: 5px;
+    color: color-mix(in srgb, var(--m-text) 70%, transparent);
+  }
+  .m-input {
+    width: 100%; min-height: 36px; padding: 6px 10px; font: inherit;
+    font-size: 14px; color: var(--m-text); caret-color: var(--m-accent);
+    background: var(--m-surface);
+    border: 1px solid var(--m-divider); border-radius: 0;
+  }
+  .m-input:hover { border-color: color-mix(in srgb, var(--m-text) 45%, transparent); }
+  .m-input:focus-visible { border-color: var(--m-accent); outline-offset: 0; }
+
+  .m-seg {
+    display: inline-flex; overflow: hidden;
+    border: 1px solid var(--m-divider); border-radius: 0;
+  }
+  .m-seg-opt {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; font-size: 13px; cursor: pointer;
+  }
+  .m-seg-opt + .m-seg-opt { border-left: 1px solid var(--m-divider); }
+  .m-seg-opt:has(input:checked) { background: var(--m-accent); color: var(--m-bg); }
+  .m-seg-opt:not(:has(input:checked)):hover { background: color-mix(in srgb, var(--m-text) 7%, transparent); }
+  .m-seg-opt:has(input:focus-visible) { outline: 2px solid var(--m-accent); outline-offset: -2px; }
+  .m-seg-opt input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+
+  .m-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .m-table th {
+    text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    font-weight: 500;
+    color: color-mix(in srgb, var(--m-text) 60%, transparent);
+    padding: 8px; border-bottom: 2px solid var(--m-divider);
+  }
+  .m-table td {
+    padding: 8px;
+    border-bottom: 1px solid color-mix(in srgb, var(--m-text) 22%, transparent);
+  }
+  .m-table tbody tr:hover { background: color-mix(in srgb, var(--m-text) 4%, transparent); }
+  .m-table.on-dark th { color: color-mix(in srgb, #f3f2f2 60%, transparent); border-bottom-color: color-mix(in srgb, #f3f2f2 30%, transparent); }
+  .m-table.on-dark td { border-bottom-color: color-mix(in srgb, #f3f2f2 16%, transparent); }
+  .m-table.on-dark tbody tr:hover { background: color-mix(in srgb, #f3f2f2 6%, transparent); }
+}
+
+@keyframes m-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.m-in { animation: m-in 0.2s ease-out both; }
+
+/* ── typographic motion ────────────────────────────────────────────────────
+   Patterns adapted from fancycomponents.dev (MIT, Daniel Petho), hand-rolled
+   on this system's tokens with no dependencies. Everything here is either a
+   hover response or a once-on-arrival reveal; nothing loops except the
+   ticker, and every animation is gated behind prefers-reduced-motion. */
+
+/* Letter-swap hover: the label slides up and its double slides in from
+   below. One element, the double comes from data-text. */
+.m-swap {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+}
+.m-swap > span {
+  display: block;
+  transition: transform 0.25s cubic-bezier(0.6, 0, 0.2, 1);
+}
+.m-swap::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform: translateY(105%);
+  transition: transform 0.25s cubic-bezier(0.6, 0, 0.2, 1);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .m-swap:hover > span,
+  a:hover > .m-swap > span,
+  button:hover > .m-swap > span {
+    transform: translateY(-105%);
+  }
+  .m-swap:hover::after,
+  a:hover > .m-swap::after,
+  button:hover > .m-swap::after {
+    transform: translateY(0);
+  }
+}
+
+/* Wordmark hover: Archivo's weight axis swells under the cursor. */
+.m-wordmark {
+  font-variation-settings: "wght" 800;
+  transition: font-variation-settings 0.3s ease;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .m-wordmark:hover { font-variation-settings: "wght" 950; }
+}
+
+/* Underline that draws in from the center on hover. Inline prose and footer
+   links; never buttons, never the masthead (which has its own underline). */
+@layer components {
+  main a:not(.m-btn):not(.no-u) {
+    text-decoration: none;
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 0% 1px;
+    background-position: 50% calc(100% - 0.05em);
+    background-repeat: no-repeat;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    main a:not(.m-btn):not(.no-u) {
+      transition: background-size 0.25s ease;
+    }
+  }
+  main a:not(.m-btn):not(.no-u):hover {
+    background-size: 100% 1px;
+  }
+}
+
+/* Vertical cut reveal: a clipped line rises into place once, on arrival. */
+.m-cut { display: block; overflow: hidden; }
+.m-cut > span { display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes m-cut-rise { from { transform: translateY(110%); } to { transform: none; } }
+  .m-cut > span { animation: m-cut-rise 0.55s cubic-bezier(0.2, 0.6, 0.2, 1) both; }
+  .m-cut:nth-child(2) > span { animation-delay: 0.08s; }
+}
+
+/* The charge ticker: one continuous strip, content doubled for a seamless
+   loop. The one continuously-moving element on the site; it does not run
+   under reduced motion, and the strip then reads as a static row. */
+.m-ticker { overflow: hidden; white-space: nowrap; }
+.m-ticker > div { display: inline-flex; width: max-content; }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes m-ticker-run { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .m-ticker > div { animation: m-ticker-run 45s linear infinite; }
+  .m-ticker:hover > div { animation-play-state: paused; }
+}
+
+/* The wizard's step progress: the fill scales in from the left. */
+.m-fill { transform-origin: left; transition: transform 0.3s cubic-bezier(0.2, 0.6, 0.2, 1); }

@@ -18,6 +18,7 @@ import { BoardRoute } from "./routes/board";
 import { CreatorRoute } from "./routes/creator";
 import { LandingRoute } from "./routes/landing";
 import { ManageRoute } from "./routes/manage";
+import { SubscribeRoute } from "./routes/subscribe";
 import { VerifyRoute } from "./routes/verify";
 
 // Each route owns its own masthead, because the masthead carries page state
@@ -137,6 +138,12 @@ const verifyRoute = createRoute({
   component: VerifyRoute,
 });
 
+const subscribeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/subscribe",
+  component: SubscribeRoute,
+});
+
 /** Which of the three signing flows is open, when one is. Optional, because
  *  /manage's subject is the reader's own subscriptions and the flows are the
  *  action layer under them: a bare /manage opens the list, not a form. Present
@@ -160,6 +167,7 @@ const routeTree = rootRoute.addChildren([
   boardRoute,
   creatorRoute,
   manageRoute,
+  subscribeRoute,
   verifyRoute,
 ]);
 

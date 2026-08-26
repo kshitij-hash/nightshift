@@ -74,6 +74,54 @@ export type BoardState = {
 
 const u = (f: string | undefined): bigint => BigInt(f ?? "0x0");
 
+// --- the scan cache ---------------------------------------------------------
+//
+// The event lists this board decodes are append-only: a charge that happened
+// stays happened. So the raw events and the block timestamps they resolved to
+// are cached in localStorage with a high-water block per vault, and each
+// read scans only the blocks since. A cold load pays the full sweep once;
+// every load after that pays a few blocks. The cache never substitutes for
+// the read - views (escrow, is_active, head) are always fetched fresh - and
+// a cache that fails to parse is discarded, not trusted.
+//
+// Guarded for non-browser callers: the node smoke tests bundle this module,
+// and there localStorage simply does not exist.
+
+const SCAN_CACHE_KEY = "nightshift.board.scan.v1";
+
+type VaultScan = { upTo: number; events: RawEvent[] };
+type ScanCache = {
+  v4: VaultScan | null;
+  v3: VaultScan | null;
+  v2: VaultScan | null;
+  /** block number -> unix timestamp, for blocks charges landed in. */
+  ts: Record<string, number>;
+};
+
+const emptyScanCache = (): ScanCache => ({ v4: null, v3: null, v2: null, ts: {} });
+
+function loadScanCache(): ScanCache {
+  try {
+    if (typeof localStorage === "undefined") return emptyScanCache();
+    const raw = localStorage.getItem(SCAN_CACHE_KEY);
+    if (raw === null) return emptyScanCache();
+    const parsed = JSON.parse(raw) as ScanCache;
+    if (typeof parsed !== "object" || parsed === null) return emptyScanCache();
+    return { v4: parsed.v4 ?? null, v3: parsed.v3 ?? null, v2: parsed.v2 ?? null, ts: parsed.ts ?? {} };
+  } catch {
+    return emptyScanCache();
+  }
+}
+
+function saveScanCache(cache: ScanCache): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // storage full or refused; the next load pays the full scan again
+  }
+}
+
 async function callRaw(
   client: RpcClient,
   address: string,
@@ -109,23 +157,36 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
   ]);
   const escrowWei = u(acctV4[0]) + u(acctV3[0]) + u(acctV2[0]);
 
-  const eventsOf = async (vault: string, fromBlock: number, label: string) => {
+  // Each vault scans only the blocks since its cached high-water mark; the
+  // cached prefix and the fresh tail are one list. A truncated scan does not
+  // advance the mark, so nothing skipped is ever recorded as seen.
+  const cache = loadScanCache();
+  const eventsOf = async (
+    vault: string,
+    deployBlock: number,
+    label: string,
+    cached: VaultScan | null,
+  ): Promise<VaultScan> => {
+    const from = cached !== null ? cached.upTo + 1 : deployBlock;
+    if (from > headBlock) return cached ?? { upTo: headBlock, events: [] };
     const scan = await scanEvents(client, {
       address: vault,
-      from: { block_number: fromBlock },
-      to: "latest",
+      from: { block_number: from },
+      to: { block_number: headBlock },
     });
     if (scan.truncated) {
       truncated = true;
       note(label, `page cap hit after ${scan.pages} pages`);
     }
-    return scan.events;
+    const events = [...(cached?.events ?? []), ...scan.events];
+    return { upTo: scan.truncated ? (cached?.upTo ?? deployBlock - 1) : headBlock, events };
   };
-  const [evV4, evV3, evV2] = await Promise.all([
-    eventsOf(VAULT, VAULT_DEPLOY_BLOCK, "v4 events"),
-    eventsOf(VAULT_V3, VAULT_V3_DEPLOY_BLOCK, "v3 events"),
-    eventsOf(VAULT_V2, VAULT_V2_DEPLOY_BLOCK, "v2 events"),
+  const [scanV4, scanV3, scanV2] = await Promise.all([
+    eventsOf(VAULT, VAULT_DEPLOY_BLOCK, "v4 events", cache.v4),
+    eventsOf(VAULT_V3, VAULT_V3_DEPLOY_BLOCK, "v3 events", cache.v3),
+    eventsOf(VAULT_V2, VAULT_V2_DEPLOY_BLOCK, "v2 events", cache.v2),
   ]);
+  const [evV4, evV3, evV2] = [scanV4.events, scanV3.events, scanV2.events];
 
   const charges: Charge[] = [];
   const subscribedEndBlocks: number[] = [];
@@ -139,7 +200,11 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
     subscribedCommitments.add(BigInt(felt ?? "0x0").toString());
   const v3Subs: { commitment: string; nPeriods: number }[] = [];
   const v4Subs: { commitment: string; nPeriods: number }[] = [];
-  const tsCache = new Map<number, number>();
+  // Seeded from the persisted cache: a block's timestamp never changes, so a
+  // charge decoded on a previous load costs no block fetch on this one.
+  const tsCache = new Map<number, number>(
+    Object.entries(cache.ts).map(([k, v]) => [Number(k), v]),
+  );
   const blockTs = async (n: number) => {
     if (!tsCache.has(n)) {
       const b = await client.call<{ timestamp: number }>(
@@ -234,6 +299,15 @@ async function readFromRpc(client: RpcClient): Promise<BoardState> {
   const livePeriods =
     v4Idx >= 0 ? v4Subs[v4Idx]!.nPeriods : v3Idx >= 0 ? v3Subs[v3Idx]!.nPeriods : null;
 
+  // The read succeeded end to end; record what it saw so the next load scans
+  // only the blocks after this one.
+  saveScanCache({
+    v4: scanV4,
+    v3: scanV3,
+    v2: scanV2,
+    ts: Object.fromEntries([...tsCache.entries()].map(([k, v]) => [String(k), v])),
+  });
+
   return {
     provenance: { source: "rpc", truncated, partial },
     headBlock,
@@ -288,6 +362,45 @@ function readFromSnapshot(): BoardState {
     subscribedEndBlocks: s.subscribedEndBlocks,
     livePeriods: null,
   };
+}
+
+// --- persisted last state ----------------------------------------------------
+//
+// The whole finished BoardState, saved after every successful live read and
+// offered back as placeholder data on the next load: the page paints the last
+// known truth immediately while the fresh read runs behind it. Bigints ride
+// as strings; a state that fails to parse is discarded.
+
+const STATE_CACHE_KEY = "nightshift.board.state.v1";
+
+export function savePersistedBoard(state: BoardState): void {
+  if (state.provenance.source !== "rpc") return;
+  try {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem(
+      STATE_CACHE_KEY,
+      JSON.stringify(state, (_k, v: unknown) => (typeof v === "bigint" ? `${v}n` : v)),
+    );
+  } catch {
+    // storage refused; the next load simply starts blank
+  }
+}
+
+export function loadPersistedBoard(): BoardState | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(STATE_CACHE_KEY);
+    if (raw === null) return null;
+    const revived = JSON.parse(raw, (_k, v: unknown) =>
+      typeof v === "string" && /^\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v,
+    ) as BoardState;
+    if (typeof revived !== "object" || revived === null || !Array.isArray(revived.charges)) {
+      return null;
+    }
+    return revived;
+  } catch {
+    return null;
+  }
 }
 
 /**
