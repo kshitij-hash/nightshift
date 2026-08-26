@@ -48,8 +48,8 @@ function NoVerdictYet() {
         <span className="text-[11px] text-text-caption">nothing has been checked</span>
       </div>
       <p className="text-[13px] leading-[1.6] text-text-prose">
-        A verdict is either the creator id and tier the vault holds for that commitment, or the
-        first check that refused, in the exact string it returned. The whole vocabulary is below.
+        A verdict is either the creator and tier this subscription holds, or the exact reason the
+        check refused.
       </p>
     </div>
   );
@@ -73,7 +73,7 @@ export function VerifySurface() {
       <div className="flex flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-3.5 border-b-2 border-divider px-5 py-4 lg:px-10">
           <span className="text-[11px] tracking-[0.14em] uppercase text-ns-accent">
-            ▸ Gate · nightshift-verify
+            ▸ The gate
           </span>
           {challenge ? (
             <span className="font-mono text-[12px] text-text-caption">
@@ -91,7 +91,7 @@ export function VerifySurface() {
             {/* The note carries what the masthead rule used to: this is not a
                 demonstration of a check, it is the check the published package
                 runs. Step 03's hint says what it costs to run. */}
-            <SectionHead note="the same check the published nightshift-verify package runs">
+            <SectionHead note="the same check a real gate runs, against mainnet">
               // PROVE A PAID TIER, GET IN
             </SectionHead>
             <div className="flex flex-col">
@@ -196,12 +196,10 @@ export function VerifySurface() {
               This is what a Telegram gate runs.
             </h3>
             <p className="mb-4 max-w-[62ch] text-[13.5px] leading-[1.6] text-text-prose">
-              The repository ships a working Telegram door on the same check:
-              the bot issues a challenge in chat, the subscriber signs it, and
-              a match on creator and tier mints a one-use invite link, proven
-              live against the mainnet gate. A Discord role bot or a licence
-              server drops in the same way, with four read-only calls and no
-              key held anywhere.
+              A live Telegram bot runs this exact check: it issues a challenge
+              in chat, you sign it here, and a match on creator and tier mints
+              a one-use invite link. A Discord bot or a licence server drops
+              in the same way — a few read-only calls, no key held anywhere.
             </p>
             <div className="flex flex-wrap gap-3">
               <a
@@ -246,8 +244,7 @@ export function VerifySurface() {
 
         <details className="flex flex-col gap-3">
           <summary className="cursor-pointer text-[12.5px] text-text-label">
-            The failure vocabulary: every string a refusal can return, rendered
-            verbatim
+            Every reason a check can refuse, spelled out
           </summary>
           <div className="pt-3">
             <FailureVocabulary />

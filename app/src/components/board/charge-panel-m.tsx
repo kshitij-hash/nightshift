@@ -3,7 +3,7 @@
 // answer is designed; nothing here invents a number. The button writes to
 // mainnet, which is the whole point, and it writes only when pressed.
 
-import { truncate, VAULT } from "../../config";
+import { truncate } from "../../config";
 import type { ChargeState } from "../../query/useChargePanel";
 import { useChargePanel } from "../../query/useChargePanel";
 
@@ -19,32 +19,32 @@ function stateCopy(state: ChargeState): {
       return {
         status: "submitted",
         accent: true,
-        copy: "One real mainnet transaction. It moved escrow the subscriber already committed into the creator's claimable balance, and nothing else.",
+        copy: "One real mainnet transaction. It moved escrow the subscriber already committed into the creator's balance, and nothing else.",
         mono: `tx ${truncate(state.txHash)}`,
         link: state.voyagerUrl,
       };
     case "not_due":
       return {
-        status: "not_due",
+        status: "not due yet",
         accent: false,
-        copy: "The period has not arrived. The schedule was read first, so this never left the process and cost nothing.",
-        mono: `next_due_block ${state.nextDueBlock.toLocaleString("en-US")} · eta ${state.etaMinutes} min`,
+        copy: "The next period has not arrived, so there is nothing to charge and nothing was sent.",
+        mono: `due at block ${state.nextDueBlock.toLocaleString("en-US")} · ≈ ${state.etaMinutes} min`,
         link: null,
       };
     case "rate_limited":
       return {
-        status: "rate_limited",
+        status: "one at a time",
         accent: false,
-        copy: "One real charge per caller every 15 minutes. A not-due answer does not consume it; only a submit does.",
-        mono: `retry_after_s ${state.retryAfterS}`,
+        copy: "One real charge per visitor every 15 minutes.",
+        mono: `try again in ${state.retryAfterS}s`,
         link: null,
       };
     case "budget_exhausted":
       return {
-        status: "budget_exhausted",
+        status: "done for today",
         accent: false,
-        copy: "The daily cap is spent. The counter is per process and persisted, so a restart is not a way to buy more.",
-        mono: "HTTP 503 · resets 00:00 UTC",
+        copy: "Today's charge budget is spent. It resets at 00:00 UTC.",
+        mono: null,
         link: null,
       };
     case "error":
@@ -82,7 +82,7 @@ export function ChargePanelM({
         ? "Checking the window…"
         : secondsLeft !== null
           ? `Locked · ${secondsLeft}s`
-          : "POST /charge";
+          : "Fire the charge";
 
   return (
     <div>
@@ -93,13 +93,10 @@ export function ChargePanelM({
       {closed ? (
         <>
           <p className="mb-4 text-[13.5px] leading-[1.6]">
-            charge() is a public entrypoint: anyone may fire a due charge, from
-            any account, and the vault holds the rules. From a terminal:
+            Charging is open: when a period is due, anyone can trigger it, and
+            the vault enforces every rule. That is how a subscription here runs
+            with nobody in charge of it.
           </p>
-          <div className="mb-4 border border-divider bg-panel p-3.5 font-mono text-[11.5px] leading-[1.8] break-all">
-            starkli invoke {truncate(VAULT)} charge{" "}
-            {commitment ? truncate(commitment) : "<commitment>"}
-          </div>
           <p className="mb-0 text-[12.5px] leading-[1.6] text-text-caption">
             The one-press button on this panel opens during demo windows, when
             a funded account submits the charge for you.
@@ -108,14 +105,13 @@ export function ChargePanelM({
       ) : (
         <>
           <p className="mb-4 text-[13.5px] leading-[1.6]">
-            charge() is permissionless. Press this and a funded account submits
-            one real mainnet transaction. You are not spending anyone's money,
-            only its gas, and only if a period is actually due.
+            Charging is open to anyone. Press this and a funded account submits
+            one real mainnet transaction that bills the due period — nothing
+            moves unless a period is actually due, and nothing of yours is
+            spent.
           </p>
           <div className="mb-4 font-mono text-[11.5px] leading-[1.8] break-all opacity-70">
-            POST /charge
-            <br />
-            commitment {commitment ? truncate(commitment) : ""}
+            subscription {commitment ? truncate(commitment) : ""}
           </div>
           <button
             type="button"
@@ -163,15 +159,14 @@ export function ChargePanelM({
       {!closed ? (
         <div className="mt-5 flex flex-col gap-2 border-t border-divider pt-4 text-[12.5px] text-text-label">
           <div>
-            Whitelisted to one commitment. Nothing in the endpoint can build a
-            cancel, a reclaim, a claim or a transfer.
+            This button can only trigger a charge for the demo subscription —
+            it cannot cancel, refund, or move anything else.
           </div>
           <div>
             {health && health.maxPerDay !== null
-              ? `${health.chargesRemainingToday ?? "?"} of ${health.maxPerDay} transactions left this UTC day, persisted across restarts.`
-              : "15 minutes per caller, 24 transactions per UTC day, persisted across restarts."}
+              ? `${health.chargesRemainingToday ?? "?"} of ${health.maxPerDay} charges left today.`
+              : "One per visitor every 15 minutes, 24 per day."}
           </div>
-          <div>A not-due answer costs the visitor nothing and never leaves the process.</div>
         </div>
       ) : null}
     </div>

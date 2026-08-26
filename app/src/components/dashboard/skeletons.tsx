@@ -70,11 +70,13 @@ export function ProvenanceBannerSkeleton() {
           and the banner comes out a different height. The event list and the
           vault address are constants; only the block the scan reached is
           unknown, and that clause is the bar. */}
-      <p className="text-[11px] leading-[1.5] text-text-caption">
-        source: Subscribed, Charged, Claimed, Cancelled, Reclaimed and Presented events at vault{" "}
+      {/* A div, not a p: the Bar inside renders a div, and a div inside a p
+          is invalid HTML the browser re-parents. */}
+      <div className="text-[11px] leading-[1.5] text-text-caption">
+        source: the public event log of vault{" "}
         <HashCopy value={VAULT} display={truncate(VAULT)} className="text-[11px]" /> ·{" "}
         <Bar w={128} h={9} className="inline-block translate-y-px" />
-      </p>
+      </div>
     </div>
   );
 }

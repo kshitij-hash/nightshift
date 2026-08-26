@@ -35,7 +35,7 @@ import {
 import { storedKeyState, subscribeIdentityFor } from "../../lib/wallet/keys";
 
 const GUTTER = "px-5 lg:px-10";
-const STEPS = ["Schedule", "Cost", "Key", "Invoke", "Receipt"] as const;
+const STEPS = ["Schedule", "Cost", "Key", "Sign", "Receipt"] as const;
 const TITLES = [
   "Pick a schedule",
   "What it costs",
@@ -140,9 +140,9 @@ export function SubscribeSurface() {
     if (!connection || !identity) return;
     setPhase("preparing");
     setLog([
-      { mark: "✓", text: `commitment = poseidon(secret, ${truncate(creatorKey)}) · computed locally` },
-      { mark: "✓", text: "owner_key derived, fresh for this creator" },
-      { mark: "·", text: "strk20PrepareInvoke · the wallet builds and proves the batch" },
+      { mark: "✓", text: "subscription code computed in this browser, from your secret" },
+      { mark: "✓", text: "a fresh key derived for this creator" },
+      { mark: "·", text: "dry run · the wallet is building and proving the transaction" },
     ]);
     try {
       await connection.prepareInvoke(
@@ -160,8 +160,8 @@ export function SubscribeSurface() {
       );
       setLog((l) => [
         ...l.slice(0, -1),
-        { mark: "✓", text: "strk20PrepareInvoke · batch built and proved, nothing submitted" },
-        { mark: "·", text: "sign and submit sends this exact batch" },
+        { mark: "✓", text: "dry run complete · built and proved, nothing submitted" },
+        { mark: "·", text: "sign and submit sends exactly this" },
       ]);
       setPhase("prepared");
     } catch (e) {
@@ -176,8 +176,8 @@ export function SubscribeSurface() {
     setPhase("submitting");
     setLog((l) => [
       ...l,
-      { mark: "·", text: "wallet signature · 1 of 1, over the pool action" },
-      { mark: "·", text: "proving happens in the wallet and can take a minute or two" },
+      { mark: "·", text: "one wallet signature" },
+      { mark: "·", text: "the wallet does the private work, which can take a minute or two" },
     ]);
 
     // Watch the vault while the wallet works: its promise can resolve well
@@ -215,7 +215,7 @@ export function SubscribeSurface() {
       setTxHash(hash);
       setLog((l) => [
         ...l.slice(0, -1),
-        { mark: "✓", text: "strk20InvokeTransaction · escrow lands in the vault" },
+        { mark: "✓", text: "escrow landed in the vault" },
         { mark: "✓", text: `submitted · ${truncate(hash)}` },
       ]);
       setPhase("submitted");
@@ -251,7 +251,7 @@ export function SubscribeSurface() {
               <span className="block h-[7px] w-[7px] bg-ns-accent" />
               <span className="font-mono text-[12px]">{truncate(connection.address)}</span>
               <span className="text-[10px] tracking-[0.1em] uppercase text-text-caption max-md:hidden">
-                Ready · privacy API
+                Ready wallet
               </span>
             </span>
           ) : undefined
@@ -291,7 +291,7 @@ export function SubscribeSurface() {
             {step === 0 ? (
               <div>
                 <div className="m-field mb-5 max-w-[460px]">
-                  <label htmlFor="sub-creator">Creator id, published by the creator off chain</label>
+                  <label htmlFor="sub-creator">Creator id, shared with you by the creator</label>
                   <input
                     id="sub-creator"
                     className="m-input font-mono"
@@ -319,7 +319,7 @@ export function SubscribeSurface() {
                 </div>
 
                 <div className="mb-3 text-[11px] tracking-[0.1em] uppercase text-text-caption">
-                  Tier · the creator's registered ladder, read from tier_of
+                  Tier · the creator's published prices
                 </div>
                 {ladderNow.state === "known" ? (
                   <div className="mb-6 flex flex-col border border-divider">
@@ -354,17 +354,17 @@ export function SubscribeSurface() {
                 ) : (
                   <div className="mb-6 border border-divider px-4 py-3.5 text-[13px] text-text-label">
                     {ladderNow.state === "reading"
-                      ? "reading the ladder from the vault…"
+                      ? "reading the creator's prices…"
                       : ladderNow.state === "unknown-creator"
                         ? "no creator is registered at this id"
                         : ladderNow.state === "unreadable"
-                          ? `the ladder could not be read: ${ladderNow.message}`
-                          : "paste a creator id to read their ladder"}
+                          ? `the prices could not be read: ${ladderNow.message}`
+                          : "paste a creator id to see their prices"}
                   </div>
                 )}
 
                 <div className="mb-3 text-[11px] tracking-[0.1em] uppercase text-text-caption">
-                  Period length · fixed ladder, in blocks
+                  Billing period
                 </div>
                 <div className="mb-6 flex flex-col border border-divider sm:flex-row">
                   {CADENCES.map((c, i) => {
@@ -406,9 +406,8 @@ export function SubscribeSurface() {
                     ) : null}
                   </div>
                   <div className="max-w-[44ch] text-[13px] leading-[1.55] text-text-prose">
-                    Amounts and period lengths come from a small fixed ladder, so
-                    a schedule cannot fingerprint its subscriber. Everything you
-                    pick here lands in public calldata.
+                    Prices and periods come from a small fixed menu, so a
+                    schedule can never fingerprint the person who chose it.
                   </div>
                 </div>
               </div>
@@ -426,7 +425,7 @@ export function SubscribeSurface() {
                         `${fmtBlock(cadence)} blocks each · ${cadenceMeta.note.split(", ")[1] ?? ""}`,
                       ],
                       ["Escrow committed now", `${fmtStrk(escrowWei)} STRK`],
-                      ["Pool protocol fee", "6.00 STRK · the pool's, not ours · from your PUBLIC balance"],
+                      ["Privacy pool fee", "6.00 STRK · charged by the pool, from your public balance"],
                       ["Your gas, this transaction only", "≈ 0.10 STRK"],
                     ] as Array<[string, string]>
                   ).map(([k, v], i) => (
@@ -485,11 +484,10 @@ export function SubscribeSurface() {
             {step === 2 && identity !== null ? (
               <div>
                 <p className="mb-5 max-w-[58ch] text-[15px] leading-[1.6]">
-                  Your commitment is{" "}
-                  <span className="font-mono text-[13.5px]">poseidon(secret, creator_id)</span>,
-                  computed here, in this browser. The secret behind it never
-                  leaves this machine and is never sent anywhere: not to us, not
-                  to the creator, not to the chain.
+                  Your subscription is identified by a code computed here, in
+                  this browser. The secret behind it never leaves this machine
+                  and is never sent anywhere: not to us, not to the creator,
+                  not to the chain.
                 </p>
                 <div className="mb-4 bg-neutral-900 p-5 font-mono text-[12.5px] leading-[1.9] break-all text-neutral-200">
                   <div className="mb-2.5 text-[11px] tracking-[0.1em] uppercase opacity-55">
@@ -499,7 +497,7 @@ export function SubscribeSurface() {
                     commitment&nbsp; <ScrambleIn text={identity.commitment} speed={8} />
                   </div>
                   <div>
-                    owner_key&nbsp;&nbsp;{" "}
+                    owner key&nbsp;&nbsp;{" "}
                     <ScrambleIn text={identity.ownerPub} speed={8} startDelay={250} />
                   </div>
                 </div>
@@ -507,9 +505,9 @@ export function SubscribeSurface() {
                   {keys.secret
                     ? "The key behind these was already on this machine; the same one lists your subscriptions on the manage page."
                     : "A key was just created in this browser's storage. It is the only copy."}{" "}
-                  A fresh owner key and commitment are derived from it per
-                  creator, so subscriptions to different creators stay
-                  unlinkable at any gate that sees both.
+                  Every creator you subscribe to gets its own fresh key and
+                  code, so your subscriptions can never be linked to each
+                  other.
                 </p>
                 <div className="flex items-start gap-3.5 border-2 border-ns-accent p-4">
                   <span className="font-[800] text-ns-accent" style={{ fontFamily: "var(--font-heading)" }}>
@@ -545,9 +543,9 @@ export function SubscribeSurface() {
                 {connection === null ? (
                   <div className="max-w-[480px]">
                     <p className="mb-4 text-[14px] leading-[1.6] text-text-prose">
-                      The escrow moves through the pool's private
-                      withdraw-and-invoke, built and proved by your wallet.
-                      Nothing before this step needed one.
+                      Your wallet builds and proves the private transaction
+                      that moves the escrow. Nothing before this step needed a
+                      wallet at all.
                     </p>
                     <div className="mb-4 flex flex-col gap-1.5 border border-divider p-4 text-[13px] leading-[1.55]">
                       <div className="mb-1 text-[11px] tracking-[0.1em] uppercase text-text-caption">
@@ -577,7 +575,7 @@ export function SubscribeSurface() {
                 ) : (
                   <div>
                     <div className="mb-4 text-[11px] tracking-[0.1em] uppercase text-ns-accent">
-                      Through the wallet's privacy API
+                      Your wallet does the private part
                     </div>
                     {log.length > 0 ? (
                       <div className="mb-5 flex flex-col gap-2 font-mono text-[12.5px]">
@@ -664,7 +662,7 @@ export function SubscribeSurface() {
                     escrow&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {fmtStrk(escrowWei)} STRK · {periods}{" "}
                     periods of {fmtBlock(cadence)} blocks
                   </div>
-                  <div>owner_key&nbsp;&nbsp; recorded, fresh for this creator</div>
+                  <div>owner key&nbsp;&nbsp; recorded, fresh for this creator</div>
                 </div>
                 <div className="mb-5 flex flex-col border border-divider">
                   {(
@@ -722,7 +720,7 @@ export function SubscribeSurface() {
                     disabled={nextBlocked}
                     onClick={next}
                   >
-                    {step === 2 ? "Continue to the invoke" : "Continue →"}
+                    {step === 2 ? "Continue to sign" : "Continue →"}
                   </button>
                 ) : null}
               </div>
@@ -732,7 +730,7 @@ export function SubscribeSurface() {
           {/* ── side rail ── */}
           <div className="border-t-2 border-divider bg-panel p-6 lg:border-t-0 lg:border-l-2 lg:p-7">
             <div className="mb-4 text-[11px] tracking-[0.1em] uppercase text-ns-accent">
-              ▸ What lands in public calldata
+              ▸ What the chain will see
             </div>
             <div className="border border-divider bg-ground p-4 font-mono text-[12px] leading-[2] break-all">
               <div>Subscribe {"{"}</div>
@@ -745,18 +743,17 @@ export function SubscribeSurface() {
               <div>{"}"}</div>
             </div>
             <div className="mt-4 text-[12.5px] leading-[1.6] text-text-prose">
-              All of it is visible, which is why it is quantized. What is not
-              here: your address, your secret, and any link between the two. The
-              pool's withdrawal edge is the cut.
+              All of it is public, which is why it comes from a fixed menu.
+              What is not here: your address, your secret, and any link between
+              the two.
             </div>
             <div className="my-5 h-0.5 bg-divider" />
             <div className="mb-3 text-[11px] tracking-[0.1em] uppercase text-text-caption">
-              Owner key, per creator
+              One key per creator
             </div>
             <div className="text-[12.5px] leading-[1.6] text-text-prose">
-              A fresh owner key and commitment are derived for every creator you
-              subscribe to. Reuse one across creators and those subscriptions
-              become linkable to each other at any gate that sees both.
+              A fresh key and code are derived for every creator you subscribe
+              to, so no two of your subscriptions can be tied to each other.
             </div>
           </div>
         </div>

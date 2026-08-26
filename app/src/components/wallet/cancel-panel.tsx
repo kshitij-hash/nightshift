@@ -307,7 +307,7 @@ export function CancelPanel({
   return (
     <section className="flex flex-col gap-8">
       <div className="flex flex-col gap-5">
-        <SectionHead note="the trade-off is the design, not a setting">
+        <SectionHead note="no gas needed on the relay path">
           // CANCEL · SIGN, THEN CHOOSE WHO SUBMITS IT
         </SectionHead>
 
@@ -329,7 +329,7 @@ export function CancelPanel({
             {!target && keys.length > 1 ? (
               <Field
                 label="OWNER KEY"
-                hint="the vault stores one owner key per commitment and does not publish which. Pick by era: derived for a subscription made here, legacy for one made before keys were derived per commitment."
+                hint="pick the key that matches when the subscription was made: derived for one made here, legacy for one made before per-creator keys."
               >
                 <div className="flex flex-wrap gap-2">
                   {keys.map((k) => (
@@ -352,7 +352,7 @@ export function CancelPanel({
             <Narration label="cancel" minHeight="4.6em" lines={
               cancelLines.length > 0
                 ? cancelLines
-                : [{ text: "signing happens in this page, with the derived owner key", tone: "dim" }]
+                : [{ text: "signing happens in this page; nothing is sent anywhere", tone: "dim" }]
             } />
 
             {cancelFailure ? <FailureNote failure={cancelFailure} /> : null}
@@ -360,9 +360,7 @@ export function CancelPanel({
             <Button variant="destructive" size="md" onClick={() => setConfirmCancel(true)}>
               sign cancel
             </Button>
-            <p className="text-[11px] text-text-caption">
-              irreversible. Dim red is used here and on a verify failure, nowhere else.
-            </p>
+            <p className="text-[11px] text-text-caption">irreversible.</p>
             <ConfirmDialog
               open={confirmCancel}
               onOpenChange={setConfirmCancel}
@@ -416,8 +414,8 @@ export function CancelPanel({
       </div>
 
       <div className="flex flex-col gap-5">
-        <SectionHead note="a public exit edge, and the destination is bound by the signature">
-          // RECLAIM · UNSPENT ESCROW BACK OUT
+        <SectionHead note="the destination is locked into the signature">
+          // RECLAIM · GET UNSPENT ESCROW BACK
         </SectionHead>
 
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">

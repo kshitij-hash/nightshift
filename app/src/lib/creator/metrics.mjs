@@ -50,7 +50,7 @@ const withProvenance = (ledger, caveat) => {
   const notes = [];
   if (caveat) notes.push(caveat);
   if (p && p.truncated) {
-    notes.push("at least one event scan hit its page cap, so this covers a prefix of the history");
+    notes.push("the scan stopped short of the newest block, so this covers only part of the history");
   }
   if (p && p.partial && p.partial.length > 0) {
     notes.push(`${p.partial.length} read(s) came back incomplete: ${p.partial.join("; ")}`);
@@ -109,11 +109,11 @@ export function activeSubscriptions(ledger) {
   return metric(
     ledger.commitments.filter(isFunded).length,
     "subscriptions",
-    "schedule_of returned a creator, cancelled is false, next_period < n_periods, and escrow >= tier price",
+    "counted when a subscription is not cancelled, has periods left, and escrow >= tier price",
     withProvenance(
       ledger,
       missing > 0
-        ? `${missing} commitment(s) have no readable tier price and are excluded`
+        ? `${missing} subscription(s) have no readable tier price and are excluded`
         : undefined,
     ),
   );
@@ -125,10 +125,10 @@ export function currentlyEntitled(ledger) {
   return metric(
     ledger.commitments.filter((c) => isEntitled(c, ledger.headBlock)).length,
     "subscriptions",
-    "not cancelled, next_period > 0, and headBlock < start_block + period_blocks * next_period, matching gate.presentable",
+    "counted when a subscription is not cancelled, has paid at least one period, and its current period has not lapsed - the same rule the gate applies",
     withProvenance(
       ledger,
-      "the vault's is_active flag disagrees with this during the final fully-paid period; the gate rule is the one that admits",
+      "during the final fully-paid period the vault's own active flag reads differently; the gate's rule is the one that admits",
     ),
   );
 }
@@ -143,7 +143,7 @@ export function arrears(ledger) {
   return metric(
     { count: due.length, maxPeriodsDue },
     "subscriptions, periods",
-    "vault periods_due > 0 per commitment; severity is the largest periods_due in the set",
+    "subscriptions with at least one period past due and uncharged; severity is the most any one of them is behind",
     withProvenance(
       ledger,
       [
@@ -151,8 +151,8 @@ export function arrears(ledger) {
         // escrow, so it can report a period due that charge() would refuse
         // with NS_ESCROW_EXHAUSTED. Read this as "periods past their due
         // height", not "periods that will be collected".
-        "periods_due counts periods past their due height and does not check escrow, so a period counted here can still be uncollectable",
-        unread > 0 ? `${unread} commitment(s) had no readable periods_due` : null,
+        "being past due does not check escrow, so a period counted here can still be uncollectable",
+        unread > 0 ? `${unread} subscription(s) could not be read` : null,
       ]
         .filter(Boolean)
         .join(". "),
@@ -175,10 +175,10 @@ export function escrowedRunRate30d(ledger) {
   return metric(
     value,
     "wei per 30 days",
-    `sum over funded subscriptions of tier price * ${BLOCKS_PER_30D} / period_blocks`,
+    "each funded subscription's tier price, scaled to a 30-day month and summed",
     withProvenance(
       ledger,
-      "periods are counted in blocks, not seconds, so this tracks calendar time only as closely as block cadence does; it also assumes every subscription stays funded for the full window",
+      "periods run on blocks, not clocks, so this tracks calendar time approximately; it also assumes every subscription stays funded for the full month",
     ),
   );
 }
@@ -190,7 +190,7 @@ export function contractedRemaining(ledger) {
   return metric(
     sum(active.map((c) => c.schedule.escrowWei)),
     "wei",
-    "sum of schedule_of escrow over funded subscriptions",
+    "the escrow the vault still holds across funded subscriptions",
     withProvenance(
       ledger,
       "escrow is refundable: cancel then reclaim returns the whole remainder to the subscriber, including a period already due but never charged",
@@ -203,7 +203,7 @@ export function grossRevenue(ledger) {
   return metric(
     sum(ledger.charges.map((c) => c.amountWei)),
     "wei",
-    "sum of the amount field over every Charged event for this creator's commitments",
+    "every charge that has landed for this creator, summed",
     withProvenance(ledger),
   );
 }
@@ -235,14 +235,14 @@ export function settledVsUnsettled(ledger) {
       invariant: { holds, deltaWei },
     },
     "wei",
-    "settled = sum(Claimed) + sum(ClaimedPublic); unsettled = claimable_of per creator; the vault moves escrow into claimable on charge and out of it on claim, so settled + unsettled must equal gross",
+    "settled = what has been claimed out of the vault; unsettled = what it still owes. Charges move money into the owed balance and claims move it out, so settled + unsettled must equal gross",
     withProvenance(
       ledger,
       inconclusive
-        ? "the invariant is inconclusive here: a claimable read failed or a scan was capped, so a mismatch may be a missing input rather than a real gap"
+        ? "the check is inconclusive here: a read failed or a scan stopped short, so a mismatch may be a missing input rather than a real gap"
         : holds
           ? undefined
-          : "the invariant does not hold, which means this ledger is missing charges or claims for these creator ids",
+          : "the totals do not reconcile, which means this ledger is missing charges or claims for these ids",
     ),
   );
 }
@@ -261,11 +261,11 @@ export function committedLtv(ledger) {
   return metric(
     value,
     "wei",
-    "mean of tier price * n_periods over every commitment in this ledger",
+    "tier price * number of periods, averaged over every subscription in this ledger",
     withProvenance(
       ledger,
       values.length === 0
-        ? "no commitment has a readable tier price, so this is zero rather than a mean"
+        ? "no subscription has a readable tier price, so this is zero rather than an average"
         : "contracted, not collected: a cancel before the last period leaves part of this unearned and reclaimable",
     ),
   );
@@ -285,12 +285,12 @@ export function realizedLtv(ledger) {
   return metric(
     value,
     "wei",
-    "mean of charged total over commitments that can never charge again: cancelled, or next_period == n_periods",
+    "what was actually collected, averaged over subscriptions that have ended by cancellation or completion",
     withProvenance(
       ledger,
       totals.length === 0
-        ? "no commitment has terminated yet, so there is nothing to average and this is zero"
-        : `averaged over ${totals.length} terminated commitment(s); live subscriptions are excluded`,
+        ? "no subscription has ended yet, so there is nothing to average and this is zero"
+        : `averaged over ${totals.length} ended subscription(s); live ones are excluded`,
     ),
   );
 }
@@ -300,7 +300,7 @@ export function refundLeakage(ledger) {
   return metric(
     sum(ledger.reclaims.map((r) => r.amountWei)),
     "wei",
-    "sum of the amount field over every Reclaimed event for this creator's commitments",
+    "every refund subscribers took back, summed",
     withProvenance(
       ledger,
       "reclaim pays out the whole remaining escrow, including any period that was due but never charged; that period is forfeited to the subscriber by design",
@@ -331,10 +331,10 @@ export function tierMix(ledger) {
   return metric(
     value,
     "commitments per tier",
-    "histogram over schedule_of tier, keyed by (creator_id, tier) because a tier index belongs to one creator's ladder",
+    "how many subscriptions sit at each tier, per creator",
     withProvenance(
       ledger,
-      noSchedule > 0 ? `${noSchedule} commitment(s) had no readable schedule` : undefined,
+      noSchedule > 0 ? `${noSchedule} subscription(s) could not be read` : undefined,
     ),
   );
 }
@@ -362,11 +362,11 @@ export function cadenceMix(ledger) {
   return metric(
     value,
     "commitments per cadence",
-    "histogram over schedule_of period_blocks, labelled against the hour/day/week ladder in src/common.cairo",
+    "how many subscriptions bill hourly, daily and weekly",
     withProvenance(
       ledger,
       offLadder > 0
-        ? "an off-ladder bucket appeared, which the vault rejects at subscribe, so treat it as a decode error"
+        ? "a period length appeared that the vault does not accept, so treat it as a read error"
         : undefined,
     ),
   );
@@ -379,10 +379,10 @@ export function presentationsToDate(ledger) {
   return metric(
     { total: ledger.presentations.length, distinctCommitments, distinctVerifiers },
     "presentations",
-    "count of Presented events from the gate whose data creator_id is one of this ledger's creators",
+    "how many times a subscription proved its tier at the on-chain gate",
     withProvenance(
       ledger,
-      "a presentation reveals the commitment to the verifier and to every reader of the chain, so repeat presentations of one subscription are linkable across gates",
+      "proving a tier reveals the subscription id, so repeat proofs of one subscription are linkable to each other - never to the subscriber",
     ),
   );
 }
@@ -426,7 +426,7 @@ export function keeperHealth(ledger, opts = {}) {
       toleranceBlocks,
     },
     "charges, ratio",
-    `due_at = start_block + period_blocks * period_index from schedule_of; a Charged event is on time when its block is at most ${toleranceBlocks} blocks past due_at`,
+    `a charge counts as on time when it lands within ${toleranceBlocks} blocks of the moment its period came due`,
     withProvenance(
       ledger,
       unscheduled > 0

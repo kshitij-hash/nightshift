@@ -118,10 +118,10 @@ export function ClaimPanel({
         setLines((l) => [
           ...l,
           {
-            text: "prepared, but the [creator_id, ?, amount, 1, 1] pattern is not in the pool calldata",
+            text: "prepared, but the receiving note could not be identified automatically",
             tone: "bad",
           },
-          { text: "the whole calldata is printed below: read the note id out of it by hand", tone: "dim" },
+          { text: "the raw transaction data is printed below", tone: "dim" },
         ]);
       } else {
         setNoteId(resolved);
@@ -198,7 +198,7 @@ export function ClaimPanel({
           </p>
           <Field
             label="AMOUNT, STRK"
-            hint="at most the claimable balance. The vault refuses more with NS_CLAIM_EXCEEDS_BALANCE."
+            hint="at most the claimable balance; the vault refuses anything more."
             error={amountProblem}
           >
             <TextInput
@@ -296,9 +296,8 @@ export function ClaimPanel({
                 {busy === "send" ? "waiting for the wallet" : "send the claim"}
               </Button>
               <p className="text-[11px] text-text-caption">
-                the batch carries the note placeholder, not the literal id: the wallet's schema
-                refuses a batch whose open note is not referenced by one, and it resolves the
-                placeholder to the same note the signature binds.
+                the wallet fills in the same receiving note the signature binds, so a mismatch
+                simply fails rather than paying the wrong place.
               </p>
             </>
           )}

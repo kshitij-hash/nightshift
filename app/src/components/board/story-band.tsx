@@ -91,7 +91,7 @@ const SEE_ROWS: Array<[string, string, string]> = [
   [
     "the creator's topline",
     "the sum of the charge events, derivable by anyone",
-    "nothing · a creator topline is public, and this product never claims otherwise",
+    "nothing · creator totals are public by design",
   ],
 ];
 
@@ -255,9 +255,8 @@ export function HiddenAndVisible() {
         </table>
       </div>
       <p className="text-[12px] leading-[1.5] text-text-caption">
-        Read the middle column as the cost and the right as the claim. Charges of one subscription
-        share a commitment, so they link to each other; a presentation of that subscription is
-        linkable across gates.
+        Charges of one subscription share a public id, so they link to each other — never to a
+        wallet. A gate shown the same subscription twice can recognize it.
       </p>
     </>
   );

@@ -59,11 +59,11 @@ export const REASON_NOTES: readonly ReasonNote[] = [
   },
   {
     reason: REASONS.MALFORMED_PRESENTATION,
-    meaning: "The pasted JSON is not a presentation: a field is missing, is not a felt, or is out of field range.",
+    meaning: "The pasted JSON is not a presentation: a field is missing or is not a valid value.",
   },
   {
     reason: REASONS.RPC_ERROR,
-    meaning: "Every configured JSON-RPC endpoint failed, so the vault state was never read.",
+    meaning: "The network could not be reached, so the vault was never read.",
     fix: "The verdict is unknown, not negative. Retry.",
   },
   {

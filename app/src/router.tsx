@@ -18,6 +18,7 @@ import { BoardRoute } from "./routes/board";
 import { CreatorRoute } from "./routes/creator";
 import { LandingRoute } from "./routes/landing";
 import { ManageRoute } from "./routes/manage";
+import { NotFoundRoute } from "./routes/not-found";
 import { SubscribeRoute } from "./routes/subscribe";
 import { VerifyRoute } from "./routes/verify";
 
@@ -171,7 +172,12 @@ const routeTree = rootRoute.addChildren([
   verifyRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  // The Vercel rewrite serves the app for every path, so this component is
+  // the site's whole 404 story.
+  defaultNotFoundComponent: NotFoundRoute,
+});
 
 declare module "@tanstack/react-router" {
   interface Register {

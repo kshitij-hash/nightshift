@@ -41,6 +41,7 @@ import { useIsNarrow } from "../components/dashboard/use-media";
 import { Masthead } from "../components/masthead";
 import { SiteFooter } from "../components/site-footer";
 import { Badge } from "../components/ui/badge";
+import { usePageTitle } from "../lib/use-title";
 import { useCreatorLedger } from "../query/useCreatorLedger";
 import { splitCreatorIds } from "../router";
 
@@ -59,6 +60,7 @@ const PAGE = "flex min-h-screen w-full flex-col";
 const GUTTER = "flex-1 px-5 lg:px-10";
 
 export function CreatorRoute() {
+  usePageTitle("Creator ledger");
   const search = useSearch({ from: "/creator" });
   const navigate = useNavigate({ from: "/creator" });
   const narrow = useIsNarrow();
@@ -109,8 +111,8 @@ export function CreatorRoute() {
               </SectionHead>
               <p className="max-w-[130ch] text-[14px] leading-[1.7] text-text-prose">
                 Gross revenue and its split, escrow-backed MRR, funded and entitled
-                subscriptions, arrears, the timeline, and one row per commitment. Each figure
-                prints the rule it came from.
+                subscriptions, arrears, the timeline, and one row per subscription. Every figure
+                shows the rule it came from.
               </p>
             </section>
           </div>
@@ -191,7 +193,7 @@ export function CreatorRoute() {
         <div className={SECTIONS}>
           <div className="border-b-2 border-divider pb-5">
             <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
-              ▸ creator_id derived from the public record
+              ▸ Read from the public record
             </div>
             <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">Creator ledger</h2>
           </div>
@@ -219,15 +221,14 @@ export function CreatorRoute() {
                 </SectionHead>
                 <MetricTiles metrics={data.metrics} ledger={ledger} />
                 <p className="max-w-[100ch] text-[12px] leading-[1.6] text-text-caption">
-                  Derived from public Charged, Claimed and Cancelled events:
-                  anyone reading the chain can compute these figures, which is
-                  what makes them auditable. What stays hidden is the
-                  subscriber behind each commitment.
+                  Computed from the vault's public event log — anyone reading
+                  the chain gets the same figures. What stays hidden is the
+                  subscriber behind each subscription.
                 </p>
               </section>
 
               <section className="flex flex-col gap-5">
-                <SectionHead note="orange leads, grays behind, zero baseline, direct labels">
+                <SectionHead note="cumulative, from real charges">
                   {`// REVENUE TIMELINE · ${points.length} CHARGE${points.length === 1 ? "" : "S"}`}
                 </SectionHead>
                 {points.length === 0 ? (
@@ -249,7 +250,7 @@ export function CreatorRoute() {
                         <dd className="text-[13px] leading-[1.7] text-text-prose">
                           {points.length} charge{points.length === 1 ? "" : "s"} totalling{" "}
                           {last ? last.cumulativeLabel : "0.00"} STRK landed against {rows.length}{" "}
-                          commitment{rows.length === 1 ? "" : "s"}
+                          subscription{rows.length === 1 ? "" : "s"}
                           {first && last
                             ? ` between ${stampUtc(first.ts)} and ${stampUtc(last.ts)}`
                             : ""}
@@ -263,9 +264,9 @@ export function CreatorRoute() {
                         </dt>
                         <dd className="text-[13px] leading-[1.7] text-text-prose">
                           who subscribed, whether one subscriber holds more than one of these
-                          commitments, or any revenue that did not pass through this vault, and a
-                          per-creator topline is publicly derivable from these events, which is all
-                          this page claims.
+                          subscriptions, or any revenue that did not pass through this vault.
+                          Creator totals are public by design; the subscriber behind each one is
+                          not.
                         </dd>
                       </div>
                     </dl>
@@ -283,14 +284,14 @@ export function CreatorRoute() {
                 <div className="flex flex-col gap-4">
                   <p className="max-w-[100ch] text-[12px] leading-[1.6] text-text-caption">
                     Every state tag and money column carries its definition. Hover or focus it. A
-                    subscription does not renew itself and the vault cannot ask: a renewal is a
-                    fresh subscribe transaction through the pool, and it arrives as a new commitment
-                    rather than as an extension of an old one.
+                    subscription never renews itself and the vault cannot ask: a renewal is a fresh
+                    subscribe, and it arrives as a new subscription rather than as an extension of
+                    an old one.
                   </p>
                   <div className="flex flex-wrap items-start gap-4">
                     <p className="max-w-[70ch] text-[12px] leading-[1.6] text-text-caption">
                       {presentations.value.total} gate presentation
-                      {presentations.value.total === 1 ? "" : "s"} recorded for these commitments,
+                      {presentations.value.total === 1 ? "" : "s"} recorded for these subscriptions,
                       across {presentations.value.distinctVerifiers} verifier
                       {presentations.value.distinctVerifiers === 1 ? "" : "s"}. Basis:{" "}
                       {presentations.basis}.

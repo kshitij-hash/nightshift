@@ -56,12 +56,12 @@ export const DEMO_CREATOR_ID =
 /** The v4 lifecycle receipts, one per verb - the same six the README lists.
  *  Every landing claim links one of these. */
 export const RECEIPTS: Array<{ verb: string; hash: string }> = [
-  { verb: "subscribe", hash: "0x79ab57d364b8d8118256103c017232a031f493312f8fca4176b4e9d5090ac86" },
-  { verb: "charge", hash: "0x24a723437c0f91cc9bc7d917c458908d3f1c90039ac0a5f9f1b3c7e4a06778b" },
+  { verb: "subscribe", hash: "0x45d3b310b86bdee9179c755507caee1d0ade8b80dbb3da834f4bb40794b037d" },
+  { verb: "charge", hash: "0x4f2950f68a8fc1142ceb2559c8e173a3e0191fbc826e11cd4fbce96f33323ae" },
   { verb: "present", hash: "0x30191636301463f89c9686a7426fa2489429024a562bd4c0da7693837d502de" },
   { verb: "claim", hash: "0x51099d3247f6681f049038ab1044e5c644956b333696e263a740a04880943b1" },
-  { verb: "cancel", hash: "0x5474c1ec9d302a884fe9341c071861b579728767973bee147b358416580df5f" },
-  { verb: "reclaim", hash: "0x401b3a4fb23f53ce988247af54072d1bbed4c140be4c09a05a3f0fce7f832b1" },
+  { verb: "cancel", hash: "0x1fd1961bcdf55dd94b64edab2c6022174078ca60f7b285cea72799e0077f5b7" },
+  { verb: "reclaim", hash: "0x28f7e6c36bb4ecf1256fda95e117805b51b638f43b0f48e00d20e7b2480920c" },
 ];
 
 export const VOYAGER_TX = (hash: string) => `https://voyager.online/tx/${hash}`;

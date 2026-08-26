@@ -46,7 +46,7 @@ import { useConnection } from "./use-connection";
 export type ManageTab = "subscribe" | "cancel" | "claim";
 
 const AFTER_CONNECT =
-  "This page lists the subscriptions this browser's key can derive, each with its escrow left, " +
+  "This page lists the subscriptions this browser holds the keys to, each with its escrow left, " +
   "its next charge and a one-press cancel. Nothing is uploaded and no list is kept.";
 
 const NOTHING_YET =
@@ -63,12 +63,12 @@ function ProvenanceLine({ address }: { address: string | null }) {
         <StatusDot state={address ? "live" : "pending"} beat={address !== null} size={7} />
         <p className="text-[13px] leading-[1.7] text-text-default">
           {address
-            ? `connected · ${truncate(address)} · derived in this browser from the key it holds`
-            : "not connected · reading the chain needs no wallet, and signing is the only thing this page adds"}
+            ? `connected · ${truncate(address)} · your list is built in this browser alone`
+            : "not connected · everything here can be read without a wallet; connecting only adds signing"}
         </p>
       </div>
       <span className="text-[11px] leading-[1.45] text-text-caption">
-        no server saw this page · nothing about these objects was sent anywhere
+        nothing on this page is sent anywhere
       </span>
     </div>
   );
@@ -180,7 +180,7 @@ export function ManageSurface({
             <div className="flex flex-wrap items-end gap-6 border-b-2 border-divider pb-5">
               <div>
                 <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
-                  ▸ Your subscriptions, derived privately in this browser
+                  ▸ Found privately, by this browser alone
                 </div>
                 <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">
                   My subscriptions
@@ -214,10 +214,10 @@ export function ManageSurface({
                 </summary>
                 <div className="grid text-[12.5px] max-lg:gap-y-0 lg:grid-cols-4">
                   {[
-                    `One scan of CreatorRegistered → ${creators.data.creatorIds.length} creator id${creators.data.creatorIds.length === 1 ? "" : "s"} at this vault`,
-                    `poseidon(secret, id) for each → ${candidates?.length ?? 0} candidate commitment${(candidates?.length ?? 0) === 1 ? "" : "s"}, in this browser`,
-                    "One key-filtered scan of Subscribed → which candidates exist",
-                    "schedule_of + tier_of on the survivors → what each one is",
+                    `Read the vault's public creator list · ${creators.data.creatorIds.length} creator${creators.data.creatorIds.length === 1 ? "" : "s"}`,
+                    `Work out, in this browser, the code your key would give each one · ${candidates?.length ?? 0} candidate${(candidates?.length ?? 0) === 1 ? "" : "s"}`,
+                    "Ask the vault which of those codes exist",
+                    "Read each one's schedule and tier",
                   ].map((line, i) => (
                     <div
                       key={line}
@@ -261,10 +261,8 @@ export function ManageSurface({
                     </div>
                   </div>
                   <p className="text-[12px] leading-[1.6] text-text-caption">
-                    Reading the vault's creator list, then asking which of the
-                    commitments this browser derives it has heard of. After the
-                    first visit both scans are incremental, so this settles in
-                    a moment.
+                    Checking the vault for subscriptions this browser holds the
+                    keys to. After the first visit this settles in a moment.
                   </p>
                 </div>
               ) : subscriptions.length === 0 ? (
@@ -277,7 +275,7 @@ export function ManageSurface({
                   </p>
                   <p className="max-w-[70ch] text-[11px] leading-[1.5] text-text-caption">
                     {creators.data
-                      ? `${creators.data.creatorIds.length} creator${creators.data.creatorIds.length === 1 ? " registered at this vault was" : "s registered at this vault were"} checked against the commitments this browser derives, and none of them matched.`
+                      ? `${creators.data.creatorIds.length} creator${creators.data.creatorIds.length === 1 ? " at this vault was" : "s at this vault were"} checked against this browser's keys, and none matched.`
                       : "the vault's creator list could not be read, so nothing was checked."}
                   </p>
                   {/* The subscribe flow is the page when there is nothing to

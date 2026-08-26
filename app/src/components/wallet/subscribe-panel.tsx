@@ -160,14 +160,14 @@ export function SubscribePanel({
         tone: "plain",
       },
       { text: "pool fee = 6 STRK, from your PUBLIC balance", tone: "plain" },
-      { text: "asking the wallet to build and prove the batch", tone: "dim" },
+      { text: "asking the wallet to build and prove the transaction", tone: "dim" },
     ]);
     try {
       await connection.prepareInvoke(actions());
       setLines((l) => [
         ...l,
         { text: "proof prepared · nothing submitted", tone: "ok" },
-        { text: "the same batch is what SIGN AND SUBMIT sends", tone: "dim" },
+        { text: "sign and submit sends exactly this", tone: "dim" },
       ]);
       setPhase("previewed");
     } catch (e) {
@@ -184,7 +184,7 @@ export function SubscribePanel({
     setLines((l) => [
       ...l,
       { text: "submitting · the wallet is generating the proof", tone: "dim" },
-      { text: "proving happens in the wallet and can take a minute or two", tone: "dim" },
+      { text: "the private work happens in the wallet and can take a minute or two", tone: "dim" },
     ]);
 
     // The wallet's promise is not the only truth: it proves, submits, and can
@@ -241,7 +241,7 @@ export function SubscribePanel({
         <Step n="01" name="TERMS" note="all four are on chain" active={!previewReady}>
           <Field
             label="CREATOR ID"
-            hint="the felt the creator published. It defaults to the id this wallet would register for itself, which is how the demo subscription was made."
+            hint="the id the creator shared. It defaults to the id this wallet would register for itself."
             error={creatorProblem}
           >
             <TextInput
@@ -271,7 +271,7 @@ export function SubscribePanel({
 
           <Field
             label="TIER"
-            hint="the index into the creator's ladder. The price below is read from the vault, not typed here."
+            hint="which of the creator's tiers. The price below is read from the vault, not typed here."
             error={tierProblem}
           >
             <TextInput
@@ -290,7 +290,7 @@ export function SubscribePanel({
               {price.state === "known"
                 ? `tier ${tier} · ${fmtStrk(price.amountWei)} STRK per period`
                 : price.state === "reading"
-                  ? "reading tier_of from the vault"
+                  ? "reading the price from the vault"
                   : price.state === "unknown-creator"
                     ? "no creator registered at this id"
                     : price.state === "unreadable"
@@ -307,7 +307,7 @@ export function SubscribePanel({
 
           <Field
             label="CADENCE"
-            hint="three lengths, and the vault refuses anything else with NS_PERIOD_OFF_LADDER. Quantized so a schedule cannot fingerprint a subscriber."
+            hint="three fixed lengths — nothing else is accepted, so a schedule cannot fingerprint its subscriber."
           >
             <div className="flex flex-wrap gap-2">
               {CADENCES.map((c) => (

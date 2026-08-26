@@ -50,10 +50,9 @@ export function ProvenanceBanner({
         </p>
       </div>
       <p className="text-[11px] leading-[1.5] text-text-caption">
-        source: Subscribed, Charged, Claimed, Cancelled, Reclaimed and Presented events at vault{" "}
+        source: the public event log of vault{" "}
         <HashCopy value={VAULT} display={truncate(VAULT)} className="text-[11px]" /> ·{" "}
-        {capped ? "scan stopped at its page cap" : "scan complete"} to block{" "}
-        {fmtBlock(ledger.headBlock)}
+        {capped ? "scan stopped short" : "scan complete"} to block {fmtBlock(ledger.headBlock)}
       </p>
     </div>
   );
@@ -78,8 +77,8 @@ export function PartialScanBanner({ ledger }: { ledger: CreatorLedger }) {
       </div>
       <p className="max-w-[860px] text-[13px] leading-[1.7] text-text-prose">
         {capped
-          ? "The node returned its page limit before the scan reached the head block. Every count and every sum below is a floor rather than a total, and each tile is marked with a floor sign until a full scan lands. Re-reading a range cannot double count an event, so a refresh is safe."
-          : "At least one read came back empty or failed outright. The figures below are computed over what did arrive, and each tile carries the failure in its caveat."}
+          ? "The scan stopped before reaching the newest block, so every figure below is a floor rather than a total. Refreshing is safe and picks up where it left off."
+          : "At least one read failed, so the figures below are computed over what did arrive. Each affected tile says so."}
       </p>
       <ul className="flex flex-col gap-1">
         {notes.map((n) => (
@@ -110,10 +109,9 @@ export function UnknownCreator({
         </span>
       </div>
       <p className="max-w-[70ch] text-[14px] leading-[1.7] text-text-prose">
-        {ids.length === 1 ? "That id has" : "Those ids have"} no Subscribed, Charged or Claimed
-        event at this vault, so there is nothing to derive. Either the id is wrong, or this creator
-        has not been registered here yet. Nothing was stored, and the page will look the same if you
-        reload it.
+        {ids.length === 1 ? "That id has" : "Those ids have"} no activity at this vault, so there
+        is nothing to show. Either the id is wrong, or this creator has not been registered here
+        yet.
       </p>
       <ul className="flex flex-col gap-1">
         {ids.map((id) => (
@@ -129,8 +127,7 @@ export function UnknownCreator({
         </p>
       ) : (
         <p className="max-w-[70ch] text-[12px] leading-[1.6] text-text-caption">
-          The empty result is a fact about the chain, not a failure of this page. The same scan is
-          reproducible from the event log.
+          Nothing was found on chain for this id. Anyone running the same scan would see the same.
         </p>
       )}
       <a href={EVENTS_LINK} target="_blank" rel="noreferrer" className="w-fit text-[12px]">
@@ -149,8 +146,8 @@ export function RejectedIds({ raw }: { raw: string }) {
         ID REJECTED
       </Badge>
       <p className="max-w-[70ch] text-[13px] leading-[1.7] text-text-prose">
-        {parts.length === 1 ? "This id was" : "These ids were"} not read, because a creator id is a
-        felt252: 0x followed by 1 to 64 hex digits, and nothing else. Fix the id and paste it again.
+        {parts.length === 1 ? "This id was" : "These ids were"} not read: a creator id is 0x
+        followed by up to 64 hex characters. Fix the id and paste it again.
       </p>
       <ul className="flex flex-col gap-1">
         {parts.map((p) => (

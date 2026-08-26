@@ -40,7 +40,7 @@ const STATE_MEANING: Record<SubState, string> = {
 
 const MONEY_MEANING: Record<string, string> = {
   CONTRACTED:
-    "the tier price times n_periods from schedule_of, which is what the subscription committed to.",
+    "the tier price times the number of periods — what the subscription committed to.",
   "ESCROW LEFT": "what the vault still holds against this commitment.",
 };
 

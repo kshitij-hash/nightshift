@@ -74,16 +74,16 @@ export function toFelt(value: unknown, label = "value"): bigint {
   if (typeof value === "bigint") {
     out = value;
   } else if (typeof value === "number") {
-    if (!Number.isSafeInteger(value) || value < 0) throw new FeltError(`${label} is not a felt`);
+    if (!Number.isSafeInteger(value) || value < 0) throw new FeltError(`${label} is not a valid value: use 0x-hex or a plain number`);
     out = BigInt(value);
   } else if (typeof value === "string") {
     const t = value.trim();
-    if (!/^(0x[0-9a-fA-F]+|[0-9]+)$/.test(t)) throw new FeltError(`${label} is not a felt`);
+    if (!/^(0x[0-9a-fA-F]+|[0-9]+)$/.test(t)) throw new FeltError(`${label} is not a valid value: use 0x-hex or a plain number`);
     out = BigInt(t);
   } else {
     throw new FeltError(`${label} is missing`);
   }
-  if (out < 0n || out >= STARK_PRIME) throw new FeltError(`${label} is out of field range`);
+  if (out < 0n || out >= STARK_PRIME) throw new FeltError(`${label} is too large to be an on-chain value`);
   return out;
 }
 
@@ -474,19 +474,19 @@ export function parseChallenge(text: string): ParseResult<ParsedChallenge> {
   try {
     verifierId = toVerifierFelt(raw.verifier_id ?? raw.gate, "verifier_id");
   } catch {
-    return { error: "verifier_id is missing or is not a felt or short string." };
+    return { error: "verifier_id is missing or is not a valid id." };
   }
   try {
     nonce = toFelt(raw.nonce, "nonce");
   } catch {
-    return { error: "nonce is missing or is not a felt. It is the 0x-hex value the gate issued." };
+    return { error: "nonce is missing or invalid. It is the 0x value the gate issued." };
   }
   try {
     expiryBlock = toFelt(raw.expiry_block, "expiry_block");
   } catch {
     return { error: "expiry_block is missing or is not a block number." };
   }
-  if (expiryBlock > MAX_U64) return { error: "expiry_block does not fit in u64." };
+  if (expiryBlock > MAX_U64) return { error: "expiry_block is not a usable block number." };
   return { value: { verifierId, nonce, expiryBlock, raw } };
 }
 

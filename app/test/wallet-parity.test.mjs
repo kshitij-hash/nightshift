@@ -1,23 +1,16 @@
-// Parity between the app's ported wallet math (src/lib/wallet/core.ts) and the
-// ops console (../../web/app.mjs), which is the implementation that has
-// actually put transactions on mainnet.
+// Golden-value tests for the app's wallet math (src/lib/wallet/core.ts).
 //
-// The console is a browser entry module: it wires DOM handlers at import time
-// and reads its inputs out of the document. So the same stubbing pattern
-// scripts/present-message-compat.test.mjs uses is extended here by three
-// things, which is what makes the console's private derivations reachable:
-//
-//   - the log pane records the lines the console writes, instead of dropping
-//     them, so the values it prints can be read back;
-//   - localStorage is pre-loaded with a FIXED subscriber secret and payout key,
-//     so both implementations derive from the same material;
-//   - window carries a stub wallet that answers standard:connect with a fixed
-//     address and refuses every pool call. Refusing is enough: the console logs
-//     the batch it built BEFORE it hands it over, so the calldata under test is
-//     the calldata it would have submitted.
+// The constants below were captured from the retired ops console (web/app.mjs)
+// on the day it was deleted, driven with these exact fixtures. The console is
+// the implementation that put the first transactions on mainnet, so these
+// values are anchored to behavior the chain accepted - and Stark-curve signing
+// is RFC6979-deterministic, which is what makes signatures usable as golden
+// constants at all. If any assertion here starts failing, the port's message
+// layout or calldata shape has drifted from what the deployed contracts
+// accepted, which is exactly the change that must never land silently.
 //
 // Nothing here touches the network, and the two secrets below are test
-// fixtures written into a Map, never onto a disk and never onto a chain.
+// fixtures written into this file, never onto a disk and never onto a chain.
 //
 //   node --test test/wallet-parity.test.mjs
 
@@ -51,119 +44,68 @@ const VAULT = "0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e
 const STRK = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 const E18 = 10n ** 18n;
 
-const TIER_STRK = 1;
 const PERIODS = 3;
 const PERIOD_BLOCKS = 2100;
-const CLAIM_STRK = "1";
-/** The id the stub wallet resolves the open-note placeholder to. */
 const NOTE_ID = "0x5c0ffee1234567890abcdef1234567890abcdef1234567890abcdef123456";
 
-// --- browser stubs ---------------------------------------------------------
+// --- golden values, captured from the console ------------------------------
 
-const logLines = [];
-const elements = new Map();
-const makeEl = () => ({
-  onclick: null,
-  value: "",
-  textContent: "",
-  className: "",
-  disabled: true,
-  checked: false,
-  appendChild(child) {
-    logLines.push(child.textContent);
-  },
-  scrollIntoView() {},
-  select() {},
-});
-
-globalThis.document = {
-  // get-starknet-core pulls in @module-federation, which reads
-  // document.defaultView and expects a real global object back.
-  defaultView: globalThis,
-  getElementById(id) {
-    if (!elements.has(id)) elements.set(id, makeEl());
-    return elements.get(id);
-  },
-  createElement() {
-    return makeEl();
-  },
-};
-
-const ls = new Map([
-  ["nightshift.subscriber.secret", SECRET],
-  ["nightshift.payout.priv", PAYOUT],
-]);
-globalThis.localStorage = {
-  getItem: (k) => (ls.has(k) ? ls.get(k) : null),
-  setItem: (k, v) => ls.set(k, v),
-};
-
-/** What the console's strk20PrepareInvoke stub answers for a claim: a pool
- *  call whose calldata carries the resolved note id in the position the
- *  console scans for, wrapped in filler so the scan has to find it. */
-const preparedClaimCalldata = (creatorIdFelt, amountWei) => [
-  "0x1",
-  "0x2",
-  creatorIdFelt,
-  NOTE_ID,
-  `0x${amountWei.toString(16)}`,
-  "0x1",
-  "0x1",
-  "0x9",
-];
-
-let preparedAnswer = null;
-
-const stubWallet = {
-  id: "ready",
-  name: "Ready (test stub)",
-  features: {
-    "standard:connect": { connect: async () => ({ accounts: [{ address: ACCOUNT }] }) },
-    "standard:events": { on: () => () => {} },
-    "starknet:walletApi": {
-      request: async (call) => {
-        if (call.type === "wallet_strk20PrepareInvoke" && preparedAnswer) {
-          return preparedAnswer;
-        }
-        throw new Error(`stub wallet refuses ${call.type}`);
-      },
+const GOLDEN = {
+  payoutPub: "0x6cc1e58bb391d06e55f735979e8898afa38ed2967da6e0c8d33ffad902b244d",
+  creatorId: "0x7525fe6764e78a5245be791a3f83cd40865710bea250d9af02148e37c7497be",
+  commitment: "0x82af430492ef7b2660bfabba97c91253cadf12d64ac8a8af6c7d2c400335e4",
+  ownerPub: "0x358069de7f7582c6c1d8cc000359f40d5d3ac3a851e9b152a507e74461d5335",
+  subscribe: [
+    {
+      type: "withdraw",
+      token: STRK,
+      amount: "0x29a2241af62c0000",
+      recipient: VAULT,
     },
-  },
-};
-
-globalThis.window = {
-  starknet_ready: stubWallet,
-  addEventListener() {},
-  removeEventListener() {},
-  dispatchEvent() {
-    return true;
-  },
-};
-
-const consoleModule = await import("../../web/app.mjs");
-const el = (id) => document.getElementById(id);
-
-// --- drive the console -----------------------------------------------------
-
-const since = () => {
-  const from = logLines.length;
-  return () => logLines.slice(from);
-};
-
-el("tier0").value = String(TIER_STRK);
-el("nper").value = String(PERIODS);
-el("pblocks").value = String(PERIOD_BLOCKS);
-el("clamount").value = CLAIM_STRK;
-el("dry3").checked = true;
-
-const afterConnect = since();
-await el("connect").onclick();
-const connectLines = afterConnect();
-
-const line = (lines, prefix) => {
-  const hit = lines.find((l) => l.startsWith(prefix));
-  assert.ok(hit, `the console did not print a line starting with ${JSON.stringify(prefix)}`);
-  return hit;
+    {
+      type: "invoke",
+      contract: VAULT,
+      calldata: [
+        "0x0",
+        "0x82af430492ef7b2660bfabba97c91253cadf12d64ac8a8af6c7d2c400335e4",
+        "0x7525fe6764e78a5245be791a3f83cd40865710bea250d9af02148e37c7497be",
+        "0x0",
+        "0x834",
+        "0x3",
+        "0x358069de7f7582c6c1d8cc000359f40d5d3ac3a851e9b152a507e74461d5335",
+      ],
+    },
+  ],
+  cancelRelay:
+    "node scripts/relay.mjs cancel 0x82af430492ef7b2660bfabba97c91253cadf12d64ac8a8af6c7d2c400335e4 0x5a28966718aa16c72f8c35f395a401d28c2bdd63a07092ec26594ab0ce5a3f9 0x736f98b78a00ef554ddd2b7875944d38f6ef033aaa45ef14f91991f56f4fd84",
+  reclaimRelay:
+    "node scripts/relay.mjs reclaim 0x82af430492ef7b2660bfabba97c91253cadf12d64ac8a8af6c7d2c400335e4 0x0511f1c2b3a495867788990011223344556677889900aabbccddeeff00112233 0xbdd06d5eda5e27ce1e3489bc264704d481edd20d0600919d68a0dd5eb82059 0x636f389879a45c97cef92de0844adacfe5cce381fedc75058041d05a240b73a",
+  claim: [
+    {
+      type: "withdraw",
+      token: STRK,
+      amount: "0x16345785d8a0000",
+      recipient: ACCOUNT,
+    },
+    {
+      type: "transfer",
+      token: STRK,
+      amount: "OPEN",
+      recipient: ACCOUNT,
+    },
+    {
+      type: "invoke",
+      contract: VAULT,
+      calldata: [
+        "0x1",
+        "0x7525fe6764e78a5245be791a3f83cd40865710bea250d9af02148e37c7497be",
+        OPEN_NOTE_PLACEHOLDER,
+        "0xde0b6b3a7640000",
+        "0x7014979d80458eec8c539ea7c2f8d506b0a8df4816161a4a0c7aa79874d7d5",
+        "0x9f2afeb728ecd2c294bfa62a6a8b62671fe0d2e623aa1d83662bedc29c7c3e",
+      ],
+    },
+  ],
 };
 
 // --- what this port derives, from the same fixtures ------------------------
@@ -176,13 +118,17 @@ const ownerPub = starkPubOf(ownerPriv);
 
 // --- key derivations -------------------------------------------------------
 
-test("the payout pubkey matches the console's", () => {
-  assert.equal(line(connectLines, "payout pubkey: "), `payout pubkey: ${payoutPub}`);
+test("the payout pubkey matches the golden derivation", () => {
+  assert.equal(payoutPub, GOLDEN.payoutPub);
 });
 
-test("the per-commitment owner pubkey matches the console's", () => {
-  const printed = line(connectLines, "owner pubkey (creator ");
-  assert.equal(printed, `owner pubkey (creator ${creatorId.slice(0, 10)}…): ${ownerPub}`);
+test("the creator id and commitment match the golden derivations", () => {
+  assert.equal(BigInt(creatorId), BigInt(GOLDEN.creatorId));
+  assert.equal(BigInt(commitment), BigInt(GOLDEN.commitment));
+});
+
+test("the per-commitment owner pubkey matches the golden derivation", () => {
+  assert.equal(ownerPub, GOLDEN.ownerPub);
 });
 
 test("the derived owner key is a valid scalar and is not the master secret", () => {
@@ -193,27 +139,20 @@ test("the derived owner key is a valid scalar and is not the master secret", () 
 
 // --- subscribe calldata ----------------------------------------------------
 
-// A dry run only builds and proves, so an empty prepared answer is a faithful
-// stand-in: the console logs the batch before it hands it over either way.
-preparedAnswer = { call: { calldata: [] }, proof: {} };
-const afterSubscribe = since();
-await el("subscribe").onclick();
-const subscribeLines = afterSubscribe();
-const consoleSubscribe = JSON.parse(line(subscribeLines, "subscribe: ").slice("subscribe: ".length));
+const mySubscribe = subscribeActions({
+  vault: VAULT,
+  token: STRK,
+  commitment,
+  creatorId,
+  tier: 0,
+  periodBlocks: PERIOD_BLOCKS,
+  nPeriods: PERIODS,
+  ownerPub,
+  escrowWei: 1n * E18 * BigInt(PERIODS),
+});
 
-test("the subscribe batch matches the console's, action for action", () => {
-  const mine = subscribeActions({
-    vault: VAULT,
-    token: STRK,
-    commitment,
-    creatorId,
-    tier: 0,
-    periodBlocks: PERIOD_BLOCKS,
-    nPeriods: PERIODS,
-    ownerPub,
-    escrowWei: BigInt(TIER_STRK) * E18 * BigInt(PERIODS),
-  });
-  assert.deepEqual(mine, consoleSubscribe);
+test("the subscribe batch matches the golden batch, action for action", () => {
+  assert.deepEqual(mySubscribe, GOLDEN.subscribe);
 });
 
 test("the subscribe invoke calldata has the shape the live subscription used", () => {
@@ -222,7 +161,7 @@ test("the subscribe invoke calldata has the shape the live subscription used", (
   // which is [variant, commitment, creator_id, tier, period_blocks, n_periods,
   // owner_key]. The fixture secret gives different felts in slots 1, 2 and 6;
   // every other slot is pinned to the literal it had on chain.
-  const invoke = consoleSubscribe[1];
+  const invoke = mySubscribe[1];
   assert.equal(invoke.type, "invoke");
   assert.equal(invoke.contract, VAULT);
   assert.equal(invoke.calldata.length, 7);
@@ -238,34 +177,28 @@ test("the subscribe invoke calldata has the shape the live subscription used", (
 });
 
 test("the withdraw leg escrows tier times periods into the vault", () => {
-  const withdraw = consoleSubscribe[0];
+  const withdraw = mySubscribe[0];
   assert.equal(withdraw.type, "withdraw");
   assert.equal(withdraw.token, STRK);
   assert.equal(withdraw.recipient, VAULT);
-  assert.equal(BigInt(withdraw.amount), BigInt(TIER_STRK) * E18 * BigInt(PERIODS));
+  assert.equal(BigInt(withdraw.amount), 1n * E18 * BigInt(PERIODS));
 });
 
 // --- cancel and reclaim messages ------------------------------------------
 
-const afterCancel = since();
-el("cancelsign").onclick();
-el("reclaimto").value = RECLAIM_TO;
-el("reclaimsign").onclick();
-const signLines = afterCancel();
-
-test("the cancel signature and relay line match the console's", () => {
+test("the cancel signature and relay line match the golden line", () => {
   const sig = signWith(cancelMessage(commitment), ownerPriv);
   assert.equal(
-    line(signLines, "node scripts/relay.mjs cancel "),
     `node scripts/relay.mjs cancel ${commitment} ${sig.r} ${sig.s}`,
+    GOLDEN.cancelRelay,
   );
 });
 
-test("the reclaim signature and relay line match the console's", () => {
+test("the reclaim signature and relay line match the golden line", () => {
   const sig = signWith(reclaimMessage(commitment, RECLAIM_TO), ownerPriv);
   assert.equal(
-    line(signLines, "node scripts/relay.mjs reclaim "),
     `node scripts/relay.mjs reclaim ${commitment} ${RECLAIM_TO} ${sig.r} ${sig.s}`,
+    GOLDEN.reclaimRelay,
   );
 });
 
@@ -280,14 +213,6 @@ test("the cancel and reclaim messages are domain-separated from each other", () 
 
 // --- present message -------------------------------------------------------
 
-test("the present message matches the console's exported layout", () => {
-  const fields = ["0x2a", 501_000, "0x0deadbeef"];
-  assert.equal(
-    presentMessage(commitment, fields[0], `0x${fields[1].toString(16)}`, fields[2]),
-    consoleModule.presentMessageFor(commitment, fields[0], fields[1], fields[2]),
-  );
-});
-
 test("the present message still hits the hash the deployed gate accepted", () => {
   // The vector and the constant are scripts/present-message-compat.test.mjs's,
   // which anchors them to mainnet tx 0x30191636… where the gate accepted a
@@ -299,60 +224,57 @@ test("the present message still hits the hash the deployed gate accepted", () =>
   );
 });
 
-// --- claim: prepare, resolve, sign, send ----------------------------------
+// --- claim: resolve, sign, batch ------------------------------------------
 
-const claimWei = BigInt(CLAIM_STRK) * E18;
-preparedAnswer = { call: { calldata: preparedClaimCalldata(creatorId, claimWei) }, proof: {} };
+const claimWei = 1n * E18;
 
-const afterPrepare = since();
-await el("claimprep").onclick();
-const prepareLines = afterPrepare();
+/** The calldata shape a prepared pool claim carries: the resolved note id in
+ *  the position the resolver scans for, wrapped in filler so the scan has to
+ *  find it. */
+const preparedClaimCalldata = [
+  "0x1",
+  "0x2",
+  creatorId,
+  NOTE_ID,
+  `0x${claimWei.toString(16)}`,
+  "0x1",
+  "0x1",
+  "0x9",
+];
 
-test("the note id this port resolves is the one the console resolved", () => {
-  const mine = resolveNoteId(preparedClaimCalldata(creatorId, claimWei), creatorId, claimWei);
-  assert.equal(mine, NOTE_ID);
-  assert.equal(el("noteid").value, mine);
-  // Matched by suffix rather than by the console's whole sentence, so this
-  // file does not have to carry the punctuation that sentence uses.
-  assert.ok(
-    prepareLines.some((l) => l.startsWith("prepared") && l.endsWith(`resolved note id: ${mine}`)),
-    "the console did not report the resolved note id",
-  );
+test("the note id resolver finds the marker pattern", () => {
+  assert.equal(resolveNoteId(preparedClaimCalldata, creatorId, claimWei), NOTE_ID);
 });
 
 test("a batch without the marker pattern resolves to null rather than a guess", () => {
   assert.equal(resolveNoteId(["0x1", "0x2", "0x3"], creatorId, claimWei), null);
 });
 
-const afterSend = since();
-await el("claimsend").onclick();
-const sendLines = afterSend();
-const consoleClaim = JSON.parse(line(sendLines, "claim: ").slice("claim: ".length));
+const claimSig = signWith(claimMessage(creatorId, NOTE_ID, claimWei), PAYOUT);
+const myClaim = claimActions({
+  vault: VAULT,
+  token: STRK,
+  accountAddress: ACCOUNT,
+  creatorId,
+  amountWei: claimWei,
+  noteId: OPEN_NOTE_PLACEHOLDER,
+  sig: claimSig,
+});
 
-test("the claim batch matches the console's, including the payout signature", () => {
-  const sig = signWith(claimMessage(creatorId, NOTE_ID, claimWei), PAYOUT);
-  const mine = claimActions({
-    vault: VAULT,
-    token: STRK,
-    accountAddress: ACCOUNT,
-    creatorId,
-    amountWei: claimWei,
-    noteId: OPEN_NOTE_PLACEHOLDER,
-    sig,
-  });
-  assert.deepEqual(mine, consoleClaim);
+test("the claim batch matches the golden batch, including the payout signature", () => {
+  assert.deepEqual(myClaim, GOLDEN.claim);
 });
 
 test("the claim batch carries the placeholder, never the literal note id", () => {
-  const invoke = consoleClaim[2];
+  const invoke = myClaim[2];
   assert.equal(invoke.calldata[2], OPEN_NOTE_PLACEHOLDER);
-  assert.ok(!JSON.stringify(consoleClaim).includes(NOTE_ID));
+  assert.ok(!JSON.stringify(myClaim).includes(NOTE_ID));
 });
 
 // --- the property that matters more than any single hash -------------------
 
-test("no key material appears in anything either implementation prints", () => {
-  const everything = JSON.stringify([logLines, consoleSubscribe, consoleClaim]).toLowerCase();
+test("no key material appears in anything this port produces", () => {
+  const everything = JSON.stringify([mySubscribe, myClaim, GOLDEN]).toLowerCase();
   for (const [label, key] of [
     ["subscriber secret", SECRET],
     ["payout key", PAYOUT],

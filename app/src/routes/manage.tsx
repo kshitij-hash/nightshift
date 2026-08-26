@@ -14,6 +14,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { StatusDot } from "../components/board/primitives";
 import { PendingChip } from "../components/board/skeletons";
 import { Masthead } from "../components/masthead";
+import { usePageTitle } from "../lib/use-title";
 import type { ManageTab } from "../components/wallet/surface";
 
 const ManageSurface = lazy(() =>
@@ -37,12 +38,12 @@ function ManageFallback() {
         <div className="flex items-center gap-3">
           <StatusDot state="pending" size={7} />
           <p className="text-[13px] leading-[1.7] text-text-default">
-            not connected · reading the chain needs no wallet, and signing is the only thing this
-            page adds
+            not connected · everything here can be read without a wallet; connecting only adds
+            signing
           </p>
         </div>
         <span className="text-[11px] leading-[1.45] text-text-caption">
-          no server saw this page · nothing about these objects was sent anywhere
+          nothing on this page is sent anywhere
         </span>
       </div>
       <main className="flex flex-1 flex-col gap-8 px-5 py-8 lg:px-10">
@@ -66,6 +67,7 @@ function ManageFallback() {
 }
 
 export function ManageRoute() {
+  usePageTitle("Manage");
   const { tab } = useSearch({ from: "/manage" });
   const navigate = useNavigate({ from: "/manage" });
   // resetScroll: false: the tab is in-page state recorded in the URL, not a

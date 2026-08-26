@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "NIGHTSHIFT frontend rebuild, P1 scaffold: tokens, theme, router, data layer, shadcn source copies.",
+  "description": "The NIGHTSHIFT web app: private subscriptions on Starknet - subscribe, manage, cancel and prove a paid tier, with a live board and creator ledger read from mainnet.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

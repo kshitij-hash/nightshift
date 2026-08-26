@@ -46,7 +46,7 @@ export function SubscribeDisclosure({
     ["the number of periods", `${periods}, so the ${fmtStrk(escrowWei)} STRK escrow is derivable`],
     ["the commitment", `${truncate(commitment)}, and every charge made against it`],
     ["the 6 STRK pool fee", "paid from your public balance, in a public transaction"],
-    ["the schedule shape", `${cadenceLabel}, in the invoke calldata, which is public`],
+    ["the schedule shape", `${cadenceLabel}, recorded publicly on chain`],
     ["the timing of each charge", "block and timestamp, to the second"],
   ];
   const hiddenRows: Array<[string, string]> = [
@@ -61,9 +61,9 @@ export function SubscribeDisclosure({
       <div className="flex flex-col gap-3">
         <Rows title="STAYS HIDDEN" rows={hiddenRows} />
         <p className="text-[11px] leading-[1.55] text-text-caption">
-          Charges of one subscription are linkable to each other, because the commitment sits in
-          every charge's public calldata. Presentations of one subscription are linkable to each
-          other across gates, for the same reason.
+          Charges of one subscription are linkable to each other, because every charge carries the
+          same public subscription id — never a wallet. Gates that see the same subscription can
+          recognize it again, for the same reason.
         </p>
       </div>
     </div>
@@ -87,9 +87,8 @@ export function PoolFeeNote({ active }: { active: boolean }) {
         </span>
       </div>
       <p className="text-[12px] leading-[1.55] text-text-caption">
-        Charged by the privacy pool for the private action, paid from your public balance in a
-        public transaction. It is not part of the escrow, the creator never receives it, and it is
-        stated here before you sign rather than after.
+        Charged by the privacy pool for the private action, paid from your public balance. It is
+        not part of the escrow and the creator never receives it.
       </p>
     </div>
   );

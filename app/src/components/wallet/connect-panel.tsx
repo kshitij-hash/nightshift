@@ -58,15 +58,12 @@ export function ConnectPanel({
     return (
       <Frame tag="REQUESTING CAPABILITY" tagTone="accent" dot={<DashSpinner />}>
         <p className="text-[13px] leading-[1.6] text-text-prose">
-          Asking the wallet for strk20PrepareInvoke and strk20InvokeTransaction. The prompt is in
-          the wallet, not on this page.
+          Asking the wallet for permission to build private transactions. The
+          prompt is in the wallet, not on this page.
         </p>
         <Button variant="ghost" size="md" disabled className="w-full">
           connecting
         </Button>
-        <p className="text-[11px] text-text-caption">
-          the spinner is bounded by the request and stops when it settles
-        </p>
       </Frame>
     );
   }
@@ -81,14 +78,13 @@ export function ConnectPanel({
           <CharacterReveal key={connection.address} text={truncate(connection.address)} />
         </p>
         <p className="text-[11px] text-text-caption">
-          {connection.walletName} · {connection.capability.detail} · 8/6 truncation, whole address
-          on hover
+          {connection.walletName} · {connection.capability.detail}
         </p>
         {identity ? (
           <p className="text-[11px] text-text-caption">
             {state.keysCreated
-              ? "a subscriber secret and a payout key were generated on this machine just now and stored in this browser. They are demo-grade by scope: one machine, no backup, and they are what cancels a subscription later."
-              : "using the subscriber secret and payout key already stored in this browser."}
+              ? "your subscription keys were just created and stored in this browser. This is their only copy, and they are what cancels a subscription later."
+              : "using the subscription keys already stored in this browser."}
           </p>
         ) : null}
         <Button variant="ghost" size="md" onClick={onDisconnect} className="w-full">
@@ -108,8 +104,8 @@ export function ConnectPanel({
       >
         <p className="text-[13px] leading-[1.6] text-text-prose">
           {noWallet
-            ? "This requires a Ready wallet. No Starknet wallet is injected in this browser, so a private pool action cannot be built here."
-            : "This requires a Ready wallet. The connected wallet does not answer the pool calls, so a private pool action cannot be built from it."}
+            ? "No Starknet wallet was found in this browser. NIGHTSHIFT needs a Ready wallet to build private transactions."
+            : "The connected wallet cannot build private transactions. NIGHTSHIFT needs a Ready wallet."}
         </p>
         {state.failure?.detail ? (
           <p className="border-l-2 border-border-field pl-3 text-[11px] leading-[1.55] text-text-caption">
@@ -164,7 +160,7 @@ export function ConnectPanel({
         connect a wallet
       </Button>
       <p className="text-[11px] text-text-caption">
-        requires a Ready wallet with the pool action calls
+        requires a Ready wallet
       </p>
     </Frame>
   );
@@ -193,9 +189,8 @@ export function IdentityPanel({ state }: { state: ConnectionState }) {
         <dd className="min-w-0 break-all text-text-default">{truncate(id.payoutPub)}</dd>
       </dl>
       <p className="text-[11px] leading-[1.55] text-text-caption">
-        The commitment is poseidon(your secret, creator id). The owner key is derived per
-        commitment, so presentations to two creators' gates share no key. Both public halves above
-        end up on chain; the secrets behind them stay in this browser.
+        Everything above is public and ends up on chain. The secrets behind it stay in this
+        browser, and each creator gets its own derived key so no two subscriptions share one.
       </p>
       {id.legacyOwnerPub ? (
         <p className="text-[11px] leading-[1.55] text-text-caption">

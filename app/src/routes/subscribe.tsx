@@ -8,6 +8,7 @@
 import { lazy, Suspense } from "react";
 
 import { Masthead } from "../components/masthead";
+import { usePageTitle } from "../lib/use-title";
 
 const SubscribeSurface = lazy(() =>
   import("../components/subscribe/surface").then((m) => ({ default: m.SubscribeSurface })),
@@ -33,6 +34,7 @@ function SubscribeFallback() {
 }
 
 export function SubscribeRoute() {
+  usePageTitle("Subscribe");
   return (
     <Suspense fallback={<SubscribeFallback />}>
       <SubscribeSurface />

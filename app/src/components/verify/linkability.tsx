@@ -28,7 +28,7 @@ export function LinkabilityNote({
           {heading}
         </Badge>
         <span className="text-[11px] text-text-caption">
-          linkability disclosure, shown where it applies
+          what a gate learns when you sign
         </span>
       </div>
       <p className="text-[13px] leading-[1.65] text-text-default">

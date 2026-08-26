@@ -1,12 +1,11 @@
 // The landing, in the Modernist frame. Reading order is the argument: the
 // hero states the claim and hands over the receipts in the same viewport, the
 // stat row carries four product facts with their basis, the mechanism section
-// draws the three verbs, the poster states the one sentence to leave with,
-// the delivery section answers the brief point by point, and the
-// hidden/provable block closes with the claim and a door into the full
-// disclosure. Everything printed here is a constant of the deployment
-// (addresses, receipt hashes, the test count) - the live figures live on
-// /board, one click away, where they arrive with their provenance.
+// walks the three verbs, the poster states the one sentence to leave with,
+// the benefits grid says what a subscriber gets, and the hidden/provable
+// block closes with the claim and a door into the privacy walkthrough.
+// Everything printed here is a constant of the deployment (addresses, receipt
+// hashes) - the live figures live on /board, one click away.
 
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -51,19 +50,19 @@ function RollIn({ value }: { value: string }) {
 const STATS: Array<[string, string]> = [
   [
     "0",
-    "Keys with spending power. The escrow moves on a hash the subscriber precomputed, or it does not move.",
+    "Keys with spending power. The escrow moves only under the rules set when you subscribed, so there is nothing to steal and nothing to phish.",
   ],
   [
     "1",
-    "Signature to cancel. The vault checks it and never reads the sender, so cancelling costs you no gas and names no wallet.",
+    "Signature to cancel. Cancelling costs no gas and reveals no wallet.",
   ],
   [
     "24/7",
-    "Unattended charging. A cron keeper fires each period's charge on schedule; nobody is at a keyboard and nobody needs to be.",
+    "Automatic billing. Each period is charged on schedule, with nobody at a keyboard and nobody who needs to be.",
   ],
   [
     "65",
-    "Adversarial and lifecycle cases under snforge: hostile donations, non-pool callers, early charges, double charges, escrow exhaustion.",
+    "Ways we tried to break it. Every rule the vault enforces is tested against early charges, double charges and overdrawn escrow.",
   ],
 ];
 
@@ -81,41 +80,34 @@ const MECHANISM: Array<{
     when: "once, private",
     mono: (
       <>
-        pool withdraws escrow → vault
+        you fund the escrow, privately
         <br />
-        commitment = H(secret, creator)
+        the vault records the schedule
         <br />
-        tier · period_blocks · periods
-        <br />
-        owner_key recorded
+        your wallet's part is done
       </>
     ),
     prose:
-      "The secret never leaves the subscriber's machine. The pool's withdrawal edge severs the link to the depositing wallet.",
+      "The escrow enters through a privacy pool, so the vault never learns which wallet funded it — and has no way to ask.",
   },
   {
     n: "02",
     verb: "charge",
-    when: "per period, by anyone",
+    when: "per period, automatic",
     lit: true,
     mono: (
       <>
-        nullifier = poseidon(commitment, period)
+        each period, one charge fires
         <br />
-        · schedule exists, escrow remains
+        · never early&nbsp;&nbsp;
         <br />
-        · block ≥ start + period·len&nbsp;&nbsp;
-        <span className="text-accent-700">never early</span>
+        · never twice&nbsp;&nbsp;
         <br />
-        · nullifier unspent, then written&nbsp;&nbsp;
-        <span className="text-accent-700">never twice</span>
-        <br />
-        · escrow −= amount&nbsp;&nbsp;
-        <span className="text-accent-700">never beyond</span>
+        · never beyond the escrow
       </>
     ),
     prose:
-      "A plain public entrypoint. No proof, no pool batch, no wallet API, so an unattended keeper needs none of those either. Credits the creator's claimable balance; no tokens move.",
+      "Billing runs on schedule with nobody at a keyboard. Each charge moves one period's amount from escrow to the creator's balance, and the vault refuses anything else.",
   },
   {
     n: "03",
@@ -123,36 +115,34 @@ const MECHANISM: Array<{
     when: "creator-signed",
     mono: (
       <>
-        creator signs (creator_id, note, amount)
+        the creator signs
         <br />
-        pool deposits into an open note
+        the balance settles
         <br />
-        one claim settles many periods
-        <br />
-        claim_public: signed exit + nonce
+        one claim covers many periods
       </>
     ),
     prose:
-      "Money only leaves under a signature from the creator's own payout key. A keeper can fire charges all day and can never redirect a wei of it.",
+      "Money leaves only under the creator's own signature. Whatever runs the billing can never redirect a cent of it.",
   },
 ];
 
-const DELIVERS: Array<{ asked: string; how: string }> = [
+const BENEFITS: Array<{ title: string; body: string }> = [
   {
-    asked: "Set-and-forget subscriptions",
-    how: "Authorize once at subscribe. From then on an unattended keeper charges each period on schedule; your wallet is never asked again and can never be over-charged.",
+    title: "Set it once",
+    body: "Authorize a schedule when you subscribe. From then on billing runs itself: your wallet is never asked again and can never be over-charged.",
   },
   {
-    asked: "No gas surprises",
-    how: "Charges cost the subscriber nothing: whoever fires them pays. Cancelling is a signature any relay can carry, so it costs no gas either. You pay once, at subscribe, and the cost step shows every wei before you sign.",
+    title: "No gas surprises",
+    body: "You pay once, at subscribe, and every cost is on screen before you sign. The charges themselves cost you nothing.",
   },
   {
-    asked: "Click-to-cancel",
-    how: "One signature ends the subscription. The vault refuses every further charge structurally, not by policy, and the unspent escrow comes back to you. Compliant with click-to-cancel rules by construction.",
+    title: "Cancel with one signature",
+    body: "One signature ends the subscription — no gas, no permission needed — and the unspent escrow comes back to you.",
   },
   {
-    asked: "Tier-gated access without surveillance",
-    how: "Prove \"I hold an active tier with this creator\" to a Telegram bot, a Discord gate or a licence server. The verifier learns your tier and nothing else: never a wallet, never a payment history.",
+    title: "Prove your tier, not your identity",
+    body: "Get into a Telegram group, a Discord server or any paid door by proving you hold an active tier. The gate learns your tier and nothing else: never a wallet, never a payment history.",
   },
 ];
 
@@ -171,7 +161,7 @@ export function LandingRoute() {
         <div className="grid border-b-2 border-divider lg:grid-cols-[7fr_5fr]">
           <div className={`${GUTTER} pt-12 pb-10 lg:pt-19 lg:pb-14`}>
             <div className="mb-6">
-              <Kicker>▸ Private recurring payments on Starknet · STRK20 anonymizer</Kicker>
+              <Kicker>▸ Private subscriptions on Starknet</Kicker>
             </div>
             <h1 className="text-[42px] leading-[0.98] tracking-[-0.035em] lg:text-[74px] lg:leading-[0.95]">
               <span className="m-cut">
@@ -182,16 +172,15 @@ export function LandingRoute() {
               </span>
             </h1>
             <p className="mt-6 mb-5 max-w-[52ch] text-[17px] leading-[1.45] lg:text-[20px]">
-              A subscriber funds escrow once through the STRK20 privacy pool.
-              After that a vault charges it on schedule, and the wallet that
-              funded it is never named, never asked again, and can never be
-              charged early, twice, or beyond what it escrowed.
+              Fund a subscription once, privately. It bills itself on schedule
+              after that, and the wallet that paid is never revealed, never
+              asked again, and can never be charged early, twice, or more than
+              it put in.
             </p>
             <p className="mb-8 max-w-[52ch] text-[15px] leading-[1.6] text-text-prose">
-              Set it up once and forget it. Nothing with spending power is held
-              by anyone, so there is nothing to steal or phish, and you can
-              cancel any time with one signature that costs you no gas and
-              names no wallet.
+              Nobody holds a key to your money — not the creator, not us — so
+              there is nothing to steal and nothing to phish. Cancel any time
+              with one signature, free, without revealing who you are.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/board" className="m-btn m-btn-primary text-[15px]" style={{ padding: "13px 22px" }}>
@@ -244,9 +233,8 @@ export function LandingRoute() {
               </div>
             </div>
             <p className="mt-4 mb-0 text-[13px] leading-[1.6] text-text-prose">
-              The full lifecycle: escrow in and out to the exact wei, across
-              three different senders. Every claim on this page has a
-              transaction hash.
+              A complete subscription lifecycle on mainnet: funded, charged on
+              schedule, cancelled, refunded. Every hash opens on Voyager.
             </p>
           </div>
         </div>
@@ -272,17 +260,16 @@ export function LandingRoute() {
         {/* ── mechanism ── */}
         <div className={`${GUTTER} border-b-2 border-divider py-12 lg:py-16`}>
           <div className="mb-2.5">
-            <Kicker>▸ The mechanism</Kicker>
+            <Kicker>▸ How it works</Kicker>
           </div>
           <h2 className="max-w-[34ch] text-[28px] tracking-[-0.028em] lg:text-[38px]">
-            Recurrence without asking the pool for anything it does not have.
+            Three steps. You are only there for the first one.
           </h2>
           <p className="mt-2 mb-9 max-w-[74ch] text-[15px] leading-[1.6] text-text-prose">
-            The pool holds funds privately and moves them privately, but it has
-            no notion of time. So the standing authorization here is not a key
-            at all: it is escrow the subscriber already parted with, plus rules
-            about when it may move. Subscriptions are the headline; the same
-            schedule reads as rent, a DAO stipend, or dues.
+            A subscription here is not a standing key anyone could misuse. It
+            is escrow you already set aside, plus rules about when it may
+            move. The same schedule works as a subscription, rent, a stipend,
+            or dues.
           </p>
           <div className="grid border-2 border-divider lg:grid-cols-3">
             {MECHANISM.map((m, i) => (
@@ -320,56 +307,47 @@ export function LandingRoute() {
             className="max-w-[28ch] text-[36px] leading-[1.0] font-[800] tracking-[-0.035em] lg:text-[62px]"
             style={{ fontFamily: "var(--font-heading)" }}
           >
-            The privacy question and the authorization question are answered by
-            the same hash.
+            Nobody holds a key to your money. So nobody can lose one.
           </div>
           <div
             className="my-7 h-0.5 max-w-[620px] lg:mt-9 lg:mb-5"
             style={{ background: "color-mix(in srgb, #f3f2f2 45%, transparent)" }}
           />
           <div className="max-w-[66ch] text-[15px] leading-[1.5] lg:text-[16px]">
-            Designs that guard a live key with policy rules can fail two ways:
-            the policy gets misconfigured, or the key leaks. Here no key with
-            spending power exists at all.
+            Systems that guard a live key with rules can fail two ways: the
+            rules get misconfigured, or the key leaks. Here there is no key to
+            guard.
           </div>
         </div>
 
-        {/* ── what the brief asked for ── */}
+        {/* ── what you get ── */}
         <div className="grid border-b-2 border-divider lg:grid-cols-[5fr_7fr]">
           <div className={`${GUTTER} py-10 lg:py-14`}>
             <div className="mb-4">
-              <Kicker>▸ What the brief asked for</Kicker>
+              <Kicker>▸ What you get</Kicker>
             </div>
             <h2 className="mb-3.5 max-w-[24ch] text-[26px] tracking-[-0.025em] lg:text-[34px]">
-              Web2 subscription UX, on chain.
+              A subscription that behaves like one.
             </h2>
             <p className="max-w-[44ch] text-[14px] leading-[1.6] text-text-prose">
-              The STRK20 brief calls for private subscriptions with
-              set-and-forget UX: authorize once, get charged automatically,
-              cancel with a click, and prove your tier without being watched.
-              That is what NIGHTSHIFT runs on mainnet today.
+              Pay once, get billed on schedule, cancel whenever you want, and
+              open the doors your tier unlocks — all without anyone watching
+              which wallet is behind it.
             </p>
           </div>
-          <div className="border-t-2 border-divider lg:border-t-0 lg:border-l-2">
-            {DELIVERS.map((row, i) => (
+          <div className="grid border-t-2 border-divider sm:grid-cols-2 lg:border-t-0 lg:border-l-2">
+            {BENEFITS.map((row, i) => (
               <div
-                key={row.asked}
-                className={`grid sm:grid-cols-2 ${i < DELIVERS.length - 1 ? "border-b border-divider" : ""}`}
+                key={row.title}
+                className={`px-5 py-5 lg:px-6 lg:py-6 ${i > 0 ? "max-sm:border-t max-sm:border-divider" : ""} ${i >= 2 ? "sm:border-t sm:border-divider" : ""} ${i % 2 === 1 ? "sm:border-l sm:border-divider" : ""}`}
               >
-                <div className="px-5 py-5 lg:px-6 lg:py-6">
-                  <div className="mb-2 text-[11px] tracking-[0.1em] uppercase text-text-caption">
-                    Asked
-                  </div>
-                  <div className="text-[16px] font-[800]" style={{ fontFamily: "var(--font-heading)" }}>
-                    {row.asked}
-                  </div>
+                <div
+                  className="mb-2 text-[16px] font-[800]"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  {row.title}
                 </div>
-                <div className="bg-panel px-5 py-5 max-sm:border-t max-sm:border-divider sm:border-l sm:border-divider lg:px-6 lg:py-6">
-                  <div className="mb-2 text-[11px] tracking-[0.1em] uppercase text-ns-accent">
-                    Delivered
-                  </div>
-                  <div className="text-[13.5px] leading-[1.55]">{row.how}</div>
-                </div>
+                <div className="text-[13.5px] leading-[1.55] text-text-prose">{row.body}</div>
               </div>
             ))}
           </div>
@@ -405,15 +383,14 @@ export function LandingRoute() {
             </div>
           </div>
           <div className="mt-5 text-[13px] text-text-caption">
-            Every claim on this page is verified against real events and
-            calldata on mainnet.{" "}
+            Everything on this page can be checked against mainnet.{" "}
             <button
               type="button"
               onClick={() => setPrivOpen(true)}
               className="m-btn m-btn-ghost text-[13px]"
               style={{ padding: 0 }}
             >
-              The full disclosure, operation by operation →
+              How the privacy works, honestly →
             </button>
           </div>
         </div>

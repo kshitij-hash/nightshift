@@ -15,7 +15,6 @@ import { hex, toFelt } from "../../lib/verify";
 import type { ParsedChallenge, Verdict } from "../../lib/verify";
 import { commitmentsFor, signPresentationFor, storedKeyState } from "../../lib/wallet/keys";
 import { useSubscriptions, useVaultCreators } from "../../query/useSubscriptions";
-import { CaveatDisclosure } from "../board/primitives";
 import { ScrambleIn } from "../motion/scramble-in";
 import { Button } from "../ui/button";
 import { CHALLENGE_WINDOW } from "./chain";
@@ -32,7 +31,7 @@ function creatorIdError(raw: string): string | null {
   try {
     felt = toFelt(t, "creator id");
   } catch {
-    return "creator id must be 0x-hex or decimal, under the STARK field prime.";
+    return "creator id must be a 0x-hex or decimal id.";
   }
   if (felt === 0n) return "creator id must not be zero";
   return null;
@@ -107,7 +106,7 @@ export function ChallengeStep({
   return (
     <div className="flex flex-col gap-5">
       <Field
-        hint="The gate issues this. It names the gate, the nonce that kills replay, and the block the challenge dies at. Whitespace and a surrounding code fence are tolerated."
+        hint="Paste it exactly as the gate sent it. It names the gate, a one-time number, and when it expires."
         error={error}
       >
         <TextArea
@@ -138,14 +137,9 @@ export function ChallengeStep({
           OR ISSUE A CHALLENGE HERE
         </div>
         <p className="text-[13px] leading-[1.6] text-text-prose">
-          With no gate bot in the loop, this page issues the challenge: current block, expiry{" "}
-          {fmtBlock(CHALLENGE_WINDOW)} blocks ahead, 31 byte nonce from the browser.
+          Trying it without a bot? This page can issue its own challenge, valid
+          for the next {fmtBlock(CHALLENGE_WINDOW)} blocks.
         </p>
-        <CaveatDisclosure
-          label="how the id is encoded"
-          openLabel="how the id is encoded, shown"
-          caveat="A name of 31 characters or fewer is encoded as a Cairo short string, so DOOR_1 and its felt are the same id. The nonce comes from the browser's own random source, and the expiry is anchored to the head this page just read."
-        />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <TextInput
             value={verifierId}
@@ -284,13 +278,12 @@ function SelfSign({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[13px] leading-[1.7] text-text-prose">
-        This browser holds your subscription key, the same one your cards on /manage are derived
-        from. The signature is computed right here: a signing key is derived for this one
-        subscription and discarded the moment it signs. Nothing leaves the browser, and nothing
-        is sent anywhere.
+        This browser holds your subscription key. The signature is computed
+        right here, with a key that exists only for the moment it signs —
+        nothing leaves the browser.
       </p>
       <Field
-        hint="the creator this subscription pays. It is on your card at /manage, and it is what the commitment and owner key are derived from: the same creator id reproduces exactly the subscription that card showed you."
+        hint="the creator this subscription pays — the same id shown on your card at /manage."
         error={creatorProblem}
       >
         <TextInput
@@ -418,9 +411,8 @@ export function SignStep({
             OR SIGN ELSEWHERE
           </div>
           <p className="text-[13px] leading-[1.6] text-text-prose">
-            A subscription whose key lives somewhere else - made from another browser, or from
-            the operator console - signs there instead, and the presentation pastes into step 03
-            the same way.
+            A subscription made in another browser signs there instead, and the
+            presentation pastes into step 03 the same way.
           </p>
           <ConsoleFallback challenge={challenge} source={source} onSigned={onSigned} />
         </div>
@@ -480,7 +472,7 @@ export function VerdictStep({
   return (
     <div className="flex flex-col gap-4">
       <Field
-        hint="Paste the signed presentation. The check runs in this page against the vault's public state: two read-only view calls, no transaction, no key."
+        hint="Paste the signed presentation. The check runs in this page against the vault's public state: read-only, no transaction, no key."
         error={error}
       >
         <TextArea

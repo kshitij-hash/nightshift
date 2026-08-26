@@ -12,6 +12,7 @@
 import { lazy, Suspense } from "react";
 
 import { Masthead } from "../components/masthead";
+import { usePageTitle } from "../lib/use-title";
 
 const VerifySurface = lazy(() =>
   import("../components/verify/surface").then((m) => ({ default: m.VerifySurface })),
@@ -46,6 +47,7 @@ function VerifyFallback() {
 }
 
 export function VerifyRoute() {
+  usePageTitle("Gate");
   return (
     <Suspense fallback={<VerifyFallback />}>
       <VerifySurface />

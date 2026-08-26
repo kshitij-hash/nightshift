@@ -163,7 +163,7 @@ export function SuccessVerdict({
               {truncate(VAULT)} ↗
             </a>,
           ],
-          ["reads", <span key="r">schedule_of, owner_key_of. Two view calls, no write.</span>],
+          ["reads", <span key="r">two read-only checks against the vault, nothing written</span>],
         ]}
       />
       <p className="text-[12px] leading-[1.6] text-text-caption">

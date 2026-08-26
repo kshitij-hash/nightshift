@@ -17,6 +17,7 @@ import { REPLAY_INTERVAL_SECS, useReplay } from "../components/board/use-replay"
 import { Masthead } from "../components/masthead";
 import { SiteFooter } from "../components/site-footer";
 import { fmtBlock, fmtStrk, truncate, VOYAGER_TX } from "../config";
+import { usePageTitle } from "../lib/use-title";
 import { useBoard } from "../query/useBoard";
 import { useSchedule } from "../query/useSchedule";
 
@@ -50,6 +51,7 @@ function Stat({
 }
 
 export function BoardRoute() {
+  usePageTitle("Board");
   const search = useSearch({ from: "/board" });
   const query = useBoard();
 
@@ -91,13 +93,13 @@ export function BoardRoute() {
                 }
               : {
                   value: fmtBlock(window_.block),
-                  note: `≈ ${hms(Math.max(0, (window_.ts ?? 0) - (data?.headTimestamp ?? 0)))} at 1.7 s per block; the charge is block-gated, not clock-gated`,
+                  note: `≈ ${hms(Math.max(0, (window_.ts ?? 0) - (data?.headTimestamp ?? 0)))} from now · timed by blocks, so the countdown is an estimate`,
                 };
 
   const chargeCountNote = (() => {
     const withAmount = charges.filter((c) => c.amountWei !== null);
     const gross = withAmount.reduce((s, c) => s + (c.amountWei ?? 0n), 0n);
-    return withAmount.length > 0 ? `${fmtStrk(gross)} STRK gross, from Charged events` : "decoded from mainnet logs";
+    return withAmount.length > 0 ? `${fmtStrk(gross)} STRK charged in total` : "read from the vault's event log";
   })();
 
   return (
@@ -108,7 +110,7 @@ export function BoardRoute() {
         <div className="flex flex-wrap items-end gap-6 border-b-2 border-divider pb-5">
           <div>
             <div className="mb-2.5 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
-              ▸ Keyless · reads mainnet over JSON-RPC
+              ▸ Live from Starknet mainnet
             </div>
             <h2 className="text-[30px] tracking-[-0.03em] lg:text-[38px]">Live board</h2>
           </div>
@@ -164,18 +166,18 @@ export function BoardRoute() {
                 note={
                   showingSnapshot
                     ? "snapshot · not the head"
-                    : "lava.build, then blastapi: first endpoint that answers"
+                    : "read live, right now"
                 }
               />
               <Stat
                 label="Escrow held"
                 value={<LiveNumber value={Number(fmtStrk(data.escrowWei))} decimals={2} />}
-                note="STRK, accounted custody: balance minus donations"
+                note="STRK held by the vault for future charges"
               />
               <Stat
                 label="Active subscriptions"
                 value={<LiveNumber value={data.activeSubscriptions} />}
-                note="not cancelled · periods left · escrow covers a tier price"
+                note="live schedules with escrow remaining"
               />
               <Stat
                 label="Next charge due"
@@ -190,7 +192,7 @@ export function BoardRoute() {
               <div className="py-7 lg:pr-8">
                 <div className="mb-4 flex flex-wrap items-baseline gap-3.5">
                   <div className="text-[11px] tracking-[0.1em] uppercase text-text-caption">
-                    Charge feed · decoded from Charged events
+                    Charge feed · every billing this vault has run
                   </div>
                   <div className="ml-auto text-[12px] text-text-caption">{chargeCountNote}</div>
                 </div>
@@ -234,10 +236,9 @@ export function BoardRoute() {
                   </div>
                 )}
                 <div className="mt-5 max-w-[82ch] text-[12.5px] leading-[1.6] text-text-label">
-                  A charge names the vault, an amount, a period index and a
-                  nullifier. It does not name the subscriber. All periods of one
-                  subscription share a commitment: that is public, and never
-                  linked to a wallet.
+                  A charge names an amount and a period — never the subscriber.
+                  Charges of one subscription share a public id; no wallet
+                  appears anywhere in this feed.
                 </div>
               </div>
 
@@ -253,10 +254,8 @@ export function BoardRoute() {
         className="mt-0"
         snapshot={showingSnapshot}
         links={[
-          { label: "npm nightshift-verify", href: "https://www.npmjs.com/package/nightshift-verify" },
-          { label: "npm strk20-preflight", href: "https://www.npmjs.com/package/strk20-preflight" },
           { label: "source on github", href: "https://github.com/kshitij-hash/nightshift" },
-          { label: "verify a tier presentation", to: "/verify" },
+          { label: "the gate", to: "/verify" },
         ]}
       />
     </div>
