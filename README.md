@@ -27,10 +27,10 @@ Live on mainnet. Every claim below has a transaction hash.
 - **Anonymizer contract.** The vault (`src/vault.cairo`) is a custom
   `privacy_invoke` anonymizer, deployed to mainnet, built against the
   `privacy` Cairo dependency pinned in the root `Scarb.toml`.
-- **Wallet API.** The ops console in `web/` drives real pool actions,
-  subscribe escrow and creator claim, through the connected Ready wallet's
-  privacy API (`strk20PrepareInvoke` / `strk20InvokeTransaction`), not a
-  hand-rolled client.
+- **Wallet API.** The app in `app/` drives real pool actions, subscribe
+  escrow and creator claim, through the connected Ready wallet's privacy API
+  (`strk20PrepareInvoke` / `strk20InvokeTransaction`), not a hand-rolled
+  client.
 - **Not used, on purpose: the Privacy SDK route and a self-hosted prover.**
   The design needs no prover anywhere. The keeper's `charge` is a plain
   public call against accounted state; the subscriber proves through their own
@@ -101,7 +101,7 @@ commitment or the reclaim destination, the signature check fails; the worst it
 can do is decline to submit. Subscribing is not covered: that still costs the
 subscriber the pool's 6 STRK protocol fee and their own gas.
 `scripts/relay.mjs` is one such submitter, running from the keeper account,
-and the ops console prints the exact line to hand it.
+and the app's cancel flow prints the exact line to hand it.
 
 ## What the chain learns
 
@@ -118,11 +118,10 @@ are not flattering.
 | `src/vault.cairo` | The anonymizer vault: `privacy_invoke` (Subscribe/Claim ops) plus the `charge`, `cancel` and `reclaim` entrypoints, accounted custody, period nullifiers, `schedule_of` / `tier_of` read views |
 | `src/mocks.cairo` | `MockPrivacyPool`, a test double that replays the deployed pool's invoke sequence with its real revert strings. No other public test harness for this pool exists |
 | `tests/` | The adversarial suite: hostile donations, non-pool callers, early charges, double charges, escrow exhaustion |
-| `site/` | The demo board: keyless, static, reads mainnet over JSON-RPC, falls back to a committed snapshot and says so on the page |
-| `web/` | Ops console used to drive the wallet-route pool actions (dry-run first) |
+| `app/` | The web app: landing, live board, subscribe wizard, manage (cancel/reclaim/claim), tier gate and creator ledger, all reading mainnet from the browser |
 | `verify/` | [`nightshift-verify`](https://www.npmjs.com/package/nightshift-verify), published on npm: checks a tier presentation off-chain from two vault reads, no transaction, no key held by the verifier |
 | `preflight/` | [`strk20-preflight`](https://www.npmjs.com/package/strk20-preflight), published on npm: reads a `strk20.json` the way the sprint indexer reads it and prints where the indexer would silently drop something |
-| `examples/telegram-gate/` | A Telegram door on `nightshift-verify`: challenge in chat, signature from the console, one-use invite link on a live mainnet check |
+| `examples/telegram-gate/` | A Telegram door on `nightshift-verify`: challenge in chat, signature from the app's gate page, one-use invite link on a live mainnet check |
 | `demo-charge/` | Rate-limited endpoint that fires the permissionless `charge` from a funded account, so a visitor can trigger a real mainnet transaction |
 | `strk20.json` | The sprint manifest: the vault and the transactions routed through it |
 
@@ -149,8 +148,8 @@ JS installs use `npm ci --ignore-scripts`, exact pins only.
   allowance left by the first.
 - **Block-time calibration.** Periods are denominated in blocks; mainnet runs
   ~1.7s blocks, so "a day" is ~50,400 blocks, not 2,880. The v2 demo
-  subscription ran its periods fast and is the completed lifecycle: the v2
-  receipts above run escrow to exactly zero. The v3 run is still completing.
+  subscription ran its periods fast; the v4 lifecycle above is the complete
+  one, escrow in and out to the exact wei.
 
 The signature-binding hazard class in pool helpers was first shown by the
 Envelope team's finding against the reference escrow helper; v3 shipped the fix
@@ -163,8 +162,8 @@ them on, so the standing authorization is escrow the subscriber already
 parted with plus the period nullifier that decides when it may move (see [the
 mechanism](#the-mechanism)). Creator revenue confidentiality is not claimed:
 a creator's cumulative topline is derivable from public events,
-written out as limitation 2 in [PRIVACY.md](PRIVACY.md). A creator analytics
-dashboard is out of scope for this sprint. The tier gate is a signature
+written out as limitation 2 in [PRIVACY.md](PRIVACY.md); the app's /creator
+ledger derives exactly those public figures. The tier gate is a signature
 presentation, not a proof: it hands a verifier `(creator_id, tier)` and the
 commitment, and presentations of one subscription are linkable to each other
 across gates.

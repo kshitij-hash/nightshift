@@ -37,7 +37,7 @@ What this does not hide: the commitment is stable, so
 one verifier recognizes a returning subscriber across visits, and two verifiers
 comparing notes can tell they saw the same subscription. A client that wants
 presentations to different creators unlinked derives one owner key and one
-commitment per creator, the way `web/app.mjs` does.
+commitment per creator, the way the NIGHTSHIFT app does.
 
 ## What gets checked, in order
 

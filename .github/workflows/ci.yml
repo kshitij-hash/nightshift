@@ -26,7 +26,7 @@ jobs:
           node-version: "22"
       # Root install serves verify/, preflight/ and the scripts/ tests, which
       # resolve starknet by walking up to the root node_modules. The example
-      # and the site carry their own lockfiles and install separately.
+      # and the app carry their own lockfiles and install separately.
       - run: npm ci --ignore-scripts
       - run: cd verify && node --test
       - run: cd preflight && node --test
@@ -34,11 +34,10 @@ jobs:
       - run: node --test 'demo-charge/test/*.test.mjs'
       - run: node --test scripts/creator-metrics.test.mjs
       - run: node --test scripts/present-message-compat.test.mjs
-      # Drift gate: the generator writes site/src/lib/selectors.ts only when
+      # Drift gate: the generator writes app/src/lib/selectors.ts only when
       # its output differs, so a dirty tree here means a selector changed
       # without the committed file following it.
-      - run: node scripts/gen-selectors.mjs && git diff --exit-code site/src/lib/selectors.ts
-      - run: cd site && npm ci --ignore-scripts && npx tsc --noEmit
+      - run: node scripts/gen-selectors.mjs && git diff --exit-code app/src/lib/selectors.ts
       # The app is the product frontend; it gates on its own install, types,
       # lint, tests and build.
       - run: cd app && npm ci --ignore-scripts

@@ -1,38 +1,34 @@
 #!/usr/bin/env node
 // Computes every NIGHTSHIFT event key and entry-point selector from the Cairo
-// names and writes site/src/lib/selectors.ts.
+// names and writes app/src/lib/selectors.ts.
 //
-// Why generate instead of hand-copying. site/src/rpc.ts carries five selectors
-// typed in by hand. A single wrong nibble there is not a crash: getEvents just
-// matches nothing and the board renders an empty history that looks like "no
-// activity". So this script reads those five values straight out of
-// site/src/rpc.ts's source text and ASSERTS the recomputed selectors match
-// them; the hardcoded KNOWN map below is kept as a second, independent
-// cross-check. If starknet.js ever changes its hashing, or site/src/rpc.ts
-// and this script's own KNOWN map disagree on one of those five names, this
-// run fails loudly instead of shipping a board that quietly shows zero.
+// Why generate instead of hand-copying. A single wrong nibble in a selector is
+// not a crash: getEvents just matches nothing and the board renders an empty
+// history that looks like "no activity". So this script recomputes every
+// selector from the Cairo names and ASSERTS five of them against the KNOWN
+// map below - values recorded independently when the contracts went live. If
+// starknet.js ever changes its hashing, this run fails loudly instead of
+// shipping a board that quietly shows zero.
 //
 // What this script does NOT catch: it never reads src/vault.cairo or
 // src/gate.cairo. The names below (VAULT_EVENTS, GATE_EVENTS,
 // VAULT_ENTRY_POINTS, GATE_ENTRY_POINTS - 29 selectors in all) are
 // transcribed by hand and trusted as given; only 5 of the 29 are
-// cross-checked, against site/src/rpc.ts's own hand-typed constants, not
-// against Cairo. A Cairo event or entry point renamed without updating this
+// cross-checked, against the KNOWN map below, not against Cairo. A Cairo
+// event or entry point renamed without updating this
 // file's transcription, outside those 5, recomputes a wrong-but-consistent
 // selector with no error from this script.
 //
 // Run from the repo root:  node scripts/gen-selectors.mjs
-// Reads site/src/rpc.ts (to check it, never to copy from it); writes
-// site/src/lib/selectors.ts only when the generated content differs from
-// what is already there, so a clean run with no Cairo or rpc.ts change
-// leaves the committed file byte-identical and untouched - useful as a
-// drift check in CI.
+// Writes app/src/lib/selectors.ts only when the generated content differs
+// from what is already there, so a clean run with no Cairo change leaves the
+// committed file byte-identical and untouched - useful as a drift check in
+// CI.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { hash } from "starknet";
 
-const OUT = new URL("../site/src/lib/selectors.ts", import.meta.url);
-const RPC_TS = new URL("../site/src/rpc.ts", import.meta.url);
+const OUT = new URL("../app/src/lib/selectors.ts", import.meta.url);
 
 /** 0x + 64 hex, the shape the existing board and Voyager both print. */
 const pad = (sel) => `0x${BigInt(sel).toString(16).padStart(64, "0")}`;
@@ -98,14 +94,9 @@ const VAULT_ENTRY_POINTS = [
 const GATE_ENTRY_POINTS = ["present", "vault", "is_active", "presentable", "tier_of"];
 
 // ---------------------------------------------------------------------------
-// The assertion. Two independent sources are checked against the recomputed
-// selector for each of the five names site/src/rpc.ts hand-types:
-//   1. site/src/rpc.ts itself, read and pattern-matched below - the real
-//      target, since that file is what a wrong nibble would actually break.
-//   2. KNOWN, a second hardcoded copy kept here so a change to rpc.ts's
-//      formatting that breaks the regex below is itself caught (the read
-//      would fail loudly) rather than silently skipping the check.
-// Any mismatch, in either direction, is a hard failure.
+// The assertion. Five recomputed selectors are checked against KNOWN, a
+// hardcoded map recorded independently when the contracts went live. Any
+// mismatch is a hard failure: it means the hashing changed or a name moved.
 // ---------------------------------------------------------------------------
 const KNOWN = {
   Released: "0x0127adceb04d96dd7337eb363a9dd96b0fe957ce88be4b770ba4ef9fdc970f7f",
@@ -115,58 +106,22 @@ const KNOWN = {
   is_active: "0x028cd1b9b7a6254f5219ad13ceac17ed7e5c245c1b5f97c1a9c7f69d59cd819f",
 };
 
-/** Which hand-typed constant in site/src/rpc.ts holds which Cairo name's
- *  selector. Explicit, since the casing gives no single rule to derive it
- *  from (SEL_IS_ACTIVE -> is_active, SELECTOR_SUBSCRIBED -> Subscribed). */
-const RPC_TS_CONST_NAMES = {
-  Released: "SELECTOR_RELEASED",
-  Charged: "SELECTOR_CHARGED",
-  Subscribed: "SELECTOR_SUBSCRIBED",
-  accounted: "SEL_ACCOUNTED",
-  is_active: "SEL_IS_ACTIVE",
-};
-
-/** Extracts `const CONST_NAME = "0x...";` (single- or two-line) from
- *  site/src/rpc.ts's own source text - never copied, always read fresh. */
-function readRpcTsSelectors(source) {
-  const out = {};
-  for (const [cairoName, constName] of Object.entries(RPC_TS_CONST_NAMES)) {
-    const re = new RegExp(`const\\s+${constName}\\s*=\\s*\\n?\\s*"(0x[0-9a-fA-F]+)"`);
-    const m = source.match(re);
-    if (!m) throw new Error(`could not find "const ${constName} = ..." in site/src/rpc.ts`);
-    out[cairoName] = m[1];
-  }
-  return out;
-}
-
-const rpcTsSelectors = readRpcTsSelectors(readFileSync(RPC_TS, "utf8"));
-
 let failed = 0;
-for (const name of Object.keys(RPC_TS_CONST_NAMES)) {
+for (const [name, hardcoded] of Object.entries(KNOWN)) {
   const got = sel(name);
-  const fromRpcTs = rpcTsSelectors[name];
-  const hardcoded = KNOWN[name];
-  if (BigInt(got) !== BigInt(fromRpcTs)) {
-    console.error(`✗ selector mismatch for ${name}`);
-    console.error(`    computed              ${got}`);
-    console.error(`    read from site/src/rpc.ts  ${fromRpcTs}`);
+  if (BigInt(got) !== BigInt(hardcoded)) {
+    console.error(`\u2717 selector mismatch for ${name}`);
+    console.error(`    computed       ${got}`);
+    console.error(`    KNOWN[${name}] ${hardcoded}`);
     failed += 1;
     continue;
   }
-  if (BigInt(hardcoded) !== BigInt(fromRpcTs)) {
-    console.error(`✗ ${name}: this script's own KNOWN map disagrees with site/src/rpc.ts`);
-    console.error(`    KNOWN[${name}]        ${hardcoded}`);
-    console.error(`    read from site/src/rpc.ts  ${fromRpcTs}`);
-    failed += 1;
-    continue;
-  }
-  console.log(`✓ ${name} matches site/src/rpc.ts and the KNOWN cross-check`);
+  console.log(`\u2713 ${name} matches the KNOWN cross-check`);
 }
 if (failed > 0) {
   console.error(
     `\n${failed} selector(s) disagree. Nothing written. Either a Cairo event ` +
-      `was renamed, the hashing changed, or site/src/rpc.ts and KNOWN drifted ` +
-      `apart; resolve before shipping.`,
+      `was renamed or the hashing changed; resolve before shipping.`,
   );
   process.exit(1);
 }
@@ -251,8 +206,8 @@ const count =
   VAULT_ENTRY_POINTS.length +
   GATE_ENTRY_POINTS.length;
 if (existing === body) {
-  console.log(`✓ site/src/lib/selectors.ts already up to date (${count} selectors, unchanged)`);
+  console.log(`✓ app/src/lib/selectors.ts already up to date (${count} selectors, unchanged)`);
 } else {
   writeFileSync(OUT, body);
-  console.log(`✓ wrote site/src/lib/selectors.ts (${count} selectors)`);
+  console.log(`✓ wrote app/src/lib/selectors.ts (${count} selectors)`);
 }

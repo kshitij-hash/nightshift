@@ -57,7 +57,7 @@ function requireFeltEnv(name) {
   if (!/^(0x[0-9a-fA-F]+|[0-9]+)$/.test(t)) {
     throw new Error(
       `${name} is not a valid felt: "${raw}". Expected 0x-hex or decimal, ` +
-        "padded or not - copy it from the ops console's creator_id log line.",
+        "padded or not - copy it from DEPLOYMENTS.md or the app's manage page.",
     );
   }
   return BigInt(t);
@@ -73,7 +73,7 @@ function requireVaultEnv(name) {
   if (!/^0x[0-9a-fA-F]{1,64}$/.test(t)) {
     throw new Error(
       `${name} is not a valid contract address: "${raw}". Expected 0x followed by ` +
-        "1 to 64 hex digits - copy it from DEPLOYMENTS.md or the ops console.",
+        "1 to 64 hex digits - copy it from DEPLOYMENTS.md.",
     );
   }
   return t;

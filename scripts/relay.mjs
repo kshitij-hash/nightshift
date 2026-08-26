@@ -13,7 +13,7 @@
 // relay cannot tamper: any edit to the commitment or the destination breaks
 // the signature, so the worst it can do is decline to submit.
 //
-// The ops console (web/app.mjs) prints the exact command to run:
+// The app's cancel/reclaim flow on /manage prints the exact command to run:
 //   node scripts/relay.mjs cancel  <commitment> <sig_r> <sig_s>
 //   node scripts/relay.mjs reclaim <commitment> <to_address> <sig_r> <sig_s>
 //
@@ -45,7 +45,7 @@ const USAGE = [
   "  node scripts/relay.mjs reclaim <commitment> <to_address> <sig_r> <sig_s>",
   "",
   "every argument is a 0x-hex felt. The signature comes from the subscriber's",
-  "owner key (the ops console prints the whole line); this account only pays.",
+  "owner key (the app's cancel flow prints the whole line); this account only pays.",
 ].join("\n");
 const usage = (msg) => {
   console.error(`${ts()} relay USAGE ${msg}`);

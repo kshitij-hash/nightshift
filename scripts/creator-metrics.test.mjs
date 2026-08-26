@@ -1,6 +1,6 @@
 #!/usr/bin/env node --test
 // Tests for the creator metric math. Plain `node --test`, no dependency, no
-// build step: the arithmetic lives in site/src/lib/creator/metrics.mjs as JS
+// build step: the arithmetic lives in app/src/lib/creator/metrics.mjs as JS
 // precisely so this file can import it directly.
 //
 //   node --test scripts/creator-metrics.test.mjs
@@ -35,7 +35,7 @@ import {
   refundLeakage,
   settledVsUnsettled,
   tierMix,
-} from "../site/src/lib/creator/metrics.mjs";
+} from "../app/src/lib/creator/metrics.mjs";
 
 import {
   COMMITMENTS,
@@ -249,8 +249,8 @@ describe("a creator with no commitments", () => {
   });
 
   it("says the means are empty rather than reporting a real zero", () => {
-    assert.ok(committedLtv(ledger).caveat.includes("no commitment"));
-    assert.ok(realizedLtv(ledger).caveat.includes("no commitment has terminated"));
+    assert.ok(committedLtv(ledger).caveat.includes("no subscription"));
+    assert.ok(realizedLtv(ledger).caveat.includes("no subscription has ended"));
   });
 
   it("keeps the invariant true at zero", () => {

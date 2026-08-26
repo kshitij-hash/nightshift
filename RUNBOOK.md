@@ -1,7 +1,7 @@
 # Runbook
 
 Operator procedures for NIGHTSHIFT: building, testing, running the keeper and
-relay, driving the ops console, and updating the sprint manifest.
+relay, and updating the sprint manifest.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ relay, driving the ops console, and updating the sprint manifest.
 - scarb 2.17.0 and snforge 0.59.0 (see `COMPAT.md`).
 - Install JS dependencies with `npm ci --ignore-scripts`, the install command
   for every package in this repo (`package.json`, `verify/package.json`,
-  `preflight/package.json`, `site/package.json`). A new dependency gets read
+  `preflight/package.json`, `app/package.json`). A new dependency gets read
   character-by-character for typosquats and its postinstall script read
   before it goes in.
 - `.env` (gitignored) holds `STARKNET_RPC`, `NIGHTSHIFT_ACCOUNT_ADDRESS`,
@@ -52,8 +52,9 @@ node --test scripts/*.test.mjs
 covers the example bot's pure logic (env parsing, presentation parsing, the
 reason-code mapping, rate limiting) with no token, no RPC and no network.
 `demo-charge` covers the mainnet-charge HTTP endpoint's request handling and
-limits. `scripts/*.test.mjs` covers the ops-console-to-verifier compatibility
-proof and the creator metrics math the site board runs.
+limits. `scripts/*.test.mjs` covers the present-message chain anchor and the
+creator metrics math the app's creator ledger runs; `app/test/` pins the
+app's wallet math to golden values proven on mainnet.
 
 ## The keeper
 
@@ -107,50 +108,27 @@ node scripts/relay.mjs cancel  <commitment> <sig_r> <sig_s>
 node scripts/relay.mjs reclaim <commitment> <to_address> <sig_r> <sig_s>
 ```
 
-The signed line comes from the ops console: panel 5 ("cancel / reclaim") has
-a "Sign cancel" and a "Sign reclaim" button that print the exact command
-above, built from a signature over `cancel_message`/`reclaim_message` in
-`src/common.cairo`. The relay pre-flights against `schedule_of` before
+The signed line comes from the app: the cancel/reclaim flow on /manage signs
+an owner-key message over `cancel_message`/`reclaim_message` from
+`src/common.cairo` and prints the exact command above. The relay pre-flights against `schedule_of` before
 spending gas (refuses an unknown subscription, an already-cancelled cancel,
 or a reclaim against a live or empty-escrow subscription), then estimates
 the fee before executing, reading `STARKNET_RPC` and `NIGHTSHIFT_VAULT` from
 `.env` and the account from `~/.nightshift/`, same as the keeper.
 
-## The ops console
+## Driving pool actions from the app
 
-Build it with:
+Every wallet-route action the retired ops console drove now lives in the app
+(`app/`): subscribe and creator claim on /manage (both pool-routed, dry-run
+first), cancel/reclaim signing with the relay line printed, and off-chain
+tier signing on /verify for any bot checking with `nightshift-verify`.
 
-```
-npm run build:console
-```
-
-This bundles `web/app.mjs` into `web/app.bundle.mjs` with esbuild, served by
-`web/index.html`. Numbered panels, one line each:
-
-0. Connect a Ready wallet; read shielded balance and vault state.
-1. Register a creator: tier ladder and payout key, a plain public call.
-2. Subscribe: escrow tier times periods into the vault, via the pool's
-   private withdraw-and-invoke action.
-3. Charge: fire the same permissionless call the cron keeper fires, for
-   testing without waiting on the daemon.
-4. Claim: two-phase creator settlement (prepare to resolve the open-note id,
-   then sign and submit) into the pool.
-5. Cancel / reclaim: sign an owner-key message, then print the relay command
-   or self-submit (which names this wallet as sender).
-6. Gate: sign and present a tier to a verifier on-chain, a linkable
-   signature presentation, not a proof.
-7. Gate, off-chain signing: sign a pasted verifier challenge with no
-   transaction, for a bot checking the result with `nightshift-verify`.
-
-Private-tx hygiene applies to the pool-routed actions this console drives -
-panel 2 (subscribe, a private withdraw-and-invoke) and panel 4 (claim, a
-prepare-then-submit into the pool): at least 10 blocks between private
-transactions from the same account, `invalidateProofNonceCache()` after any
-failure before retrying, and `tip: 0n` always. Dry-run or estimate first;
-the pool's 6 STRK protocol fee is drawn from the submitter's public balance,
-so keep both the public and private sides of an operating account funded.
-The keeper and the relay do not need any of this: both submit plain public
-invokes straight from Account 2, with no pool leg at all.
+Private-tx hygiene applies to the pool-routed actions - subscribe (a private
+withdraw-and-invoke) and claim (a prepare-then-submit into the pool): at
+least 10 blocks between private transactions from the same account,
+`invalidateProofNonceCache()` after any failure before retrying, and
+`tip: 0n` always. Dry-run or estimate first; the pool's 6 STRK protocol fee
+is drawn from the submitter's public balance, so keep both sides funded.
 
 ## demo-charge
 
@@ -193,14 +171,14 @@ unattended: it writes to mainnet and exposes a port to the internet.
 
 ## Incident basics
 
-RPC endpoint failover exists in exactly one place: the demo board
-(`site/src/rpc.ts`, trying `RPC_URLS` in order before falling back to a
-committed snapshot, labelled as such on the page). Nothing else in this repo fails
-over. `nightshift-verify` takes a single `provider` or a single `rpcUrl` and
+RPC endpoint failover exists in exactly one place: the app
+(`app/src/config.ts`'s `RPC_URLS`, tried in order, with the board falling
+back to a committed snapshot labelled as such on the page). Nothing else in
+this repo fails over. `nightshift-verify` takes a single `provider` or a single `rpcUrl` and
 talks to only that one; so do the keeper and the relay, reading one
 `STARKNET_RPC` from `.env`. If that one endpoint rate-limits or times out,
 an operator has to swap `STARKNET_RPC` (or the caller's `rpcUrl`) by hand;
-only the site board rides through it unattended.
+only the app rides through it unattended.
 
 **If the pool blocks the vault as a depositor** (a pool-side block, a token
 delisting, or a pool migration), the private claim leg through

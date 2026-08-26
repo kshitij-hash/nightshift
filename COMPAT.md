@@ -98,8 +98,7 @@ rejection (`DEPLOYMENTS.md`).
 | `preflight/` | `strk20.json`'s shape and the sprint indexer's mine-rule, not tied to a vault version; it reads RPC receipts and calldata generically against whatever contracts are declared |
 | Keeper (`scripts/keeper.mjs`) | `NIGHTSHIFT_VAULT` (env or CLI arg) exposing `is_active`, `periods_due`, `charge`; operated against v4 |
 | Relay (`scripts/relay.mjs`) | `NIGHTSHIFT_VAULT` exposing `schedule_of`, `cancel`, `reclaim`; operated against v4 |
-| Ops console (`web/app.mjs`) | Hardcoded v4 `VAULT` and `GATE` addresses, plus the hardcoded `POOL` address for building pool-shaped `withdraw`/`invoke` actions |
-| Demo board (`site/`) | All three live vault versions (`VAULT`, `VAULT_V3`, `VAULT_V2` in `site/src/config.ts`) so it can render full subscription history, not just v4 |
+| App (`app/`) | v4 `VAULT`, `GATE` and `POOL` addresses in `app/src/config.ts` for wallet actions, plus all three live vault versions (`VAULT`, `VAULT_V3`, `VAULT_V2`) so the board can render full subscription history, not just v4 |
 
 ## What breaks if the pool upgrades
 

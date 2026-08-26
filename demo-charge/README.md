@@ -238,5 +238,5 @@ done by an agent. Left deliberately undone:
       the unit file, not in the repo.
 - [ ] **Confirm the gas runway.** The submitting account held 499.4 STRK at
       block 13,650,294; a charge costs about 0.1 STRK.
-- [ ] **Then, and only then, the button.** No file under `site/` is touched by
+- [ ] **Then, and only then, the button.** No file under `app/` is touched by
       this change.

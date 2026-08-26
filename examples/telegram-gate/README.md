@@ -36,8 +36,8 @@ in memory, one process, no database, no persistence across a restart.
    - `NIGHTSHIFT_VAULT`, the vault this gate checks against.
    - `VERIFIER_ID`, this gate's own stable id (any short string works; see
      the comment in `.env.example`).
-   - `CREATOR_ID`, read from the NIGHTSHIFT ops console's log panel (see the
-     comment in `.env.example` for exactly where).
+   - `CREATOR_ID`, the creator id this gate admits for (the app's /manage
+     page and DEPLOYMENTS.md both carry it; see `.env.example`).
    - `TIER_CHATS`, mapping each tier number to the chat id from step 3 and a
      label to show subscribers.
 
@@ -53,11 +53,10 @@ in memory, one process, no database, no persistence across a restart.
 1. A subscriber sends `/start` to the bot.
 2. The bot calls `makeChallenge`, stores the result against that Telegram
    user id for 5 minutes, and replies with the challenge as one fenced line
-   of JSON, then a separate message with the instruction to sign it in the
-   NIGHTSHIFT ops console, panel 7, "sign for an external verifier
-   (off-chain, no transaction)" - two messages, so a select-all copy of
-   either one is still something the console can parse on its own.
-3. The subscriber signs the challenge in the console with their subscription
+   of JSON, then a separate message with the instruction to sign it on the
+   NIGHTSHIFT gate page (/verify, step 02) - two messages, so a select-all
+   copy of either one still parses on its own.
+3. The subscriber signs the challenge on the gate page with their subscription
    owner key and pastes the resulting presentation back into the chat, JSON
    fences and all; the bot strips code fences and accepts either the
    presentation on its own or the `{presentation, challenge}` wrapper shape
@@ -83,7 +82,7 @@ attempts in a row (a success clears the count).
 ## What this demonstrates
 
 This gate never holds a key and never sees a wallet. The subscriber signs
-with the subscription's own owner key inside the NIGHTSHIFT console; the bot
+with the subscription's own owner key on the NIGHTSHIFT gate page; the bot
 only ever receives the resulting signature and checks it against the owner
 key the vault recorded at subscribe time. Per verification attempt the gate
 makes three read-only RPC calls: one to read the current block height when
