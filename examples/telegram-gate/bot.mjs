@@ -105,6 +105,9 @@ const NIGHTSHIFT_VAULT = requireVaultEnv("NIGHTSHIFT_VAULT");
 const VERIFIER_ID = requireVerifierIdEnv("VERIFIER_ID");
 const CREATOR_ID = requireFeltEnv("CREATOR_ID");
 const TIER_CHATS = parseTierChats(requireEnv("TIER_CHATS"));
+/** Where subscribers are sent to sign a challenge in the browser. Optional:
+ *  the public site is the right default, and a fork points it elsewhere. */
+const SITE_URL = (process.env.SITE_URL || "https://nightshift-six-lilac.vercel.app").replace(/\/+$/, "");
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const INVITE_TTL_SECONDS = 10 * 60;
@@ -161,8 +164,9 @@ bot.command("start", async (ctx) => {
   // block's own formatting adds, so the pasted body still parses.
   await ctx.reply(`<pre>${escapeHtml(JSON.stringify(challenge))}</pre>`, { parse_mode: "HTML" });
   await ctx.reply(
-    "Sign this in the NIGHTSHIFT ops console, panel 7, \"sign for an external verifier\", " +
-      "then paste the presentation it gives you back here.",
+    `Sign this on the NIGHTSHIFT gate page: ${SITE_URL}/verify - paste the challenge, ` +
+      "sign it in your browser (step 02, the page never sees a private key), press " +
+      "COPY THE PRESENTATION, and paste it back here.",
   );
 });
 
