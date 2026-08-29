@@ -31,11 +31,17 @@ const CONFIGURED_RPC = (
 ).trim();
 
 /** RPC endpoints, tried in order: the configured one first when present,
- *  then the public keyless pair as failover. */
+ *  then the public keyless pair as failover.
+ *
+ *  Both public entries answer starknet_call and starknet_getEvents for this
+ *  vault identically, and both send Access-Control-Allow-Origin, which is what
+ *  a browser needs. The pair used to end in blastapi; that endpoint now
+ *  answers every request with "Blast API is no longer available", so the
+ *  failover was decorative - one flaky read away from the committed snapshot. */
 export const RPC_URLS = [
   ...(CONFIGURED_RPC !== "" ? [CONFIGURED_RPC] : []),
   "https://rpc.starknet.lava.build",
-  "https://starknet-mainnet.public.blastapi.io/rpc/v0_8",
+  "https://api.cartridge.gg/x/starknet/mainnet",
 ];
 
 /** Blocks the vaults were deployed at - event scans start here. */

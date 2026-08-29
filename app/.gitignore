@@ -2,3 +2,5 @@ node_modules
 dist
 .smoke
 *.local
+.vercel
+.env*
