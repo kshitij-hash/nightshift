@@ -72,11 +72,27 @@ Two flags for an operator: a commitment as the second positional argument
 charges only that one and skips the scan, and `--dry-run` reports what is due
 without submitting anything or opening the keypair.
 
-Install it on a cron, every 30 minutes. One line covers every subscription:
+Install it on a cron, every two minutes. One line covers every subscription:
 
 ```
-*/30 * * * * cd <repo> && /usr/bin/env node scripts/keeper.mjs >> ~/.nightshift/keeper.log 2>&1
+*/2 * * * * /usr/bin/flock -n /tmp/nightshift-keeper.lock /usr/bin/env node <repo>/scripts/keeper.mjs >> ~/.nightshift/keeper.log 2>&1
 ```
+
+The interval is the punctuality budget, and it has to be read against the
+shortest cadence rather than in the abstract. A run takes about five seconds
+and a charge is late by at most one interval, so two minutes is 3% of an
+hourly period and 0.1% of a daily one. At the half hour this started on, an
+hourly subscription could sit half a period past due, which is not a schedule
+anyone would call kept. Nothing is ever lost by lateness - `periods_due`
+accumulates and a later run charges the backlog - but "eventually" is not the
+product being sold.
+
+`flock -n` is what makes the short interval safe: a run that charges several
+periods can outlast its slot, and two keepers racing the same period would
+have the loser revert on a spent nullifier. The lock makes an overlapping run
+exit immediately instead. The script needs no working directory - it resolves
+`.env` and its imports from its own path - so the cron line can call it by
+absolute path from anywhere.
 
 The log file exists only because this cron line redirects into it; the
 keeper itself never opens or creates `~/.nightshift/keeper.log`, it only

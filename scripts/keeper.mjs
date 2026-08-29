@@ -23,8 +23,12 @@
 // from any sender and moves escrow the subscriber already committed, to the
 // creator they chose. This account pays the gas and can direct nothing.
 //
-// Install (every 30 min; a charge only fires when a period is actually due):
-//   */30 * * * * cd <repo> && /usr/bin/env node scripts/keeper.mjs >> ~/.nightshift/keeper.log 2>&1
+// The cron interval is the punctuality budget: a charge is at most one
+// interval late, so it has to be read against the SHORTEST cadence on the
+// ladder, not the longest. Half an hour is nothing to a daily schedule and
+// half a period to an hourly one. Two minutes, under flock so a run that
+// charges several periods cannot be raced by the next one:
+//   */2 * * * * /usr/bin/flock -n /tmp/nightshift-keeper.lock /usr/bin/env node <repo>/scripts/keeper.mjs >> ~/.nightshift/keeper.log 2>&1
 //
 // Config: STARKNET_RPC from the environment or .env; operator address/key from
 // ~/.nightshift/ (acct2.address, acct2.keypair — never printed). Vault from
@@ -101,7 +105,6 @@ async function discoverCommitments() {
     token = page.continuation_token;
     pages += 1;
   } while (token);
-  log(`scan: ${seen.size} subscription(s) ever created at this vault, ${pages} page(s)`);
   // Newest first: a subscription made minutes ago is the one most likely to be
   // watched right now, and the per-run cap should spend itself there first.
   return [...seen.values()].sort((a, b) => b.block - a.block).map((v) => v.commitment);
@@ -128,6 +131,7 @@ if (commitments.length === 0) {
 
 /** Read-only pass first, so a run with nothing due never touches a key. */
 const work = [];
+let activeCount = 0;
 for (const commitment of commitments) {
   let activeFlag;
   try {
@@ -137,17 +141,23 @@ for (const commitment of commitments) {
     continue;
   }
   if (activeFlag === 0n) continue;
+  activeCount += 1;
   const due = await view("periods_due", commitment);
   if (due > 0n) work.push({ commitment, due });
-  else log(`sub=${short(commitment)} active, nothing due yet`);
 }
 
+/* A quiet run is one line, not one per subscription. At a two-minute interval
+   this file is read by a human looking for the charges; a wall of "nothing due
+   yet" buries them. The interesting runs stay verbose below. */
 if (work.length === 0) {
-  log("no charge fired (none due)");
+  log(`scan: ${commitments.length} subscription(s), ${activeCount} active, none due`);
   process.exit(0);
 }
 
-log(`due now: ${work.map((w) => `${short(w.commitment)}=${w.due}`).join(" ")}`);
+log(
+  `scan: ${commitments.length} subscription(s), ${activeCount} active · due now: ` +
+    work.map((w) => `${short(w.commitment)}=${w.due}`).join(" "),
+);
 
 if (dryRun) {
   log(`dry run: would fire up to ${MAX_CHARGES_PER_RUN} charge(s); nothing submitted`);
