@@ -12,10 +12,9 @@ relay, and updating the sprint manifest.
   `preflight/package.json`, `app/package.json`). A new dependency gets read
   character-by-character for typosquats and its postinstall script read
   before it goes in.
-- `.env` (gitignored) holds `STARKNET_RPC`, `NIGHTSHIFT_ACCOUNT_ADDRESS`,
-  `NIGHTSHIFT_VAULT`, and `NIGHTSHIFT_COMMITMENT`. Copy `.env.example` and
-  fill in an RPC URL; never put a private key in it. No secret value from
-  `.env` is reproduced here.
+- `.env` (gitignored) holds `STARKNET_RPC`, `NIGHTSHIFT_ACCOUNT_ADDRESS` and
+  `NIGHTSHIFT_VAULT`. Copy `.env.example` and fill in an RPC URL; never put a
+  private key in it. No secret value from `.env` is reproduced here.
 - `~/.nightshift/` holds `acct2.address` and `acct2.keypair`, outside the
   repo tree; the keeper and the relay read from there. Nothing under
   `~/.nightshift/`, and no `.env*` file, is ever read, printed, or committed
@@ -61,15 +60,22 @@ app's wallet math to golden values proven on mainnet.
 `scripts/keeper.mjs` is the unattended charge daemon: a bare `charge` call
 against the vault, fired from Account 2 (`~/.nightshift/acct2.*`), so the
 vault's `Charged` event records that account as `by`, never the subscriber.
-It serves exactly one commitment per invocation, read from `[vault]
-[commitment]` positional CLI args or from `NIGHTSHIFT_VAULT` /
-`NIGHTSHIFT_COMMITMENT` in `.env`. One commitment per subscription managed
-this way means one cron line per commitment.
+It finds its own work. Each run scans the vault's `Subscribed` events for
+every commitment ever created there, asks each one `is_active` and
+`periods_due`, and charges the due ones newest first. Nothing is configured
+per subscription: one made a minute ago is picked up by the next run.
+`NIGHTSHIFT_COMMITMENT` is no longer read - a keeper pinned to one commitment
+ignores every subscription made after it, which is the failure the scan
+exists to remove. It is announced in the log and ignored if still set.
 
-Install it on a cron, every 30 minutes, one line per commitment:
+Two flags for an operator: a commitment as the second positional argument
+charges only that one and skips the scan, and `--dry-run` reports what is due
+without submitting anything or opening the keypair.
+
+Install it on a cron, every 30 minutes. One line covers every subscription:
 
 ```
-*/30 * * * * cd <repo> && /usr/bin/env node scripts/keeper.mjs <vault> <commitment> >> ~/.nightshift/keeper.log 2>&1
+*/30 * * * * cd <repo> && /usr/bin/env node scripts/keeper.mjs >> ~/.nightshift/keeper.log 2>&1
 ```
 
 The log file exists only because this cron line redirects into it; the
@@ -78,10 +84,11 @@ writes to stdout/stderr. Running the script by hand, or from a different
 cron line, produces no log file unless that invocation redirects one too.
 
 Each run reads `is_active` and `periods_due` over public RPC first; if
-nothing is due it logs and exits at no cost. When periods are due it fires
-`charge`, estimates the fee first (failing the run cleanly rather than
-submitting a payload the vault would reject), waits for
-acceptance, and repeats up to `MAX_CHARGES_PER_RUN` (3) so a backlog drains
+nothing is due it logs and exits at no cost, without ever opening the
+keypair. When periods are due it fires `charge`, estimates the fee first (a
+subscription the vault would reject is logged and skipped rather than
+stopping the run), waits for acceptance, and repeats up to
+`MAX_CHARGES_PER_RUN` (3) across all subscriptions, so a backlog drains
 gradually across runs instead of in one burst.
 
 `keeper.mjs` treats ANY revert, for any reason (`NS_NOT_DUE`,
