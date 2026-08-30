@@ -19,6 +19,7 @@ import { CreatorRoute } from "./routes/creator";
 import { LandingRoute } from "./routes/landing";
 import { ManageRoute } from "./routes/manage";
 import { NotFoundRoute } from "./routes/not-found";
+import { RegisterRoute } from "./routes/register";
 import { SubscribeRoute } from "./routes/subscribe";
 import { VerifyRoute } from "./routes/verify";
 
@@ -139,10 +140,31 @@ const verifyRoute = createRoute({
   component: VerifyRoute,
 });
 
+/** ?creator= carries the id a creator's share link was built around, so a
+ *  subscriber who followed that link lands with the field already filled.
+ *  Anything that is not a felt is dropped rather than surfaced: a mangled
+ *  share link should degrade to the blank form, not to an error page. */
+export type SubscribeSearch = { creator?: string };
+
 const subscribeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/subscribe",
+  validateSearch: (search: Record<string, unknown>): SubscribeSearch => {
+    const raw = search.creator;
+    if (typeof raw === "string" && FELT_HEX.test(raw.trim())) return { creator: raw.trim() };
+    return {};
+  },
   component: SubscribeRoute,
+});
+
+// The creator's entry into the product: register a tier ladder, get an id and
+// a share link. Its own route (not a mode of /creator) because it carries the
+// wallet stack the ledger deliberately never loads, and because "become a
+// creator" is a destination worth linking to directly.
+const registerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/creator/register",
+  component: RegisterRoute,
 });
 
 /** Which of the three signing flows is open, when one is. Optional, because
@@ -167,6 +189,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   boardRoute,
   creatorRoute,
+  registerRoute,
   manageRoute,
   subscribeRoute,
   verifyRoute,

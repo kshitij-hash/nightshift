@@ -137,6 +137,60 @@ export function UnknownCreator({
   );
 }
 
+/** Registered on chain, zero subscribers so far. The state every creator is
+ *  in for the gap between registering and their first subscriber, and the one
+ *  moment this page must not read like an error: the id is real, the ladder
+ *  is live, and the only thing missing is the link being shared. */
+export function FreshCreator({
+  entries,
+}: {
+  entries: Array<{ id: Felt; tiers: Array<{ index: number; amountWei: bigint }> }>;
+}) {
+  const strk = (wei: bigint) => {
+    const whole = wei / 10n ** 18n;
+    const frac = (wei % 10n ** 18n) / 10n ** 16n;
+    return `${whole}.${frac.toString().padStart(2, "0")}`;
+  };
+  return (
+    <div className="flex flex-col gap-5 border border-border-panel bg-surface-panel px-6 py-7">
+      <div className="flex flex-wrap items-center gap-3">
+        <Badge variant="verified">REGISTERED · NO SUBSCRIBERS YET</Badge>
+        <span className="text-[11px] tracking-[0.14em] text-text-label uppercase">
+          the ladder is live on chain
+        </span>
+      </div>
+      <p className="max-w-[70ch] text-[14px] leading-[1.7] text-text-prose">
+        {entries.length === 1 ? "This id is" : "These ids are"} registered at
+        the vault with the prices below. Nothing has been subscribed against
+        {entries.length === 1 ? " it" : " them"} yet, so there are no figures
+        to derive - the moment a subscription lands, this page becomes the
+        ledger. Until then, the whole job is sharing the link.
+      </p>
+      <div className="flex flex-col gap-4">
+        {entries.map((e) => (
+          <div key={e.id} className="flex flex-col gap-2 border-t border-border-row pt-3">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className="text-[12px] text-text-label">creator</span>
+              <HashCopy value={e.id} display={truncate(e.id)} className="text-[12px]" />
+              <span className="text-[12px] text-text-caption">
+                {e.tiers.map((t) => `tier ${t.index} · ${strk(t.amountWei)} STRK`).join("  ·  ")}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className="text-[12px] text-text-label">share link</span>
+              <HashCopy
+                value={`${window.location.origin}/subscribe?creator=${e.id}`}
+                display={`${window.location.host}/subscribe?creator=${truncate(e.id)}`}
+                className="text-[12px]"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** ?creator= carried something that is not a felt. Say which, and why. */
 export function RejectedIds({ raw }: { raw: string }) {
   const parts = raw.split(",").filter((p) => p.length > 0);

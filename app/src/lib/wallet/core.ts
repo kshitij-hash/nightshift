@@ -330,18 +330,24 @@ export const reclaimCall = (
   calldata: [commitment, to, sig.r, sig.s],
 });
 
-/** register_creator(token, payout_key, tiers_len, tier_0). A plain public
- *  call: the creator side of the ladder, with the payout key that will later
- *  sign claims. */
+/** register_creator(token, payout_key, tier_amounts). A plain public call:
+ *  the creator side of the ladder, with the payout key that will later sign
+ *  claims. The span serializes as its length followed by each u128 amount;
+ *  the vault accepts 1 to 8 tiers and refuses a zero amount anywhere. */
 export const registerCreatorCall = (
   vault: string,
   token: string,
   payoutPub: string,
-  tier0Wei: bigint,
+  tiersWei: readonly bigint[],
 ): PublicCall => ({
   contractAddress: vault,
   entrypoint: "register_creator",
-  calldata: [token, payoutPub, "0x1", cd(`0x${tier0Wei.toString(16)}`)],
+  calldata: [
+    token,
+    payoutPub,
+    `0x${tiersWei.length.toString(16)}`,
+    ...tiersWei.map((wei) => cd(`0x${wei.toString(16)}`)),
+  ],
 });
 
 /** The exact scripts/relay.mjs invocation, positional arguments in the order

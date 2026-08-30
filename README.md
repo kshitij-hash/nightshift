@@ -118,7 +118,7 @@ are not flattering.
 | `src/vault.cairo` | The anonymizer vault: `privacy_invoke` (Subscribe/Claim ops) plus the `charge`, `cancel` and `reclaim` entrypoints, accounted custody, period nullifiers, `schedule_of` / `tier_of` read views |
 | `src/mocks.cairo` | `MockPrivacyPool`, a test double that replays the deployed pool's invoke sequence with its real revert strings. No other public test harness for this pool exists |
 | `tests/` | The adversarial suite: hostile donations, non-pool callers, early charges, double charges, escrow exhaustion |
-| `app/` | The web app: landing, live board, subscribe wizard, manage (cancel/reclaim/claim), tier gate and creator ledger, all reading mainnet from the browser |
+| `app/` | The web app: landing, live board, subscribe wizard, manage (cancel/reclaim/claim), tier gate, creator onboarding with share links, and the creator ledger, all reading mainnet from the browser |
 | `verify/` | [`nightshift-verify`](https://www.npmjs.com/package/nightshift-verify), published on npm: checks a tier presentation off-chain from two vault reads, no transaction, no key held by the verifier |
 | `preflight/` | [`strk20-preflight`](https://www.npmjs.com/package/strk20-preflight), published on npm: reads a `strk20.json` the way the sprint indexer reads it and prints where the indexer would silently drop something |
 | `examples/telegram-gate/` | A Telegram door on `nightshift-verify`: challenge in chat, signature from the app's gate page, one-use invite link on a live mainnet check |

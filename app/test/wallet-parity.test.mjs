@@ -26,6 +26,7 @@ import {
   ownerPrivFor,
   presentMessage,
   reclaimMessage,
+  registerCreatorCall,
   resolveNoteId,
   signWith,
   starkPubOf,
@@ -222,6 +223,31 @@ test("the present message still hits the hash the deployed gate accepted", () =>
     presentMessage(COMMITMENT, "0x2a", `0x${(501_000).toString(16)}`, "0x0deadbeef"),
     "0x5232c58e65d5cca36d19bd60651c7de23deda70e56ace38522183ab67323f1e",
   );
+});
+
+// --- register_creator calldata ---------------------------------------------
+
+test("a single-tier registration has the layout the live creator registered with", () => {
+  // The demo creator on mainnet was registered with exactly this shape:
+  // [token, payout_key, span_len, tier_0]. The span length is the Span<u128>
+  // serialization prefix, and every felt is unpadded.
+  const call = registerCreatorCall(VAULT, STRK, payoutPub, [1n * E18]);
+  assert.equal(call.entrypoint, "register_creator");
+  assert.deepEqual(call.calldata, [STRK, payoutPub, "0x1", "0xde0b6b3a7640000"]);
+});
+
+test("a multi-tier registration serializes the span as length then amounts, in order", () => {
+  const call = registerCreatorCall(VAULT, STRK, payoutPub, [1n * E18, 5n * E18, 20n * E18]);
+  assert.equal(call.calldata[2], "0x3", "the span length prefix");
+  assert.deepEqual(call.calldata.slice(3), [
+    "0xde0b6b3a7640000",
+    "0x4563918244f40000",
+    "0x1158e460913d00000",
+  ]);
+  // No leading zeros in the span: calldata felts forbid them. The token slot
+  // is exempt - it is a padded ADDRESS field, passed through as given, and the
+  // single-tier test above pins that whole layout to the live registration.
+  for (const felt of call.calldata.slice(2)) assert.doesNotMatch(felt, /^0x0[0-9a-f]/);
 });
 
 // --- claim: resolve, sign, batch ------------------------------------------

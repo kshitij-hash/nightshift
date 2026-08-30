@@ -6,6 +6,7 @@
 // a signing stack they never use. Navigating here fetches one extra chunk.
 
 import { lazy, Suspense } from "react";
+import { useSearch } from "@tanstack/react-router";
 
 import { Masthead } from "../components/masthead";
 import { usePageTitle } from "../lib/use-title";
@@ -35,9 +36,13 @@ function SubscribeFallback() {
 
 export function SubscribeRoute() {
   usePageTitle("Subscribe");
+  // ?creator= is a creator's share link doing its job: the surface opens with
+  // that id already in the field. Validated to a felt by the router, so the
+  // surface never sees a mangled one.
+  const { creator } = useSearch({ from: "/subscribe" });
   return (
     <Suspense fallback={<SubscribeFallback />}>
-      <SubscribeSurface />
+      <SubscribeSurface initialCreator={creator} />
     </Suspense>
   );
 }

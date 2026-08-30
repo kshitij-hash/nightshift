@@ -14,7 +14,8 @@
 // attention as the last one, because on a surface keyed by a pasted id they
 // are the states most readers will actually see.
 
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 
 import { SectionHead } from "../components/board/primitives";
 import { CreatorIds } from "../components/dashboard/creator-ids";
@@ -30,11 +31,14 @@ import { RevenueTimeline } from "../components/dashboard/revenue-timeline";
 import { DashboardSkeleton, ProvenanceBannerSkeleton } from "../components/dashboard/skeletons";
 import {
   ChainChip,
+  FreshCreator,
   PartialScanBanner,
   ProvenanceBanner,
   RejectedIds,
   UnknownCreator,
 } from "../components/dashboard/states";
+import { getRpcClient } from "../lib/rpc-instance";
+import { tierOf } from "../lib/rpc/views";
 import { SubscriptionTable } from "../components/dashboard/subscription-table";
 import { CaveatDisclosure } from "../components/dashboard/tile";
 import { useIsNarrow } from "../components/dashboard/use-media";
@@ -90,6 +94,33 @@ export function CreatorRoute() {
   /** The 120 second poll only runs while there is something to poll for. */
   const live = ids.length > 0 && !isError;
 
+  /* An empty ledger is two different situations wearing one shape: an id
+   * nobody registered, and a creator who registered minutes ago and has no
+   * subscribers yet. The event scan cannot tell them apart - registration is
+   * a storage write the ledger's events never mention - so the split comes
+   * from tier_of, read only when the ledger came back empty. */
+  const emptyLedger = ledger !== undefined && ledgerIsEmpty(ledger);
+  const regCheck = useQuery({
+    queryKey: ["creator-registered", ids],
+    enabled: emptyLedger && ids.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const client = getRpcClient();
+      const out: Array<{ id: string; tiers: Array<{ index: number; amountWei: bigint }> }> = [];
+      for (const id of ids) {
+        const probed = await Promise.all(
+          Array.from({ length: 8 }, (_, i) => tierOf(client, id, i)),
+        );
+        const tiers = probed
+          .map((t, index) => ({ index, amountWei: t.amountWei, token: BigInt(t.token) }))
+          .filter((t) => t.token !== 0n && t.amountWei > 0n)
+          .map(({ index, amountWei }) => ({ index, amountWei }));
+        if (tiers.length > 0) out.push({ id, tiers });
+      }
+      return out;
+    },
+  });
+
   // --- no id pasted: the entry state ---------------------------------------
   if (ids.length === 0) {
     return (
@@ -105,6 +136,26 @@ export function CreatorRoute() {
             </div>
             {search.invalidCreator ? <RejectedIds raw={search.invalidCreator} /> : null}
             <CreatorIds ids={ids} summaries={undefined} onChange={setIds} variant="entry" />
+            <div className="grid gap-5 border-2 border-divider p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:p-7">
+              <div>
+                <div className="mb-2 text-[11px] tracking-[0.14em] uppercase text-ns-accent">
+                  ▸ No id, because the creator is you?
+                </div>
+                <p className="max-w-[62ch] text-[14px] leading-[1.6] text-text-prose">
+                  Set 1-3 tier prices and register them in one public
+                  transaction. You get a creator id and a link to share; your
+                  audience subscribes through it privately, and this page
+                  becomes your ledger.
+                </p>
+              </div>
+              <Link
+                to="/creator/register"
+                className="m-btn m-btn-primary text-[15px]"
+                style={{ padding: "13px 22px" }}
+              >
+                Become a creator →
+              </Link>
+            </div>
             <section className="flex flex-col gap-4">
               <SectionHead note="the same figures, whoever asks">
                 // WHAT THIS PAGE DERIVES
@@ -204,7 +255,30 @@ export function CreatorRoute() {
           <CreatorIds ids={ids} summaries={summaries} onChange={setIds} variant="bar" />
 
           {empty ? (
-            <UnknownCreator ids={ids} ledger={ledger} />
+            // isPending alone: inside this branch the query is enabled, so
+            // pending means "no answer yet" and never "switched off" - and
+            // gating on isFetching too would flash the unknown-id card for
+            // the frame before the fetch starts.
+            regCheck.isPending ? (
+              <p className="text-[13px] leading-[1.6] text-text-caption">
+                No events yet - asking the vault whether{" "}
+                {ids.length === 1 ? "this id is" : "these ids are"} registered…
+              </p>
+            ) : (
+              (() => {
+                const fresh = regCheck.data ?? [];
+                const freshKeys = new Set(fresh.map((f) => BigInt(f.id).toString()));
+                const unknown = ids.filter((id) => !freshKeys.has(BigInt(id).toString()));
+                return (
+                  <>
+                    {fresh.length > 0 ? <FreshCreator entries={fresh} /> : null}
+                    {unknown.length > 0 || fresh.length === 0 ? (
+                      <UnknownCreator ids={unknown.length > 0 ? unknown : ids} ledger={ledger} />
+                    ) : null}
+                  </>
+                );
+              })()
+            )
           ) : (
             <>
               <section className="flex flex-col gap-5">

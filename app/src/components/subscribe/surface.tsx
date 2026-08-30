@@ -59,9 +59,17 @@ type Ladder =
 
 type LogLine = { mark: "✓" | "·" | "✕"; text: string };
 
-export function SubscribeSurface() {
+export function SubscribeSurface({
+  /** A creator id handed over by a share link (/subscribe?creator=…), already
+   *  felt-validated by the router. It seeds the field; the reader can still
+   *  edit it, and the demo-creator fallback stays out of the way. */
+  initialCreator,
+}: {
+  initialCreator?: string;
+} = {}) {
   const [step, setStep] = useState(0);
-  const [creatorInput, setCreatorInput] = useState("");
+  const [creatorInput, setCreatorInput] = useState(initialCreator ?? "");
+  const fromShareLink = initialCreator !== undefined;
   const [ladder, setLadder] = useState<{ key: string; value: Ladder } | null>(null);
   const [tier, setTier] = useState(0);
   const [cadence, setCadence] = useState<CadenceBlocks>(CADENCES[0].blocks);
@@ -303,19 +311,25 @@ export function SubscribeSurface() {
                   {creatorInput.trim() !== "" && creatorProblem ? (
                     <div className="mt-1.5 text-[12px] text-accent-700">{creatorProblem}</div>
                   ) : null}
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
-                      className="m-btn m-btn-secondary text-[12.5px]"
-                      style={{ padding: "5px 10px" }}
-                      onClick={() => setCreatorInput(DEMO_CREATOR_ID)}
-                    >
-                      Try the demo creator
-                    </button>
-                    <span className="text-[12px] text-text-caption">
-                      the creator registered on the live vault, 1 STRK per period
-                    </span>
-                  </div>
+                  {fromShareLink ? (
+                    <div className="mt-2.5 text-[12px] text-text-caption">
+                      filled in by the creator's link · their prices load below
+                    </div>
+                  ) : (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                      <button
+                        type="button"
+                        className="m-btn m-btn-secondary text-[12.5px]"
+                        style={{ padding: "5px 10px" }}
+                        onClick={() => setCreatorInput(DEMO_CREATOR_ID)}
+                      >
+                        No creator in mind? Try the demo one
+                      </button>
+                      <span className="text-[12px] text-text-caption">
+                        registered on the live vault, 1 STRK per period
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mb-3 text-[11px] tracking-[0.1em] uppercase text-text-caption">
