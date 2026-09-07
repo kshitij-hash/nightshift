@@ -17,3 +17,6 @@ dist/
 
 # Vercel CLI link metadata
 .vercel
+
+# Demo-video working directory (scratch; the demo is hosted on YouTube)
+/video/
