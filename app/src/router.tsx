@@ -99,8 +99,22 @@ const unlockRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/unlock",
   validateSearch: (search: Record<string, unknown>): UnlockSearch => {
+    // The door puts the challenge JSON in ?c=. TanStack's default search
+    // parser JSON-parses any value that looks like JSON, so a challenge object
+    // arrives here already parsed; a value it could not parse arrives as a
+    // string. Recover the challenge text from either shape, so the unlock
+    // page opens with the door's message filled in rather than "[object
+    // Object]".
     const raw = search.c;
     if (typeof raw === "string" && raw.length > 0 && raw.length < 4000) return { c: raw };
+    if (raw !== null && typeof raw === "object") {
+      try {
+        const text = JSON.stringify(raw);
+        if (text.length > 2 && text.length < 4000) return { c: text };
+      } catch {
+        // an object that will not stringify is not a challenge
+      }
+    }
     return {};
   },
   component: UnlockRoute,

@@ -229,6 +229,10 @@ export function UnlockSurface({ initialChallenge }: { initialChallenge?: string 
 }
 
 function safeDecode(raw: string): string {
+  // The router hands over a decoded challenge (TanStack decodes search values),
+  // so most of the time this is a no-op. Only attempt a decode when the text
+  // still carries percent-escapes, and never throw on a bare % in the JSON.
+  if (!raw.includes("%")) return raw;
   try {
     return decodeURIComponent(raw);
   } catch {
