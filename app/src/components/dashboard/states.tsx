@@ -179,8 +179,8 @@ export function FreshCreator({
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className="text-[12px] text-text-label">share link</span>
               <HashCopy
-                value={`${window.location.origin}/subscribe?creator=${e.id}`}
-                display={`${window.location.host}/subscribe?creator=${truncate(e.id)}`}
+                value={`${window.location.origin}/join?creator=${e.id}`}
+                display={`${window.location.host}/join?creator=${truncate(e.id)}`}
                 className="text-[12px]"
               />
             </div>

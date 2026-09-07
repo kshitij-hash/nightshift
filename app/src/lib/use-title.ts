@@ -4,8 +4,8 @@
 import { useEffect } from "react";
 
 const SITE = "NIGHTSHIFT";
-/** The landing keeps the full descriptive title from index.html. */
-const DEFAULT = `${SITE} · private subscriptions on Starknet`;
+/** The door keeps the full title from index.html. */
+const DEFAULT = `${SITE} · Back anyone. Show no one.`;
 
 export function usePageTitle(page?: string) {
   useEffect(() => {

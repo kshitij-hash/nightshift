@@ -131,9 +131,11 @@ node scripts/relay.mjs cancel  <commitment> <sig_r> <sig_s>
 node scripts/relay.mjs reclaim <commitment> <to_address> <sig_r> <sig_s>
 ```
 
-The signed line comes from the app: the cancel/reclaim flow on /manage signs
-an owner-key message over `cancel_message`/`reclaim_message` from
-`src/common.cairo` and prints the exact command above. The relay pre-flights against `schedule_of` before
+The app's cancel on /nights signs the same owner-key message over
+`cancel_message`/`reclaim_message` from `src/common.cairo` and submits it from
+the fan's own wallet; the relay path above is for a subscriber who wants a
+different sender (the signature is produced by `signCancelFor` in
+`app/src/lib/wallet/keys.ts`). The relay pre-flights against `schedule_of` before
 spending gas (refuses an unknown subscription, an already-cancelled cancel,
 or a reclaim against a live or empty-escrow subscription), then estimates
 the fee before executing, reading `STARKNET_RPC` and `NIGHTSHIFT_VAULT` from
@@ -142,9 +144,10 @@ the fee before executing, reading `STARKNET_RPC` and `NIGHTSHIFT_VAULT` from
 ## Driving pool actions from the app
 
 Every wallet-route action the retired ops console drove now lives in the app
-(`app/`): subscribe and creator claim on /manage (both pool-routed, dry-run
-first), cancel/reclaim signing with the relay line printed, and off-chain
-tier signing on /verify for any bot checking with `nightshift-verify`.
+(`app/`): join on /join and the creator's claim on /room (both pool-routed,
+dry-run first), cancel and refund on /nights, and off-chain tier signing on
+/unlock (the fan side) and /verify (the bot side) for any door checking with
+`nightshift-verify`.
 
 Private-tx hygiene applies to the pool-routed actions - subscribe (a private
 withdraw-and-invoke) and claim (a prepare-then-submit into the pool): at

@@ -1,11 +1,11 @@
-// Code-based TanStack Router setup. File-based routing needs a Vite plugin
-// to generate the route tree; code-based routing needs nothing extra and
-// this app only has five routes, so code-based is the simpler choice here.
+// Code-based TanStack Router setup.
 //
-// Typed search-param schemas are the reason TanStack Router was chosen over
-// a plainer alternative: ?creator=, ?demo=, ?for= and ?tab= are validated here,
-// once, and every consumer downstream gets a typed, already-checked value
-// instead of re-parsing location.search.
+// The product has six screens: the door (/), join (/join), your nights
+// (/nights), unlock (/unlock), start earning (/start) and your room (/room),
+// plus Receipts (/receipts) for the curious. The three detail pages under it
+// (/board, /verify, /creator) are reachable from Receipts and nowhere in the
+// nav. The old addresses forward, so links already handed out still work.
+
 import {
   Outlet,
   createRootRoute,
@@ -16,57 +16,37 @@ import {
 
 import { BoardRoute } from "./routes/board";
 import { CreatorRoute } from "./routes/creator";
-import { LandingRoute } from "./routes/landing";
-import { ManageRoute } from "./routes/manage";
+import { HomeRoute } from "./routes/home";
+import { JoinRoute } from "./routes/join";
+import { NightsRoute } from "./routes/nights";
 import { NotFoundRoute } from "./routes/not-found";
-import { RegisterRoute } from "./routes/register";
-import { SubscribeRoute } from "./routes/subscribe";
+import { ReceiptsRoute } from "./routes/receipts";
+import { RoomRoute } from "./routes/room";
+import { StartRoute } from "./routes/start";
+import { UnlockRoute } from "./routes/unlock";
 import { VerifyRoute } from "./routes/verify";
 
-// Each route owns its own masthead, because the masthead carries page state
-// the frame cannot know: the chain chip, the snapshot badge, the sentence that
-// describes that surface. The root layout is the page frame and nothing else,
-// which also keeps exactly one h1 on every page.
 function RootLayout() {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Outlet />
-    </div>
-  );
+  return <Outlet />;
 }
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
 /** felt252 as it shows up in a URL: 0x-prefixed hex, unpadded, at most 64
- *  digits. The upper bound is load-bearing: it is what makes BigInt() safe to
- *  call on any value that got through. */
+ *  digits. The upper bound is what makes BigInt() safe on anything that got
+ *  through. */
 const FELT_HEX = /^0x[0-9a-fA-F]{1,64}$/;
 
 export type BoardSearch = { demo?: boolean };
 
-/** Which persona the landing's router opens on. In the URL so a link handed to
- *  a creator does not land them on the subscriber's story. */
-export type PersonaId = "subscribe" | "creator" | "verify";
-export type LandingSearch = { for?: PersonaId };
-
-/** ?demo= arrives parsed: the router turns ?demo=1 into the number 1 and
- *  ?demo=true into the boolean. Accept every spelling a person would type. */
 const readDemo = (raw: unknown): boolean =>
   raw === true || raw === 1 || raw === "true" || raw === "1";
 
 export type CreatorSearch = {
-  /** One id, or several separated by commas. A creator running more than one
-   *  registration reads their own local sum by listing them here; the ids are
-   *  linked in this URL and nowhere on chain. */
   creator?: string;
-  /** Whatever was present and failed FELT_HEX, so the page can say what was
-   *  wrong instead of acting as if nothing was pasted. Both fields can be set
-   *  at once, when a list mixes usable ids with unusable ones. */
   invalidCreator?: string;
 };
 
-/** Split ?creator= into its entries. Empty entries drop out, so a trailing
- *  comma is not an id. */
 export const splitCreatorIds = (raw: string | undefined): string[] =>
   raw === undefined
     ? []
@@ -75,25 +55,76 @@ export const splitCreatorIds = (raw: string | undefined): string[] =>
         .map((part) => part.trim())
         .filter((part) => part.length > 0);
 
-// The landing. It also answers for the board's old address: the board lived at
-// / until the restructure, and ?demo=1 is in the recorded demo plan and in
-// links already handed out, so /?demo=1 forwards to /board?demo=1 instead of
-// opening a landing page with a search param it has no use for.
+/** ?creator= carries the id a share link was built around. Anything that is
+ *  not a felt is dropped: a mangled link degrades to the blank form. */
+export type JoinSearch = { creator?: string };
+
+const readCreator = (search: Record<string, unknown>): JoinSearch => {
+  const raw = search.creator;
+  if (typeof raw === "string" && FELT_HEX.test(raw.trim())) return { creator: raw.trim() };
+  return {};
+};
+
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  validateSearch: (search: Record<string, unknown>): LandingSearch & BoardSearch => {
-    const raw = search.for;
-    const out: LandingSearch & BoardSearch = {};
-    if (raw === "creator" || raw === "verify" || raw === "subscribe") out.for = raw;
-    if (search.demo !== undefined && readDemo(search.demo)) out.demo = true;
-    return out;
+  validateSearch: (search: Record<string, unknown>): BoardSearch => {
+    if (search.demo !== undefined && readDemo(search.demo)) return { demo: true };
+    return {};
   },
   beforeLoad: ({ search }) => {
     if (search.demo === true) throw redirect({ to: "/board", search: { demo: true } });
   },
-  component: LandingRoute,
+  component: HomeRoute,
 });
+
+const joinRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/join",
+  validateSearch: readCreator,
+  component: JoinRoute,
+});
+
+const nightsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/nights",
+  component: NightsRoute,
+});
+
+/** ?c= carries a challenge a door handed over, URL-encoded JSON. Anything
+ *  else is ignored; the page has a paste box. */
+export type UnlockSearch = { c?: string };
+
+const unlockRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/unlock",
+  validateSearch: (search: Record<string, unknown>): UnlockSearch => {
+    const raw = search.c;
+    if (typeof raw === "string" && raw.length > 0 && raw.length < 4000) return { c: raw };
+    return {};
+  },
+  component: UnlockRoute,
+});
+
+const startRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/start",
+  component: StartRoute,
+});
+
+const roomRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/room",
+  component: RoomRoute,
+});
+
+const receiptsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/receipts",
+  component: ReceiptsRoute,
+});
+
+// --- the detail pages, kept, unlisted ---------------------------------------
 
 const boardRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -113,8 +144,6 @@ const creatorRoute = createRoute({
     if (typeof raw !== "string" || raw.length === 0) return {};
     const good: string[] = [];
     const bad: string[] = [];
-    // Deduplicated by value, not by string: 0x396c and 0x0396c are one id, and
-    // reading it twice would double every sum this page prints.
     const seen = new Set<string>();
     for (const part of splitCreatorIds(raw)) {
       if (!FELT_HEX.test(part)) {
@@ -140,59 +169,47 @@ const verifyRoute = createRoute({
   component: VerifyRoute,
 });
 
-/** ?creator= carries the id a creator's share link was built around, so a
- *  subscriber who followed that link lands with the field already filled.
- *  Anything that is not a felt is dropped rather than surfaced: a mangled
- *  share link should degrade to the blank form, not to an error page. */
-export type SubscribeSearch = { creator?: string };
+// --- the old addresses forward ------------------------------------------------
 
-const subscribeRoute = createRoute({
+const subscribeRedirect = createRoute({
   getParentRoute: () => rootRoute,
   path: "/subscribe",
-  validateSearch: (search: Record<string, unknown>): SubscribeSearch => {
-    const raw = search.creator;
-    if (typeof raw === "string" && FELT_HEX.test(raw.trim())) return { creator: raw.trim() };
-    return {};
+  validateSearch: readCreator,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/join", search: search.creator ? { creator: search.creator } : {} });
   },
-  component: SubscribeRoute,
 });
 
-// The creator's entry into the product: register a tier ladder, get an id and
-// a share link. Its own route (not a mode of /creator) because it carries the
-// wallet stack the ledger deliberately never loads, and because "become a
-// creator" is a destination worth linking to directly.
-const registerRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/creator/register",
-  component: RegisterRoute,
-});
-
-/** Which of the three signing flows is open, when one is. Optional, because
- *  /manage's subject is the reader's own subscriptions and the flows are the
- *  action layer under them: a bare /manage opens the list, not a form. Present
- *  in the URL so a flow can be linked to and so a reload lands back on it. */
-export type ManageTab = "subscribe" | "cancel" | "claim";
-export type ManageSearch = { tab?: ManageTab };
-
-const manageRoute = createRoute({
+const manageRedirect = createRoute({
   getParentRoute: () => rootRoute,
   path: "/manage",
-  validateSearch: (search: Record<string, unknown>): ManageSearch => {
-    const raw = search.tab;
-    if (raw === "cancel" || raw === "claim" || raw === "subscribe") return { tab: raw };
-    return {};
+  beforeLoad: () => {
+    throw redirect({ to: "/nights" });
   },
-  component: ManageRoute,
+});
+
+const registerRedirect = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/creator/register",
+  beforeLoad: () => {
+    throw redirect({ to: "/start" });
+  },
 });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  joinRoute,
+  nightsRoute,
+  unlockRoute,
+  startRoute,
+  roomRoute,
+  receiptsRoute,
   boardRoute,
   creatorRoute,
-  registerRoute,
-  manageRoute,
-  subscribeRoute,
   verifyRoute,
+  subscribeRedirect,
+  manageRedirect,
+  registerRedirect,
 ]);
 
 export const router = createRouter({

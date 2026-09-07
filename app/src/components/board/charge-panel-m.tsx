@@ -1,4 +1,4 @@
-// The "fire a real charge" panel, Modernist skin over the same controller the
+// The "fire a real charge" panel, detail-page skin over the same controller the
 // old panel ran on (query/useChargePanel). Every state the endpoint can
 // answer is designed; nothing here invents a number. The button writes to
 // mainnet, which is the whole point, and it writes only when pressed.

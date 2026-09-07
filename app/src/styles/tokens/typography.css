@@ -1,33 +1,33 @@
-/* Archivo for headings and body (the Modernist pairing), Geist Mono for data.
-   Headings run heavy (800) with tight tracking; mono keeps its 400/500/600. */
+/* Bricolage Grotesque for display and headings, Archivo for body, Space Mono
+   for data. Headings run heavy (800) with tight tracking; mono keeps 400/700. */
 :root {
-  --font-heading: "Archivo", system-ui, sans-serif;
+  --font-heading: "Bricolage Grotesque", "Archivo", system-ui, sans-serif;
   --font-body: "Archivo", system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --weight-data: 400;
   --weight-label: 500;
   --weight-heading: 800;
 
   /* named roles - always use a role, never a one-off size */
-  --type-display-size: 44px;
-  --type-display-lh: 1.02;
+  --type-display-size: 56px;
+  --type-display-lh: 1;
   --type-display-weight: 800;
 
-  --type-heading-size: 20px;
-  --type-heading-lh: 1.2;
-  --type-heading-weight: 800;
+  --type-heading-size: 22px;
+  --type-heading-lh: 1.15;
+  --type-heading-weight: 700;
 
   --type-label-size: 13px;
   --type-label-lh: 1.4;
   --type-label-weight: 500;
 
-  --type-body-size: 15px;
+  --type-body-size: 16px;
   --type-body-lh: 1.55;
   --type-body-weight: 400;
 
-  --type-caption-size: 12px;
-  --type-caption-lh: 1.4;
+  --type-caption-size: 13px;
+  --type-caption-lh: 1.5;
   --type-caption-weight: 400;
 
   --type-micro-size: 11px;
@@ -35,10 +35,10 @@
   --type-micro-weight: 400;
 
   /* tracking */
-  --track-display: -0.03em;
+  --track-display: -0.025em;
   --track-normal: 0;
-  --track-marker: 0.14em;     /* section kickers, uppercase labels */
-  --track-tag: 0.1em;         /* state tags, chips */
-  --track-wordmark: 0.02em;   /* NIGHTSHIFT */
-  --track-column: 0.08em;     /* table column headers */
+  --track-marker: 0.2em;      /* kickers, uppercase mono labels */
+  --track-tag: 0.12em;        /* chips, tags */
+  --track-wordmark: -0.02em;  /* NIGHTSHIFT */
+  --track-column: 0.14em;     /* table column headers */
 }

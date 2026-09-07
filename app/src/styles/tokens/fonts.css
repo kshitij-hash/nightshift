@@ -1,7 +1,15 @@
-/* Two families. Archivo carries headings and body per the Modernist system;
-   Geist Mono carries hashes, calldata and every figure that reads as data.
-   Both self-hosted, latin subset, one variable woff2 each.
+/* Three families, all self-hosted, latin subset only.
+   Bricolage Grotesque carries display and headings (opsz and weight axes in
+   one variable file), Archivo carries body copy, Space Mono carries every
+   figure that reads as data: prices, receipts, counters, addresses.
    font-display: optional so a slow load never reflows text. */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: optional;
+  src: url("../../assets/fonts/bricolage-latin-400-800.woff2") format("woff2");
+}
 @font-face {
   font-family: "Archivo";
   font-style: normal;
@@ -10,9 +18,16 @@
   src: url("../../assets/fonts/archivo-latin-variable.woff2") format("woff2");
 }
 @font-face {
-  font-family: "Geist Mono";
+  font-family: "Space Mono";
   font-style: normal;
-  font-weight: 400 600;
+  font-weight: 400;
   font-display: optional;
-  src: url("../../assets/fonts/geist-mono-latin-400-600.woff2") format("woff2");
+  src: url("../../assets/fonts/spacemono-latin-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: optional;
+  src: url("../../assets/fonts/spacemono-latin-700.woff2") format("woff2");
 }

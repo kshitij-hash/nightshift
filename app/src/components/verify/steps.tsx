@@ -283,7 +283,7 @@ function SelfSign({
         nothing leaves the browser.
       </p>
       <Field
-        hint="the creator this subscription pays — the same id shown on your card at /manage."
+        hint="the creator this subscription pays. Your nights page lists each one."
         error={creatorProblem}
       >
         <TextInput

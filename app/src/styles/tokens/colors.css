@@ -1,90 +1,109 @@
-/* Modernist palette - light ground, ink text, one red accent. Single theme:
-   there is no dark mode in this system; the Gate screen's dark panel is a
-   surface within the design, not a theme.
+/* After Dark palette. Dark is home; Daybreak is the light twin, token for
+   token, switched with data-theme="light" on <html>.
 
-   Two layers live here:
-   1. The design system's own tokens (--m-*): ground, surface, ink, accent,
-      divider, and the 100-900 tonal ramps generated in OKLCH on a shared
-      lightness scale.
-   2. The app's older semantic names (--surface-*, --ink-*, --text-*,
-      --border-*), remapped onto the Modernist values so any component not yet
-      rebuilt stays legible. New components use the Modernist utilities from
-      globals.css; the old names go away as the last old component does. */
+   Three layers live here:
+   1. The After Dark tokens (--ad-*): ground, card, silhouette, the one rose
+      accent, ink steps, hairlines. New surfaces speak these, through the
+      Tailwind names wired up in globals.css.
+   2. The Modernist names (--m-*) the demoted pages (board, verifier, ledger)
+      were built on, remapped so they render in the same palette.
+   3. The older semantic names (--surface-*, --text-*, --border-*) under the
+      wallet panels and the shadcn bridge, remapped the same way. */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* --- Modernist core --- */
-  --m-bg: #f3f2f2;
-  --m-surface: #eae9e9;
-  --m-text: #201e1d;
-  --m-accent: #ec3013;
-  --m-divider: color-mix(in srgb, #201e1d 40%, transparent);
+  /* --- After Dark ------------------------------------------------------- */
+  --ad-ground: #0e0c11;
+  --ad-card: #151218;
+  --ad-sunken: #0b0a0d;
+  --ad-field: #0e0c11;
+  --ad-silhouette: #1d1922;
+  --ad-silhouette-2: #3a3342;
+  --ad-rose: #ff3d7d;
+  --ad-rose-hover: #ff6fa0;
+  --ad-on-rose: #0e0c11;
+  --ad-ink: #f4eff2;
+  --ad-ink-2: #d8d0db;
+  --ad-dim: #a99fad;
+  --ad-faint: #857b8c;
+  --ad-line: rgba(255, 255, 255, 0.12);
+  --ad-line-strong: rgba(255, 255, 255, 0.26);
+  --ad-rose-line: rgba(255, 61, 125, 0.5);
+  --ad-rose-wash: rgba(255, 61, 125, 0.12);
+  --ad-danger: #ff6b6b;
+  --ad-glow: rgba(255, 61, 125, 0.08);
 
-  --m-neutral-100: #f8f4f4;
-  --m-neutral-200: #eae7e7;
-  --m-neutral-300: #d7d3d3;
-  --m-neutral-400: #bab6b6;
-  --m-neutral-500: #9b9797;
-  --m-neutral-600: #7d7979;
-  --m-neutral-700: #605d5d;
-  --m-neutral-800: #444141;
-  --m-neutral-900: #2d2b2b;
+  /* --- Modernist names, remapped ---------------------------------------- */
+  --m-bg: var(--ad-ground);
+  --m-surface: var(--ad-card);
+  --m-text: var(--ad-ink);
+  --m-accent: var(--ad-rose);
+  --m-divider: var(--ad-line-strong);
 
-  --m-accent-100: #fff2ef;
-  --m-accent-200: #ffe0d9;
-  --m-accent-300: #ffc4b8;
-  --m-accent-400: #ff9783;
-  --m-accent-500: #ff563c;
-  --m-accent-600: #dd2b0f;
-  --m-accent-700: #ae1800;
-  --m-accent-800: #7c1405;
-  --m-accent-900: #4d170e;
+  --m-neutral-100: #0b0a0d;
+  --m-neutral-200: #d8d0db;
+  --m-neutral-300: #2a2430;
+  --m-neutral-400: #3a3342;
+  --m-neutral-500: #6e6575;
+  --m-neutral-600: #857b8c;
+  --m-neutral-700: #a99fad;
+  --m-neutral-800: #d8d0db;
+  --m-neutral-900: #1d1922;
 
-  --shadow-sm: 0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
-  --shadow-md: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
-  --shadow-lg: 0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+  --m-accent-100: var(--ad-rose-wash);
+  --m-accent-200: rgba(255, 61, 125, 0.2);
+  --m-accent-300: rgba(255, 61, 125, 0.35);
+  --m-accent-400: #ff6fa0;
+  --m-accent-500: #ff3d7d;
+  --m-accent-600: #ff6fa0;
+  --m-accent-700: #ff8fb5;
+  --m-accent-800: #ff3d7d;
+  --m-accent-900: #e31261;
 
-  /* --- older semantic names, remapped ---
-     Every text step still clears WCAG AA against the ground. */
-  --bg-1: var(--m-bg);
-  --bg-2: var(--m-surface);
-  --bg-3: var(--m-surface);
-  --bg-4: var(--m-neutral-300);
-  --bg-5: var(--m-surface);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 30px 80px rgba(0, 0, 0, 0.6);
 
-  --line-rule: color-mix(in srgb, var(--m-text) 18%, transparent);
-  --line-soft: color-mix(in srgb, var(--m-text) 14%, transparent);
-  --line-panel: var(--m-divider);
-  --line-field: var(--m-divider);
-  --line-ghost: color-mix(in srgb, var(--m-text) 28%, transparent);
+  /* --- older semantic names, remapped ----------------------------------- */
+  --bg-1: var(--ad-ground);
+  --bg-2: var(--ad-sunken);
+  --bg-3: var(--ad-card);
+  --bg-4: var(--ad-silhouette);
+  --bg-5: var(--ad-field);
 
-  --ink-1: var(--m-text);
-  --ink-2: var(--m-text);
-  --ink-3: color-mix(in srgb, var(--m-text) 78%, transparent);
-  --ink-4: color-mix(in srgb, var(--m-text) 64%, transparent);
-  --ink-5: color-mix(in srgb, var(--m-text) 56%, transparent);
-  --ink-6: var(--line-ghost);
+  --line-rule: var(--ad-line);
+  --line-soft: var(--ad-line);
+  --line-panel: var(--ad-line);
+  --line-field: var(--ad-line-strong);
+  --line-ghost: var(--ad-line-strong);
 
-  --accent: var(--m-accent);
-  --accent-hover: var(--m-accent-600);
-  --accent-wash: color-mix(in srgb, var(--m-accent) 12%, transparent);
-  --accent-ring: var(--m-accent);
+  --ink-1: var(--ad-ink);
+  --ink-2: var(--ad-ink);
+  --ink-3: var(--ad-ink-2);
+  --ink-4: var(--ad-dim);
+  --ink-5: var(--ad-faint);
+  --ink-6: var(--ad-line-strong);
 
-  --destructive: var(--m-accent-700);
-  --destructive-fg: #ffffff;
+  --accent: var(--ad-rose);
+  --accent-hover: var(--ad-rose-hover);
+  --accent-wash: var(--ad-rose-wash);
+  --accent-ring: var(--ad-rose);
 
-  --chart-1: var(--m-accent);
-  --chart-2: var(--m-neutral-800);
-  --chart-3: var(--m-neutral-600);
-  --chart-4: var(--m-neutral-400);
-  --chart-5: var(--m-neutral-300);
+  --destructive: var(--ad-danger);
+  --destructive-fg: #0e0c11;
+
+  --chart-1: var(--ad-rose);
+  --chart-2: var(--ad-ink-2);
+  --chart-3: var(--ad-dim);
+  --chart-4: var(--ad-silhouette-2);
+  --chart-5: var(--ad-silhouette);
 
   --surface-page: var(--bg-1);
   --surface-sunken: var(--bg-2);
   --surface-panel: var(--bg-3);
   --surface-fill: var(--bg-4);
   --surface-field: var(--bg-5);
-  --surface-overlay: color-mix(in srgb, var(--m-neutral-900) 55%, transparent);
+  --surface-overlay: rgba(14, 12, 17, 0.72);
 
   --border-hairline: var(--line-rule);
   --border-row: var(--line-soft);
@@ -104,4 +123,57 @@
   --signal-settled: var(--ink-4);
   --signal-pending: var(--ink-5);
   --signal-fail: var(--destructive);
+}
+
+/* Daybreak: the same tokens before sunset. Rose deepens so pills keep 4.5:1
+   on cream; silhouettes go warm grey; every hairline flips to ink alpha. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --ad-ground: #f5f0ea;
+  --ad-card: #ffffff;
+  --ad-sunken: #ede6df;
+  --ad-field: #ffffff;
+  --ad-silhouette: #ede6df;
+  --ad-silhouette-2: #c9bfc4;
+  --ad-rose: #e31261;
+  --ad-rose-hover: #c40f55;
+  --ad-on-rose: #ffffff;
+  --ad-ink: #1a1418;
+  --ad-ink-2: #3f3742;
+  --ad-dim: #6b6068;
+  --ad-faint: #857b84;
+  --ad-line: rgba(26, 20, 24, 0.1);
+  --ad-line-strong: rgba(26, 20, 24, 0.24);
+  --ad-rose-line: rgba(227, 18, 97, 0.45);
+  --ad-rose-wash: rgba(227, 18, 97, 0.1);
+  --ad-danger: #c81e1e;
+  --ad-glow: rgba(227, 18, 97, 0.08);
+
+  --m-neutral-100: #fbf8f4;
+  --m-neutral-200: #3f3742;
+  --m-neutral-300: #ddd5cf;
+  --m-neutral-400: #c9bfc4;
+  --m-neutral-500: #9a9098;
+  --m-neutral-600: #857b84;
+  --m-neutral-700: #6b6068;
+  --m-neutral-800: #3f3742;
+  --m-neutral-900: #ede6df;
+
+  --m-accent-100: var(--ad-rose-wash);
+  --m-accent-200: rgba(227, 18, 97, 0.18);
+  --m-accent-300: rgba(227, 18, 97, 0.32);
+  --m-accent-400: #c40f55;
+  --m-accent-500: #e31261;
+  --m-accent-600: #c40f55;
+  --m-accent-700: #a10c46;
+  --m-accent-800: #e31261;
+  --m-accent-900: #7c0a36;
+
+  --shadow-sm: 0 1px 2px rgba(26, 20, 24, 0.12);
+  --shadow-md: 0 6px 20px rgba(26, 20, 24, 0.14);
+  --shadow-lg: 0 30px 80px rgba(26, 20, 24, 0.18);
+
+  --destructive-fg: #ffffff;
+  --surface-overlay: rgba(26, 20, 24, 0.55);
 }

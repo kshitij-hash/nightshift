@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "The NIGHTSHIFT web app: private subscriptions on Starknet - subscribe, manage, cancel and prove a paid tier, with a live board and creator ledger read from mainnet.",
+  "description": "The NIGHTSHIFT web app: private fan subscriptions on Starknet. Join a creator through their link, pay once for the weeks ahead, cancel in one tap, unlock rooms with a paid tier; creators set a price, share a link and get paid on schedule.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

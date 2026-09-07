@@ -1,11 +1,11 @@
 {
   "name": "NIGHTSHIFT",
   "short_name": "NIGHTSHIFT",
-  "description": "Private subscriptions on Starknet. Fund one once, privately; it bills itself on schedule, with no wallet on file.",
+  "description": "Private fan subscriptions. Back anyone. Show no one.",
   "start_url": "/",
   "display": "browser",
-  "background_color": "#f3f2f2",
-  "theme_color": "#f3f2f2",
+  "background_color": "#0e0c11",
+  "theme_color": "#0e0c11",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
     { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }

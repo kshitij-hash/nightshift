@@ -17,7 +17,7 @@
    * macOS rubber-band overscroll, the ground behind a page mid-bounce - the
    * page's own colour rather than whatever the user agent picks for the
    * declared color-scheme. color-scheme is set in colors.css and
-   * theme-light.css, which are the files that know which theme is on; it was
+   * colors.css, which are the files that know which theme is on; it was
    * also hard-coded to dark here, and an unconditional dark scheme on <html>
    * is one of the two ways this page could paint a band along its top edge
    * that nothing in the markup asked for. */

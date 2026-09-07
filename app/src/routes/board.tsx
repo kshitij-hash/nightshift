@@ -1,4 +1,4 @@
-// The live board, Modernist frame. Four figures with their basis, the charge
+// The live board, the detail page behind Receipts. Four figures with their basis, the charge
 // feed decoded from mainnet events, and the one element on the page that
 // writes: the permissionless charge panel. The committed snapshot appears
 // only as the automatic fallback when every RPC endpoint fails, labelled as
