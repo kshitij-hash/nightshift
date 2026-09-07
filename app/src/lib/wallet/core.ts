@@ -350,17 +350,6 @@ export const registerCreatorCall = (
   ],
 });
 
-/** The exact scripts/relay.mjs invocation, positional arguments in the order
- *  RUNBOOK.md documents. Copying this line costs the subscriber nothing and
- *  puts the relay's account in the sender field instead of theirs. */
-export const relayCommand = (
-  verb: "cancel" | "reclaim",
-  args: { commitment: string; to?: string; sig: Signature },
-): string =>
-  verb === "cancel"
-    ? `node scripts/relay.mjs cancel ${args.commitment} ${args.sig.r} ${args.sig.s}`
-    : `node scripts/relay.mjs reclaim ${args.commitment} ${args.to} ${args.sig.r} ${args.sig.s}`;
-
 // --- form validation -------------------------------------------------------
 
 const FELT_HEX = /^0x[0-9a-fA-F]{1,64}$/;
@@ -374,20 +363,6 @@ export const feltError = (raw: string, label: string): string | null => {
   if (!FELT_HEX.test(t)) return `${label} must be 0x-hex, at most 64 digits`;
   if (BigInt(t) === 0n) return `${label} must not be zero`;
   if (BigInt(t) >= STARK_PRIME) return `${label} is above the STARK field prime`;
-  return null;
-};
-
-export const isLadderCadence = (blocks: number): boolean =>
-  CADENCES.some((c) => c.blocks === blocks);
-
-/** Periods, as a count the vault stores in a u32. One is the floor: a
- *  zero-period schedule reverts with NS_ZERO_PERIODS. */
-export const periodsError = (raw: string): string | null => {
-  const t = raw.trim();
-  if (!/^[0-9]{1,10}$/.test(t)) return "periods must be a whole number";
-  const n = Number(t);
-  if (n < 1) return "periods must be at least 1";
-  if (n > 4_294_967_295) return "periods must fit a u32";
   return null;
 };
 

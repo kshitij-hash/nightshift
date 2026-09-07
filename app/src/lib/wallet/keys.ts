@@ -64,15 +64,6 @@ const stored = (key: string): string => {
   return fresh;
 };
 
-/** Which owner key signs a cancel or a reclaim. The vault stores exactly one
- *  owner key per commitment and schedule_of stops short of returning it, so
- *  this page cannot read which era a subscription belongs to. The caller
- *  picks: derived for anything subscribed after the per-commitment change,
- *  legacy for a subscription that predates it. */
-export type OwnerKeyChoice = "derived" | "legacy";
-
-export type OwnerKeyOption = { id: OwnerKeyChoice; label: string; pub: string };
-
 /** The public halves, and nothing else. Every field here is safe to render,
  *  safe to copy, and already public on chain once a subscription exists. */
 export type PublicIdentity = {
@@ -143,35 +134,6 @@ export const commitmentsFor = (creatorIds: readonly string[]): DerivedCommitment
   }));
 };
 
-/** The owner keys this machine can sign with, best first. */
-export const ownerKeyOptions = (accountAddress: string, token: string): OwnerKeyOption[] => {
-  const id = identityFor(accountAddress, token);
-  const out: OwnerKeyOption[] = [
-    { id: "derived", label: "derived per-commitment key", pub: id.ownerPub },
-  ];
-  if (id.legacyOwnerPub !== null) {
-    out.push({
-      id: "legacy",
-      label: "legacy stored key, for a subscription made before per-commitment keys",
-      pub: id.legacyOwnerPub,
-    });
-  }
-  return out;
-};
-
-/** Resolve a choice to a key. Private, and the only place a caller's choice
- *  turns into key material. */
-const ownerPrivFrom = (accountAddress: string, token: string, choice: OwnerKeyChoice): string => {
-  if (choice === "legacy") {
-    const legacy = localStorage.getItem(LEGACY_OWNER_KEY);
-    if (legacy === null) throw new Error("this machine holds no legacy owner key");
-    return legacy;
-  }
-  const secret = stored(SECRET_KEY);
-  const payoutPub = starkPubOf(stored(PAYOUT_KEY));
-  return ownerPrivFor(secret, creatorIdOf(accountAddress, token, payoutPub));
-};
-
 export type SignedCancel = { commitment: string; sig: Signature };
 
 /** The stored secret, or a named refusal. Private: every caller below turns
@@ -204,34 +166,6 @@ export const signReclaimFor = (creatorId: string, to: string): SignedCancel => {
   return {
     commitment,
     sig: signWith(reclaimMessage(commitment, to), ownerPrivFor(secret, creatorId)),
-  };
-};
-
-export const signCancel = (
-  accountAddress: string,
-  token: string,
-  choice: OwnerKeyChoice = "derived",
-): SignedCancel => {
-  const { commitment } = identityFor(accountAddress, token);
-  return {
-    commitment,
-    sig: signWith(cancelMessage(commitment), ownerPrivFrom(accountAddress, token, choice)),
-  };
-};
-
-export const signReclaim = (
-  accountAddress: string,
-  token: string,
-  to: string,
-  choice: OwnerKeyChoice = "derived",
-): SignedCancel => {
-  const { commitment } = identityFor(accountAddress, token);
-  return {
-    commitment,
-    sig: signWith(
-      reclaimMessage(commitment, to),
-      ownerPrivFrom(accountAddress, token, choice),
-    ),
   };
 };
 
@@ -281,12 +215,14 @@ export const signPresentation = (
   token: string,
   challenge: { verifierId: string; expiryBlock: string; nonce: string },
 ): { commitment: string; sig: Signature } => {
-  const { commitment } = identityFor(accountAddress, token);
+  const secret = stored(SECRET_KEY);
+  const creatorId = creatorIdOf(accountAddress, token, starkPubOf(stored(PAYOUT_KEY)));
+  const commitment = commitmentOf(secret, creatorId);
   return {
     commitment,
     sig: signWith(
       presentMessage(commitment, challenge.verifierId, challenge.expiryBlock, challenge.nonce),
-      ownerPrivFrom(accountAddress, token, "derived"),
+      ownerPrivFor(secret, creatorId),
     ),
   };
 };
