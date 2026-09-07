@@ -1,6 +1,6 @@
 # Deployments
 
-## Starknet mainnet — NightshiftVault v4 (current)
+## Starknet mainnet: NightshiftVault v4 (current)
 
 | What | Value |
 |---|---|
@@ -11,7 +11,7 @@
 | Constructor | `pool = 0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
 | v4 over v3 | subscribe custody accepts surplus (a 1-wei donation can no longer brick the entrypoint); `owner_key_of` and `claim_pub_nonce_of` views; nonce-consumed `claim_public` exit that survives the pool blocking the vault as a depositor; every event indexes its filter field; tagged period nullifier; zero-token registration rejected |
 
-## Starknet mainnet — NightshiftGate (current)
+## Starknet mainnet: NightshiftGate (current)
 
 | What | Value |
 |---|---|
@@ -22,7 +22,7 @@
 | Constructor | `vault = the v4 address above` (post-deploy asserted: `gate.vault()` matches, `owner_key_of` answers) |
 | What it does | `present(commitment, verifier_id, expiry_block, nonce, sig)` admits a paid-through-now subscription to the caller-verifier, burns a per-message nullifier, and emits a keyed `Presented`; `presentable` exposes the entitlement rule as a read |
 
-## v3 (superseded — its four transactions remain banked strk20.json receipts)
+## v3 (superseded; its four transactions remain banked strk20.json receipts)
 
 | What | Value |
 |---|---|
@@ -37,7 +37,7 @@ v3 and its four transactions (register, subscribe, keeper charge, creator
 claim) entered `strk20.json` in one commit (mine-rule atomicity), ahead of the
 v2 set below, which stays declared and listed.
 
-## v2 (superseded — its four transactions remain the banked strk20.json receipts)
+## v2 (superseded; its four transactions remain the banked strk20.json receipts)
 
 | What | Value |
 |---|---|
@@ -48,7 +48,7 @@ v2 set below, which stays declared and listed.
 | Constructor | `pool = 0x040337b1af3c663e86e333bab5a4b28da8d4652a15a69beee2b677776ffe812a` |
 | v2 over v1 | adds `schedule_of` and `tier_of` read views for the board and gate consumers |
 
-## v1 (superseded before first use — nothing was ever routed through it)
+## v1 (superseded before first use; nothing was ever routed through it)
 
 | What | Value |
 |---|---|

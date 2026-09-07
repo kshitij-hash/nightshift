@@ -26,7 +26,7 @@ let m;
 try {
   m = JSON.parse(raw);
 } catch (e) {
-  fail(`strk20.json is not valid JSON (${e.message}) — the hub would ignore the whole file`);
+  fail(`strk20.json is not valid JSON (${e.message}); the hub would ignore the whole file`);
   process.exit(1);
 }
 ok("valid JSON");
@@ -37,7 +37,7 @@ else {
   const bad = txs.filter((t) => typeof t !== "string" || !/^0x[0-9a-fA-F]{1,64}$/.test(t));
   if (bad.length) fail(`non-conforming tx entries (must be bare 0x-hex strings): ${JSON.stringify(bad)}`);
   else ok(`transactions: ${txs.length} entries, all bare hex strings`);
-  if (txs.length > 10) console.warn(`⚠ only the first 10 of ${txs.length} transactions are read — order best-first`);
+  if (txs.length > 10) console.warn(`⚠ only the first 10 of ${txs.length} transactions are read; order best-first`);
 }
 
 if (m.contracts !== undefined) {
@@ -49,15 +49,15 @@ if (m.contracts !== undefined) {
     if (addrs.length !== m.contracts.length) fail("every contracts entry needs an address");
     else ok(`contracts: ${addrs.length} declared`);
     if (addrs.length && (!Array.isArray(txs) || txs.length < 3))
-      fail("mine-rule: contracts are declared but fewer than 3 transactions listed — txs not routed through our contracts stop counting the moment contracts appear");
+      fail("mine-rule: contracts are declared but fewer than 3 transactions listed; txs not routed through our contracts stop counting the moment contracts appear");
   }
 }
 
 if (typeof m.demo_video !== "string") fail("demo_video must be a string (empty until recorded)");
-else ok(m.demo_video ? "demo_video set" : "demo_video present (empty — fill before Aug 29)");
+else ok(m.demo_video ? "demo_video set" : "demo_video present (empty: the video is a scoring gate, fill it before Sept 7, 23:59 UTC)");
 
 // Mine-rule RPC check: each listed tx must have SUCCEEDED and be routed through
-// one of the declared contracts — an event emitted from one, or a calldata felt
+// one of the declared contracts: an event emitted from one, or a calldata felt
 // naming one. Addresses are compared numerically (BigInt) so 0x0-padding differences
 // don't matter.
 if (process.env.CHECK_RPC && Array.isArray(txs) && txs.length) {
@@ -76,7 +76,7 @@ if (process.env.CHECK_RPC && Array.isArray(txs) && txs.length) {
   if (!rpcUrl) {
     fail("CHECK_RPC set but no STARKNET_RPC in .env or environment");
   } else if (!declared.length) {
-    fail("CHECK_RPC set but no contracts declared — nothing to check txs against");
+    fail("CHECK_RPC set but no contracts declared; nothing to check txs against");
   } else {
     const { RpcProvider } = await import("starknet");
     const provider = new RpcProvider({ nodeUrl: rpcUrl });

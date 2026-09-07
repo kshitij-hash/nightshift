@@ -1,17 +1,18 @@
 # NIGHTSHIFT
 
-**Private subscriptions on Starknet.** A subscriber funds escrow once,
-through the [STRK20 privacy pool](https://strk20.starknet.io); after that, a
-vault charges it on schedule. The subscriber's wallet is never named, never
-asked again, and can never be charged early, twice, or beyond what it
-escrowed. Subscriptions are the demo; the mechanism is any standing
-authorization: rent, a DAO stipend, dues.
+**Private fan subscriptions on Starknet.** A fan opens a creator's link,
+pays once for the weeks ahead through the [STRK20 privacy
+pool](https://strk20.starknet.io), and a vault charges the creator on
+schedule. The fan's wallet is never named, never asked again, and can never
+be charged early, twice, or beyond what it put in. Cancel is one tap and the
+unused weeks come back. Fan subscriptions are the product; the mechanism is
+any standing authorization: rent, a DAO stipend, dues.
 
 Live on mainnet. Every claim below has a transaction hash.
 
 | | |
 |---|---|
-| The product | https://nightshift-six-lilac.vercel.app, live on mainnet; Receipts and the detail pages read the chain with no key |
+| The product | https://nightshift-six-lilac.vercel.app: join through a creator's link, your nights, start earning, your room, unlock a Telegram door. Receipts and the detail pages behind it read the chain with no key |
 | Vault v4 (mainnet) | [`0x171e8e0bb9…417f8e`](https://voyager.online/contract/0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e) |
 | Tier gate (mainnet) | [`0x4361699018…872f5e`](https://voyager.online/contract/0x4361699018454536ba97aacc85a6ec4ffb974e869335781490021ab5f872f5e) |
 | v4 lifecycle receipts | [subscribe](https://voyager.online/tx/0x79ab57d364b8d8118256103c017232a031f493312f8fca4176b4e9d5090ac86) · [charge](https://voyager.online/tx/0x24a723437c0f91cc9bc7d917c458908d3f1c90039ac0a5f9f1b3c7e4a06778b) (keeper) · [present](https://voyager.online/tx/0x30191636301463f89c9686a7426fa2489429024a562bd4c0da7693837d502de) (tier gate) · [claim](https://voyager.online/tx/0x51099d3247f6681f049038ab1044e5c644956b333696e263a740a04880943b1) (relayer) · [cancel](https://voyager.online/tx/0x5474c1ec9d302a884fe9341c071861b579728767973bee147b358416580df5f) and [reclaim](https://voyager.online/tx/0x401b3a4fb23f53ce988247af54072d1bbed4c140be4c09a05a3f0fce7f832b1) (relayed, wallet never the sender). The full lifecycle: escrow in and out to the exact wei |
@@ -100,8 +101,10 @@ paymaster: the relay holds nothing and can change nothing. If it alters the
 commitment or the reclaim destination, the signature check fails; the worst it
 can do is decline to submit. Subscribing is not covered: that still costs the
 subscriber the pool's 6 STRK protocol fee and their own gas.
-`scripts/relay.mjs` is one such submitter, running from the keeper account,
-and the app's cancel flow prints the exact line to hand it.
+`scripts/relay.mjs` is one such submitter, running from the keeper account.
+The app's own cancel submits the same signed message from the fan's wallet,
+which is the one-tap path; a fan who wants a different sender hands the
+signature to the relay instead.
 
 ## What the chain learns
 
@@ -118,10 +121,10 @@ are not flattering.
 | `src/vault.cairo` | The anonymizer vault: `privacy_invoke` (Subscribe/Claim ops) plus the `charge`, `cancel` and `reclaim` entrypoints, accounted custody, period nullifiers, `schedule_of` / `tier_of` read views |
 | `src/mocks.cairo` | `MockPrivacyPool`, a test double that replays the deployed pool's invoke sequence with its real revert strings. No other public test harness for this pool exists |
 | `tests/` | The adversarial suite: hostile donations, non-pool callers, early charges, double charges, escrow exhaustion |
-| `app/` | The web app: landing, live board, subscribe wizard, manage (cancel/reclaim/claim), tier gate, creator onboarding with share links, and the creator ledger, all reading mainnet from the browser |
+| `app/` | The product: the door (`/`), join through a creator's link (`/join`), your nights with one-tap cancel and refund (`/nights`), unlock a door (`/unlock`), start earning (`/start`), your room with claim and share link (`/room`), and Receipts (`/receipts`) with the live board, verifier and ledger as detail pages behind it. Everything reads mainnet from the browser; the wallet signs, the page holds no key with spending power |
 | `verify/` | [`nightshift-verify`](https://www.npmjs.com/package/nightshift-verify), published on npm: checks a tier presentation off-chain from two vault reads, no transaction, no key held by the verifier |
 | `preflight/` | [`strk20-preflight`](https://www.npmjs.com/package/strk20-preflight), published on npm: reads a `strk20.json` the way the sprint indexer reads it and prints where the indexer would silently drop something |
-| `examples/telegram-gate/` | A Telegram door on `nightshift-verify`: challenge in chat, signature from the app's gate page, one-use invite link on a live mainnet check |
+| `examples/telegram-gate/` | A Telegram door on `nightshift-verify`: challenge in chat, one-tap signature on the app's unlock page, one-use invite link on a live mainnet check |
 | `demo-charge/` | Rate-limited endpoint that fires the permissionless `charge` from a funded account, so a visitor can trigger a real mainnet transaction |
 | `strk20.json` | The sprint manifest: the vault and the transactions routed through it |
 
@@ -162,8 +165,8 @@ them on, so the standing authorization is escrow the subscriber already
 parted with plus the period nullifier that decides when it may move (see [the
 mechanism](#the-mechanism)). Creator revenue confidentiality is not claimed:
 a creator's cumulative topline is derivable from public events,
-written out as limitation 2 in [PRIVACY.md](PRIVACY.md); the app's /creator
-ledger derives exactly those public figures. The tier gate is a signature
+written out as limitation 2 in [PRIVACY.md](PRIVACY.md); the creator's room
+and the ledger page behind Receipts derive exactly those public figures. The tier gate is a signature
 presentation, not a proof: it hands a verifier `(creator_id, tier)` and the
 commitment, and presentations of one subscription are linkable to each other
 across gates.

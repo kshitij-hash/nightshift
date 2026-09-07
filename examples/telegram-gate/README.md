@@ -53,11 +53,12 @@ in memory, one process, no database, no persistence across a restart.
 1. A subscriber sends `/start` to the bot.
 2. The bot calls `makeChallenge`, stores the result against that Telegram
    user id for 5 minutes, and replies with the challenge as one fenced line
-   of JSON, then a separate message with the instruction to sign it on the
-   NIGHTSHIFT gate page (/verify, step 02) - two messages, so a select-all
-   copy of either one still parses on its own.
-3. The subscriber signs the challenge on the gate page with their subscription
-   owner key and pastes the resulting presentation back into the chat, JSON
+   of JSON, then a separate message with a link to the NIGHTSHIFT unlock
+   page (/unlock, the challenge in the link) - two messages, so a select-all
+   copy of the JSON still parses on its own for anyone signing elsewhere.
+3. The subscriber taps Unlock; the page signs the challenge with their
+   subscription owner key, copies the presentation, and they paste it back
+   into the chat, JSON
    fences and all; the bot strips code fences and accepts either the
    presentation on its own or the `{presentation, challenge}` wrapper shape
    the `nightshift-verify` CLI also accepts.
@@ -82,7 +83,7 @@ attempts in a row (a success clears the count).
 ## What this demonstrates
 
 This gate never holds a key and never sees a wallet. The subscriber signs
-with the subscription's own owner key on the NIGHTSHIFT gate page; the bot
+with the subscription's own owner key on the NIGHTSHIFT unlock page; the bot
 only ever receives the resulting signature and checks it against the owner
 key the vault recorded at subscribe time. Per verification attempt the gate
 makes three read-only RPC calls: one to read the current block height when

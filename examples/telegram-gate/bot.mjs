@@ -163,10 +163,12 @@ bot.command("start", async (ctx) => {
   // parseChallenge already tolerates the surrounding whitespace a <pre>
   // block's own formatting adds, so the pasted body still parses.
   await ctx.reply(`<pre>${escapeHtml(JSON.stringify(challenge))}</pre>`, { parse_mode: "HTML" });
+  // The unlock link carries the challenge, so the subscriber taps once and
+  // pastes the proof back. The page signs in the browser and never sees a
+  // private key; the raw JSON above is for anyone signing elsewhere.
+  const unlockUrl = `${SITE_URL}/unlock?c=${encodeURIComponent(JSON.stringify(challenge))}`;
   await ctx.reply(
-    `Sign this on the NIGHTSHIFT gate page: ${SITE_URL}/verify - paste the challenge, ` +
-      "sign it in your browser (step 02, the page never sees a private key), press " +
-      "COPY THE PRESENTATION, and paste it back here.",
+    `Unlock it here: ${unlockUrl}\n\nOne tap signs the proof in your browser and copies it. Paste it back here.`,
   );
 });
 
