@@ -106,7 +106,7 @@ variables below only name the path:
 | `NIGHTSHIFT_DEMO_SETTLE_WINDOW_S` | `300` | how long a submitted tx keeps answering for its period |
 | `NIGHTSHIFT_DEMO_SECONDS_PER_BLOCK` | `1.7` | for the `eta_minutes` estimate only; measured 1.71 s/block over the 2100 blocks to 13,650,015 |
 | `NIGHTSHIFT_DEMO_STATE_FILE` | `~/.nightshift/demo-charge-state.json` | where the daily counter is persisted, so a restart is not a way to buy 24 more charges |
-| `NIGHTSHIFT_DEMO_ORIGINS` | `https://nightshift-six-lilac.vercel.app` | comma-separated CORS allowlist |
+| `NIGHTSHIFT_DEMO_ORIGINS` | `https://nightshiftxyz.vercel.app` | comma-separated CORS allowlist |
 | `NIGHTSHIFT_DEMO_TRUST_PROXY` | `false` | set to `1` only when a tunnel or reverse proxy sets `x-forwarded-for`. With it on, the caller's identity is the RIGHTMOST entry, the one the proxy appended. With it off, every visitor behind a proxy shares one IP and the per-IP cooldown means nothing |
 
 No variable, log line, response body, or state file in this directory ever holds

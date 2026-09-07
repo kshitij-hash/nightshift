@@ -78,7 +78,7 @@ export function loadConfig(env = process.env, fromDotenv = dotenvLookup()) {
     }
   }
 
-  const origins = (pick("NIGHTSHIFT_DEMO_ORIGINS") ?? "https://nightshift-six-lilac.vercel.app")
+  const origins = (pick("NIGHTSHIFT_DEMO_ORIGINS") ?? "https://nightshiftxyz.vercel.app")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);

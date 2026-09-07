@@ -89,7 +89,7 @@ Every claim above is checkable from public data with no key:
 
 ```
 starkli call <vault> schedule_of <commitment>   # public schedule state
-https://nightshift-six-lilac.vercel.app/receipts                                    # built only from public events
+https://nightshiftxyz.vercel.app/receipts                                    # built only from public events
 ```
 
 Receipts, and the detail pages behind it, read the chain with no key; a fan's

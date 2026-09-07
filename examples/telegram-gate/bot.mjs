@@ -107,7 +107,7 @@ const CREATOR_ID = requireFeltEnv("CREATOR_ID");
 const TIER_CHATS = parseTierChats(requireEnv("TIER_CHATS"));
 /** Where subscribers are sent to sign a challenge in the browser. Optional:
  *  the public site is the right default, and a fork points it elsewhere. */
-const SITE_URL = (process.env.SITE_URL || "https://nightshift-six-lilac.vercel.app").replace(/\/+$/, "");
+const SITE_URL = (process.env.SITE_URL || "https://nightshiftxyz.vercel.app").replace(/\/+$/, "");
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const INVITE_TTL_SECONDS = 10 * 60;

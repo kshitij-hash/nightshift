@@ -12,7 +12,7 @@ Live on mainnet. Every claim below has a transaction hash.
 
 | | |
 |---|---|
-| The product | https://nightshift-six-lilac.vercel.app: join through a creator's link, your nights, start earning, your room, unlock a Telegram door. Receipts and the detail pages behind it read the chain with no key |
+| The product | https://nightshiftxyz.vercel.app: join through a creator's link, your nights, start earning, your room, unlock a Telegram door. Receipts and the detail pages behind it read the chain with no key |
 | Vault v4 (mainnet) | [`0x171e8e0bb9…417f8e`](https://voyager.online/contract/0x171e8e0bb905c899b9d1ad5c02aefe96a5d0b6d5f093f0ee80707b592417f8e) |
 | Tier gate (mainnet) | [`0x4361699018…872f5e`](https://voyager.online/contract/0x4361699018454536ba97aacc85a6ec4ffb974e869335781490021ab5f872f5e) |
 | v4 lifecycle receipts | [subscribe](https://voyager.online/tx/0x79ab57d364b8d8118256103c017232a031f493312f8fca4176b4e9d5090ac86) · [charge](https://voyager.online/tx/0x24a723437c0f91cc9bc7d917c458908d3f1c90039ac0a5f9f1b3c7e4a06778b) (keeper) · [present](https://voyager.online/tx/0x30191636301463f89c9686a7426fa2489429024a562bd4c0da7693837d502de) (tier gate) · [claim](https://voyager.online/tx/0x51099d3247f6681f049038ab1044e5c644956b333696e263a740a04880943b1) (relayer) · [cancel](https://voyager.online/tx/0x5474c1ec9d302a884fe9341c071861b579728767973bee147b358416580df5f) and [reclaim](https://voyager.online/tx/0x401b3a4fb23f53ce988247af54072d1bbed4c140be4c09a05a3f0fce7f832b1) (relayed, wallet never the sender). The full lifecycle: escrow in and out to the exact wei |

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nightshift-six-lilac.vercel.app/sitemap.xml
+Sitemap: https://nightshiftxyz.vercel.app/sitemap.xml

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://nightshift-six-lilac.vercel.app/</loc></url>
-  <url><loc>https://nightshift-six-lilac.vercel.app/join</loc></url>
-  <url><loc>https://nightshift-six-lilac.vercel.app/nights</loc></url>
-  <url><loc>https://nightshift-six-lilac.vercel.app/start</loc></url>
-  <url><loc>https://nightshift-six-lilac.vercel.app/room</loc></url>
-  <url><loc>https://nightshift-six-lilac.vercel.app/unlock</loc></url>
-  <url><loc>https://nightshift-six-lilac.vercel.app/receipts</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/join</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/nights</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/start</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/room</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/unlock</loc></url>
+  <url><loc>https://nightshiftxyz.vercel.app/receipts</loc></url>
 </urlset>
