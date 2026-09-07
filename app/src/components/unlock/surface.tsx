@@ -63,7 +63,8 @@ export function UnlockSurface({ initialChallenge }: { initialChallenge?: string 
   const doorName = (() => {
     if (!challenge) return "A room";
     const raw = challenge.raw.verifier_id ?? challenge.raw.gate;
-    return typeof raw === "string" && !/^(0x|[0-9])/.test(raw) ? raw : "The room";
+    if (typeof raw !== "string" || /^(0x|[0-9])/.test(raw)) return "The room";
+    return /^TG/i.test(raw) ? "The Telegram door" : "The room";
   })();
 
   return (
@@ -88,9 +89,35 @@ export function UnlockSurface({ initialChallenge }: { initialChallenge?: string 
             </div>
           </div>
 
+          {!initialChallenge ? (
+            <div className="ad-card-rose ad-enter ad-enter-2 flex flex-col gap-4 p-5">
+              <Kicker>Try the live door</Kicker>
+              <ol className="flex flex-col gap-2.5 text-[14px] leading-[1.5] text-ink-2">
+                <li className="flex gap-3">
+                  <span className="ad-mono w-6 shrink-0 text-[12px] text-rose">01</span>
+                  Open the door in Telegram and send it <span className="ad-mono text-ink">/start</span>.
+                </li>
+                <li className="flex gap-3">
+                  <span className="ad-mono w-6 shrink-0 text-[12px] text-rose">02</span>
+                  Tap the link it sends. It lands back here with the door's message filled in.
+                </li>
+                <li className="flex gap-3">
+                  <span className="ad-mono w-6 shrink-0 text-[12px] text-rose">03</span>
+                  One tap signs the proof. Paste it back and the invite arrives.
+                </li>
+              </ol>
+              <a href={BOT} target="_blank" rel="noreferrer" className="ad-pill ad-pill-primary ad-pill-block">
+                Open the door in Telegram ↗
+              </a>
+              <p className="text-[12px] leading-[1.5] text-faint">
+                The live door guards the demo creator's room, so a night with that creator gets you in.
+              </p>
+            </div>
+          ) : null}
+
           {!initialChallenge || parsed?.error ? (
             <div className="flex flex-col gap-2">
-              <Kicker dim>Paste what the door sent</Kicker>
+              <Kicker dim>Or paste what a door sent</Kicker>
               <textarea
                 className="ad-input min-h-[120px] text-[13px]"
                 value={text}

@@ -218,11 +218,11 @@ export function HomeRoute() {
               </div>
               <p className="text-[15px] leading-[1.6] text-dim">
                 Paid Telegram and Discord groups where the member list simply does not exist.
-                Prove you belong at the door; the door learns your tier and nothing else. Live
-                today.
+                Prove you belong at the door; the door learns your tier and nothing else. A live
+                one is open right now at @nightshift_gate_bot.
               </p>
               <Link to="/unlock" className="ad-mono text-[12px] tracking-[0.1em] text-faint uppercase hover:text-ink">
-                Try the live room →
+                Try the live door →
               </Link>
             </div>
             <div className="ad-card ad-card-hover flex flex-col gap-4 p-7 lg:p-8">

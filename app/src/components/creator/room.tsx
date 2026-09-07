@@ -386,9 +386,19 @@ export function RoomSurface() {
             <span>Never identities</span>
             <span className="text-rose">·</span>
             <span>Payday runs itself</span>
-            <Link to="/creator" search={{ creator: creatorId! }} className="ml-auto normal-case tracking-normal text-dim hover:text-ink">
-              The full ledger →
-            </Link>
+            <span className="ml-auto flex flex-wrap gap-x-5 normal-case tracking-normal">
+              <a
+                href="https://github.com/kshitij-hash/nightshift/tree/main/examples/telegram-gate"
+                target="_blank"
+                rel="noreferrer"
+                className="text-dim hover:text-ink"
+              >
+                Put a door on a Telegram room ↗
+              </a>
+              <Link to="/creator" search={{ creator: creatorId! }} className="text-dim hover:text-ink">
+                The full ledger →
+              </Link>
+            </span>
           </div>
         </Column>
       </main>
